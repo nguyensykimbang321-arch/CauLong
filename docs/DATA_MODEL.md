@@ -34,7 +34,7 @@ erDiagram
 |------|--------|
 | `facilities` | Chi nhánh: tên, địa chỉ, timezone, cấu hình hủy đặt (JSON hoặc cột). |
 | `court_types` | Loại: cầu lông, tennis, sân 7, v.v.; metadata (mặt sân, trong nhà/ngoài trời). |
-| `courts` | facility_id, court_type_id, tên, mã, active, optional external_id (cho MQTT map). |
+| `courts` | facility_id, court_type_id, tên, mã, active. |
 
 ### 2.3 Đặt sân
 
@@ -97,10 +97,6 @@ Nguyên tắc: mặc định **chặn**; chỉ mở theo role + scope cơ sở.
 | `inventory_levels` | Chỉ role kho/admin được ghi; khách không thấy. |
 
 Triển khai: middleware xác thực JWT/session, middleware phân quyền role (`admin`, `staff`, `customer`) và kiểm tra `facility_id` trong service layer.
-
-## 5. MQTT (không lưu trong SQL bắt buộc)
-
-Mapping: `courts.external_id` ↔ topic device. Telemetry có thể ghi vào bảng `device_events` sau này nếu cần phân tích.
 
 ---
 

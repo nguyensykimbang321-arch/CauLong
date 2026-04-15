@@ -10,7 +10,6 @@
 | Thanh toán | Giả lập / chuyển khoản thủ công + xác nhận tay; hoặc 1 cổng test | Đầy đủ MoMo + VNPay production |
 | Bán lẻ | Danh mục, giỏ hàng, đơn, trừ kho 1 kho | Đa kho chuyển hàng liên tỉnh |
 | Nhân viên | Đăng nhập, 2–3 role (admin, staff), CRUD sản phẩm/tồn tối thiểu | Phân ca chi tiết, payroll |
-| IoT / MQTT | **Không bắt buộc** — chỉ stub hoặc doc | Tích hợp thật |
 
 ## 2. Kế hoạch sprint (gợi ý 4 sprint × 2 tuần)
 
@@ -57,7 +56,7 @@ Nguyên tắc chia đều:
 | Rủi ro | Tác động | Giảm thiểu |
 |--------|-----------|-----------|
 | Double booking | Trải nghiệm kém, khiếu nại | Transaction MySQL + kiểm tra overlap + Redis TTL hold |
-| Phạm vi creep (MQTT, đa chi nhánh) | Trễ MVP | Ghi rõ “sau MVP” trong backlog |
+| Phạm vi creep (đa chi nhánh, quá nhiều rule giá) | Trễ MVP | Ghi rõ “sau MVP” trong backlog |
 | Thanh toán thật | Rủi ro pháp lý & kỹ thuật | MVP: xác nhận thủ công hoặc sandbox |
 | Đồng bộ tồn kho | Bán quá số lượng | Transaction một bước trừ kho + unique order line |
 

@@ -18,13 +18,10 @@
         │  MySQL   │  │   Redis    │  │  Storage │
         │   (SQL)  │  │ (hold lock)│  │  (S3/R2) │
         └──────────┘  └────────────┘  └──────────┘
-
-  (Optional) Worker ◄──► MQTT Broker ◄──► Thiết bị sân
 ```
 
 - **Luồng chính**: trình duyệt → API Node.js → MySQL.
 - **Luồng giữ chỗ**: API → SET key Redis TTL → commit booking → Xóa key.
-- **Luồng IoT**: thiết bị ↔ MQTT broker; service/worker cập nhật DB hoặc chỉ dashboard vận hành.
 
 ## 2. Quy ước API
 

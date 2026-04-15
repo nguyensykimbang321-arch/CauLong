@@ -12,7 +12,6 @@
 | Cache / khóa | Redis 7+ |
 | Auth | JWT hoặc Session |
 | Package manager | pnpm (khuyến nghị) hoặc npm |
-| IoT (tùy chọn) | MQTT broker: Mosquitto / EMQX |
 
 ## 2. Yêu cầu môi trường
 
@@ -77,16 +76,6 @@ Mở frontend: `http://localhost:5173` (hoặc cổng cấu hình).
 ## 6. Khi chưa có mã nguồn ứng dụng
 
 Thư mục `docs/` mô tả kiến trúc mục tiêu. Bước tiếp theo: khởi tạo `frontend` (React + Vite), `backend` (Node.js + Express/Fastify), cấu hình MySQL + Redis theo `PROJECT_STRUCTURE.md`.
-
-## 7. MQTT cục bộ (tùy chọn)
-
-Nếu cần thử nghiệm broker:
-
-```bash
-docker compose --profile mqtt up -d
-```
-
-Cấu hình `MQTT_URL` trong `.env` và chỉ kết nối từ backend/worker, không từ trình duyệt.
 
 ---
 

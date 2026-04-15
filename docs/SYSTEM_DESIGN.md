@@ -15,8 +15,6 @@
                ├── MySQL 8 (nguồn dữ liệu chính)
                ├── Redis (cache, khóa slot đặt sân)
                └── Object storage (ảnh sản phẩm, hóa đơn)
-
-  (Tùy chọn) MQTT Broker ◄── Thiết bị IoT tại sân
 ```
 
 - **Lớp giao diện**: React SPA cho khách và dashboard nhân viên.
@@ -30,17 +28,6 @@
 |------|-----------|
 | **HTTPS / REST (JSON)** | CRUD đặt sân, sản phẩm, đơn hàng, đăng nhập. |
 | **WebSocket hoặc SSE** (tùy chọn) | Cập nhật lịch sân realtime trên màn hình lễ tân. |
-| **MQTT** | Thiết bị tại sân: đèn, khóa, cảm biến chiếm sân; nhận **lệnh** (bật đèn) và gửi **telemetry** (trạng thái cửa). Không thay thế API chính cho nghiệp vụ booking. |
-
-### 2.1 MQTT — vai trò và nguyên tắc
-
-- **Broker**: Mosquitto hoặc EMQX (self-host) hoặc dịch vụ cloud tương thích MQTT 3.1.1/5.0.
-- **Topic gợi ý** (chuẩn hóa theo `facilityId` / `courtId`):
-  - `facilities/{facilityId}/courts/{courtId}/status` — payload JSON: `{ "occupied": true, "ts": "..." }`
-  - `facilities/{facilityId}/commands/court/{courtId}` — ví dụ bật đèn (chỉ server/backend publish, thiết bị subscribe).
-- **Bảo mật**: TLS, username/password hoặc chứng chỉ client; ACL theo topic; backend là thành phần duy nhất bridge MQTT ↔ DB nếu cần đồng bộ trạng thái.
-
-Luồng tích hợp tương lai: thiết bị gửi sự kiện → worker consume → cập nhật bảng `court_sessions` hoặc cảnh báo “quá giờ”.
 
 ## 3. Luồng nghiệp vụ chính
 
@@ -67,7 +54,6 @@ Luồng tích hợp tương lai: thiết bị gửi sự kiện → worker consu
 | DB | MySQL 8+ |
 | Cache / lock | Redis |
 | Auth | JWT hoặc Session + cookie HTTP-only |
-| MQTT | EMQX / Mosquitto (khi bật module IoT) |
 
 ## 5. An toàn & tuân thủ
 

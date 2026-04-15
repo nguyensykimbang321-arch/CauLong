@@ -32,7 +32,7 @@ CauLong/
 ├── tests/
 │   ├── e2e/
 │   └── unit/
-├── docker-compose.yml       # MySQL + Redis (+ optional mqtt)
+├── docker-compose.yml       # MySQL + Redis
 └── README.md
 ```
 
@@ -62,16 +62,9 @@ CauLong/
 2. Bảo vệ route bằng middleware (kiểm tra session + role).
 3. Tái sử dụng component từ `components/booking` nếu được.
 
-### 3.4 Tích hợp MQTT (sau MVP)
-
-1. Thêm worker hoặc API bridge subscribe topic.
-2. Map `court.external_id` ↔ device id.
-3. Không expose broker ra client trình duyệt.
-
 ## 4. Biến môi trường (ví dụ)
 
 - `MYSQL_URL`, `REDIS_URL`, `JWT_SECRET`
-- `MQTT_URL` (khi bật)
 
 ---
 
