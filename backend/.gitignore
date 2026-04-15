@@ -1,0 +1,52 @@
+# ==========================================
+# 1. THƯ VIỆN BÊN THỨ 3 (TUYỆT ĐỐI KHÔNG PUSH)
+# ==========================================
+node_modules/
+
+# ==========================================
+# 2. BIẾN MÔI TRƯỜNG & BẢO MẬT (RẤT QUAN TRỌNG)
+# ==========================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+# (Lưu ý: Mọi file bắt đầu bằng .env đều bị chặn, trừ file .env.example)
+
+# ==========================================
+# 3. THƯ MỤC BUILD CỦA TYPESCRIPT
+# ==========================================
+dist/
+build/
+
+# ==========================================
+# 4. FILE LOGS CỦA HỆ THỐNG
+# ==========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# 5. CẤU HÌNH CÁ NHÂN CỦA EDITOR (VS CODE, WEBSTORM)
+# ==========================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ==========================================
+# 6. FILE RÁC DO HỆ ĐIỀU HÀNH SINH RA
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 7. THƯ MỤC TEST COVERAGE (Dùng sau này)
+# ==========================================
+coverage/
+.nyc_output/
