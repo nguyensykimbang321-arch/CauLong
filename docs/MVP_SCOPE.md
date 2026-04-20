@@ -1,68 +1,144 @@
-# Phạm vi MVP, sprint và rủi ro
+# Phạm vi MVP & Phân công cụ thể
 
-## 1. MVP — phạm vi cố định
+## 1. Phạm vi MVP
 
-**Trong MVP** (8–10 tuần làm mẫu nhóm 4 người):
+**Thời gian**: 8–10 tuần | **Nhóm**: 4 người
 
-| Hạng mục | Gồm | Không gồm (để sau) |
-|----------|-----|---------------------|
-| Đặt sân | 1 cơ sở, nhiều sân, 2–3 loại (CLB, tennis, sân bóng), slot cố định, giá theo khung giờ | Đa tenant phức tạp, dynamic pricing AI |
-| Thanh toán | Giả lập / chuyển khoản thủ công + xác nhận tay; hoặc 1 cổng test | Đầy đủ MoMo + VNPay production |
-| Bán lẻ | Danh mục, giỏ hàng, đơn, trừ kho 1 kho | Đa kho chuyển hàng liên tỉnh |
-| Nhân viên | Đăng nhập, 2–3 role (admin, staff), CRUD sản phẩm/tồn tối thiểu | Phân ca chi tiết, payroll |
+### 1.1 Những gì LÀM trong MVP
 
-## 2. Kế hoạch sprint (gợi ý 4 sprint × 2 tuần)
+| Hạng mục | Chi tiết |
+|----------|----------|
+| **Nền tảng** | Web (React + Vite) + App (React Native) dùng chung 1 Backend (Node.js + MySQL) |
+| **Đặt sân** | 1 cơ sở, nhiều sân, 2–3 loại sân (cầu lông, tennis, bóng bàn), slot cố định, giá theo khung giờ |
+| **Thanh toán** | Giả lập / chuyển khoản thủ công + xác nhận tay (hoặc 1 cổng sandbox test) |
+| **Bán lẻ** | Danh mục sản phẩm, giỏ hàng, tạo đơn, trừ kho (1 kho duy nhất) |
+| **Nhân viên** | Đăng nhập, 2–3 role (admin, staff, customer), CRUD cơ bản |
 
-### Sprint 1 — Nền tảng
+### 1.2 Những gì KHÔNG LÀM trong MVP (để sau)
 
-- Khởi tạo repo, CI, môi trường dev.
-- Auth cơ bản, layout, DB schema lõi (`users`, `facilities`, `courts`).
-- Trang danh sách sân + lịch đọc được (chưa thanh toán).
+- Đa cơ sở / multi-tenant
+- Dynamic pricing bằng AI
+- Tích hợp MoMo / VNPay production
+- Đa kho, chuyển hàng liên tỉnh
+- Phân ca chi tiết, bảng lương (payroll)
+- Push notification phức tạp
 
-### Sprint 2 — Booking
+---
 
-- API slot, chống trùng (transaction/lock).
-- Luồng đặt: chọn giờ → xác nhận → trạng thái đơn booking.
-- Dashboard staff: xem lịch.
+## 2. Phân chia nền tảng
 
-### Sprint 3 — Retail + kho
+| Nền tảng | Vai trò | Người phụ trách |
+|----------|---------|-----------------|
+| **Web** (React + Vite) | Admin + Staff Dashboard — quản lý, điều hành | **W1, W2** (2 người) |
+| **App** (React Native) | Customer App — trải nghiệm khách hàng | **A1, A2** (2 người) |
+| **Backend** (Node.js) | API dùng chung cho cả Web và App | Chia đều cho 4 người theo domain |
 
-- Sản phẩm, biến thể, đơn hàng, trừ tồn.
-- Trang bán hàng đơn giản (có thể tách POS tối giản).
+---
 
-### Sprint 4 — Hoàn thiện & cứng hóa
+## 3. Phân công cụ thể — 4 thành viên
 
-- Báo cáo doanh thu cơ bản.
-- Tăng cường phân quyền ở tầng API + middleware.
-- Test E2E chính, README, demo.
+### W1 — Web: Quản lý Sân & Lịch đặt
 
-## 3. Phân công 4 người (chia đều frontend + backend theo module)
+**Phụ trách:** Giao diện admin quản lý sân bãi + lịch đặt + Backend liên quan
 
-| Thành viên | Module sở hữu (fullstack) | Phạm vi công việc |
-|------------|----------------------------|-------------------|
-| **A** | **Auth + User Profile** | React: login/register/profile; Node.js: auth API, JWT/session, refresh token, bảo mật endpoint. |
-| **B** | **Booking (đặt sân)** | React: lịch sân, chọn slot, quản lý booking; Node.js: availability, hold slot, tạo/hủy booking, chống double booking. |
-| **C** | **Shop + Inventory** | React: catalog, cart, order UI; Node.js: products/orders API, trừ tồn kho, inventory movement. |
-| **D** | **Staff Dashboard + Reports** | React: trang nhân viên, bảng điều khiển; Node.js: API báo cáo doanh thu, quản lý đơn/sân cho staff, audit log. |
+| STT | Phần | Công việc | Mô tả |
+|-----|------|-----------|-------|
+| | **Web** | | |
+| 1 | | Quản lý sân bãi | CRUD sân, giá theo khung giờ, trạng thái sân (đang sửa / đang dùng) |
+| 2 | | Quản lý lịch đặt | Calendar view toàn bộ sân, duyệt / hủy booking, phát hiện trùng lịch |
+| 3 | | Cấu hình hệ thống | Giá sân theo giờ, chính sách hủy, cài đặt khuyến mãi |
+| 4 | | Dashboard (phần booking) | Thống kê booking hôm nay, tỷ lệ lấp sân |
+| | **Backend** | | |
+| 5 | | Module Facilities & Courts | API CRUD cơ sở, sân, loại sân, giá theo khung giờ |
+| 6 | | Module Booking | API availability, hold slot (Redis), tạo/hủy booking, chống trùng lịch |
 
-Nguyên tắc chia đều:
+### W2 — Web: Quản lý Bán hàng & Vận hành
 
-- Mỗi người làm **1 module end-to-end**: vừa frontend, vừa backend, vừa DB migration liên quan module đó.
-- Review chéo theo cặp: A review C, B review D (luân phiên mỗi sprint).
-- Mỗi sprint, ai cũng có user story React + Node.js để không lệch kỹ năng.
+**Phụ trách:** Giao diện admin quản lý bán hàng, nhân viên, báo cáo + Backend liên quan
 
-## 4. Rủi ro và giảm thiểu
+| STT | Phần | Công việc | Mô tả |
+|-----|------|-----------|-------|
+| | **Web** | | |
+| 1 | | Quản lý sản phẩm | CRUD sản phẩm (vợt, quần áo, cầu…), variant, cập nhật giá |
+| 2 | | Quản lý kho | Nhập hàng, xem tồn kho, điều chỉnh số lượng |
+| 3 | | Quản lý đơn hàng | Danh sách đơn, cập nhật trạng thái (xác nhận / hoàn thành) |
+| 4 | | Quản lý nhân viên | Tài khoản nhân viên, phân quyền (admin, staff) |
+| 5 | | Báo cáo & thống kê | Doanh thu theo ngày/tháng, sản phẩm bán chạy, khách hàng VIP |
+| | **Backend** | | |
+| 6 | | Module Products | API CRUD sản phẩm, variants, danh mục |
+| 7 | | Module Inventory | API tồn kho, nhập hàng, trừ kho, điều chỉnh |
+| 8 | | Module Reports | API doanh thu, thống kê tổng hợp |
+
+### A1 — App: Đặt sân & Tài khoản
+
+**Phụ trách:** App khách hàng — luồng đặt sân, tài khoản + Backend liên quan
+
+| STT | Phần | Công việc | Mô tả |
+|-----|------|-----------|-------|
+| | **App** | | |
+| 1 | | Đăng ký / Đăng nhập | Auth trên app (login, register, quên mật khẩu) |
+| 2 | | Đặt sân | Xem sân trống theo thời gian → chọn slot → giữ chỗ → xác nhận |
+| 3 | | Lịch cá nhân | Lịch đã đặt, nhắc lịch, xem chi tiết booking |
+| 4 | | Tài khoản cá nhân | Profile, lịch sử đặt sân, điểm tích lũy |
+| 5 | | QR / Check-in | Quét mã khi tới sân, xác nhận có mặt |
+| | **Backend** | | |
+| 6 | | Module Auth | API đăng ký, đăng nhập, JWT, refresh token, middleware xác thực |
+| 7 | | Module Users | API profile, cập nhật thông tin, lịch sử hoạt động |
+
+### A2 — App: Mua hàng & Thanh toán
+
+**Phụ trách:** App khách hàng — luồng mua hàng, thanh toán + Backend liên quan
+
+| STT | Phần | Công việc | Mô tả |
+|-----|------|-----------|-------|
+| | **App** | | |
+| 1 | | Xem sản phẩm | Catalog sản phẩm, chi tiết, tìm kiếm |
+| 2 | | Giỏ hàng | Thêm / xóa / cập nhật số lượng |
+| 3 | | Checkout & Đơn hàng | Tạo đơn, xem trạng thái, lịch sử mua hàng |
+| 4 | | Thanh toán | Chọn phương thức, xác nhận thanh toán |
+| 5 | | Notification | Nhắc giờ chơi, xác nhận booking, thông báo khuyến mãi |
+| | **Backend** | | |
+| 6 | | Module Orders | API tạo đơn, cập nhật trạng thái, lịch sử đơn hàng |
+| 7 | | Module Payments | API tạo payment intent, xem trạng thái, webhook thanh toán |
+
+---
+
+## 4. Tổng hợp phân công
+
+| Thành viên | Frontend | Backend |
+|------------|----------|---------|
+| **W1** | Web — Quản lý sân, lịch đặt, cấu hình | facilities, courts, booking |
+| **W2** | Web — Quản lý bán hàng, nhân viên, báo cáo | products, inventory, reports |
+| **A1** | App — Đặt sân, lịch cá nhân, tài khoản, QR | auth, users |
+| **A2** | App — Mua hàng, thanh toán, notification | orders, payments |
+
+### Nguyên tắc phối hợp
+
+- **Web (W1 + W2)** → Admin/Staff Dashboard, quản lý và vận hành
+- **App (A1 + A2)** → Customer App, trải nghiệm khách hàng
+- Backend chia theo domain: mỗi người làm API cho phần mình phụ trách
+- API contract (request/response) phải thống nhất trước khi code
+- Review PR chéo: W1 ↔ A1 (nhóm booking), W2 ↔ A2 (nhóm commerce)
+
+---
+
+## 5. Rủi ro và cách giảm thiểu
 
 | Rủi ro | Tác động | Giảm thiểu |
-|--------|-----------|-----------|
-| Double booking | Trải nghiệm kém, khiếu nại | Transaction MySQL + kiểm tra overlap + Redis TTL hold |
-| Phạm vi creep (đa chi nhánh, quá nhiều rule giá) | Trễ MVP | Ghi rõ “sau MVP” trong backlog |
-| Thanh toán thật | Rủi ro pháp lý & kỹ thuật | MVP: xác nhận thủ công hoặc sandbox |
-| Đồng bộ tồn kho | Bán quá số lượng | Transaction một bước trừ kho + unique order line |
+|--------|----------|------------|
+| Trùng lịch đặt sân (double booking) | Khiếu nại khách hàng | Transaction MySQL + overlap check + Redis TTL hold |
+| Web / App lệch API contract | Bug khó debug | Thống nhất contract trước, dùng shared types nếu cần |
+| Hai người backend đụng migration | Conflict DB | Mỗi người prefix migration riêng, sync trước khi merge |
+| Bán quá số lượng tồn kho | Sai dữ liệu | Transaction trừ kho + unique constraint |
+| Thanh toán thật gây rủi ro | Pháp lý & kỹ thuật | MVP chỉ dùng sandbox / xác nhận tay |
 
-## 5. Tiêu chí hoàn thành MVP
+---
 
-- Khách đặt được sân và nhận trạng thái rõ ràng.
-- Staff xem được lịch và xác nhận đơn.
-- Mua được ít nhất một sản phẩm và tồn kho giảm đúng.
-- Repo có `GETTING_STARTED.md` chạy được trên máy dev trong &lt; 30 phút (máy đã cài Node, Docker nếu cần).
+## 6. Tiêu chí hoàn thành MVP
+
+- [ ] Khách đặt được sân trên **app** (luồng hoàn chỉnh: chọn sân → đặt → xác nhận)
+- [ ] Staff duyệt / hủy booking trên **web**
+- [ ] Khách mua được hàng trên **app** và tồn kho giảm đúng
+- [ ] Staff quản lý sản phẩm / kho / đơn hàng trên **web**
+- [ ] Dashboard admin hiển thị thống kê cơ bản
+- [ ] Repo có `GETTING_STARTED.md` chạy được trên máy dev trong < 30 phút

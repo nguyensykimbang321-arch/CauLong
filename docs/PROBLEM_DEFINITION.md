@@ -2,7 +2,7 @@
 
 ## 1. Tổng quan
 
-Xây dựng **nền tảng web** phục vụ các cơ sở thể thao (cầu lông, tennis, bóng đá, pickleball, v.v.) cho phép:
+Xây dựng **nền tảng gồm web và ứng dụng di động** (cùng một backend Node.js) phục vụ các cơ sở thể thao (cầu lông, tennis, bóng đá, pickleball, v.v.) cho phép:
 
 - **Đặt sân / thuê sân** theo khung giờ, loại sân, chi nhánh.
 - **Bán lẻ** thiết bị và phụ kiện (vợt, cầu/bóng, giày, quần áo, băng keo, túi đựng, v.v.).

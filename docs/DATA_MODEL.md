@@ -15,6 +15,8 @@ erDiagram
   products ||--o{ product_variants : has
   product_variants ||--o{ order_items : "line items"
   orders ||--o{ order_items : contains
+  payments ||--o| bookings : for_booking
+  payments ||--o| orders : for_order
   warehouses ||--o{ inventory_levels : tracks
   product_variants ||--o{ inventory_levels : stock
 ```
@@ -73,6 +75,12 @@ erDiagram
 |------|--------|
 | `audit_logs` | actor_user_id, action, entity_type, entity_id, payload JSON, created_at. |
 
+### 2.8 Thanh toán (dùng chung cho booking và shop — thường do nhóm **group-commerce**)
+
+| Bảng | Mô tả |
+|------|--------|
+| `payments` | provider (`manual_transfer`, `sandbox`, …), status, amount_cents, `booking_id` nullable, `order_id` nullable, provider_ref, metadata JSON, timestamps. |
+
 ## 3. Index gợi ý (MySQL)
 
 - `booking_slots (court_id, start_at, end_at)` — truy vấn chồng lấn (overlap) nhanh.
@@ -84,6 +92,7 @@ erDiagram
 - `orders (facility_id, created_at DESC)` — báo cáo.
 - `product_variants (sku)` — UNIQUE.
 - `users (email)` — UNIQUE.
+- `payments (booking_id, status)`, `payments (order_id, status)` — tra cứu theo đơn.
 
 ## 4. Phân quyền dữ liệu ở tầng ứng dụng (Node.js)
 

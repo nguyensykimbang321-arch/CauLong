@@ -5,8 +5,9 @@
 | Lớp | Công nghệ |
 |-----|-----------|
 | Ngôn ngữ | TypeScript |
-| Frontend | React + Vite |
-| Backend | Node.js + Express/Fastify |
+| Web | React + Vite |
+| App | React Native (Expo hoặc CLI) |
+| Backend | Node.js + Express/Fastify (API dùng chung cho web + app) |
 | ORM/Query | Drizzle / Knex / TypeORM (chọn 1) |
 | CSDL | MySQL 8+ |
 | Cache / khóa | Redis 7+ |
@@ -17,6 +18,7 @@
 
 - **Node.js** 20 LTS trở lên
 - **Docker Desktop** (để chạy MySQL + Redis local) — khuyến nghị
+- **App**: Android Studio (Android) và/hoặc Xcode (iOS) nếu build native; với Expo có thể dùng Expo Go
 - Git
 
 ## 3. Cài đặt nhanh (sau khi có code trong repo)
@@ -54,7 +56,7 @@ Chạy dev server:
 pnpm dev
 ```
 
-Mở frontend: `http://localhost:5173` (hoặc cổng cấu hình).
+Mở **web**: `http://localhost:5173` (hoặc cổng cấu hình). Chạy **app** theo hướng dẫn trong `apps/mobile` (ví dụ `pnpm --filter mobile start` hoặc `npx expo start`).
 
 ## 4. Biến môi trường thường gặp
 
@@ -64,6 +66,8 @@ Mở frontend: `http://localhost:5173` (hoặc cổng cấu hình).
 | `REDIS_URL` | Chuỗi kết nối Redis |
 | `JWT_SECRET` | Ký access token |
 | `API_PORT` | Cổng backend Node.js |
+| `VITE_API_BASE_URL` | Web trỏ tới API (vd `http://localhost:4000/api/v1`) |
+| `EXPO_PUBLIC_API_BASE_URL` | App (Expo) trỏ tới API; máy thật dùng IP LAN thay `localhost` |
 
 ## 5. Lệnh hữu ích
 
@@ -75,7 +79,7 @@ Mở frontend: `http://localhost:5173` (hoặc cổng cấu hình).
 
 ## 6. Khi chưa có mã nguồn ứng dụng
 
-Thư mục `docs/` mô tả kiến trúc mục tiêu. Bước tiếp theo: khởi tạo `frontend` (React + Vite), `backend` (Node.js + Express/Fastify), cấu hình MySQL + Redis theo `PROJECT_STRUCTURE.md`.
+Thư mục `docs/` mô tả kiến trúc mục tiêu. Bước tiếp theo: khởi tạo `apps/web` (React + Vite), `apps/mobile` (React Native), `backend` (Node.js), cấu hình MySQL + Redis theo `PROJECT_STRUCTURE.md`.
 
 ---
 

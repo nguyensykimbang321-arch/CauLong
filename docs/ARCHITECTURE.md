@@ -3,25 +3,34 @@
 ## 1. Kiến trúc chi tiết
 
 ```
-                    ┌─────────────────┐
-                    │    React UI     │
-                    │   (Vite SPA)    │
-                    └────────┬────────┘
-                             │ HTTPS
-                    ┌────────▼────────┐
-                    │   Node.js API   │
-                    │ Express/Fastify │
-                    └────────┬────────┘
-              ┌──────────────┼──────────────┐
-              ▼              ▼              ▼
-        ┌──────────┐  ┌────────────┐  ┌──────────┐
-        │  MySQL   │  │   Redis    │  │  Storage │
-        │   (SQL)  │  │ (hold lock)│  │  (S3/R2) │
-        └──────────┘  └────────────┘  └──────────┘
+     ┌────────────────────┐          ┌────────────────────┐
+     │  Web — React (Vite) │          │ App — React Native │
+     └──────────┬─────────┘          └──────────┬─────────┘
+                │ HTTPS / JSON                 │ HTTPS / JSON
+                └──────────────┬───────────────┘
+                               ▼
+                    ┌────────────────────┐
+                    │   Node.js API      │
+                    │  Express/Fastify   │  ← một codebase, mount theo domain
+                    └──────────┬─────────┘
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        ┌──────────┐   ┌────────────┐   ┌──────────┐
+        │  MySQL   │   │   Redis    │   │  Storage │
+        └──────────┘   └────────────┘   └──────────┘
 ```
 
-- **Luồng chính**: trình duyệt → API Node.js → MySQL.
+- **Luồng chính**: Web hoặc App → **cùng** API Node.js → MySQL.
 - **Luồng giữ chỗ**: API → SET key Redis TTL → commit booking → Xóa key.
+
+### 1.1 Chia tách trách nhiệm theo client (tóm tắt)
+
+| Client | Gọi API giống nhau | Gợi ý phần UI đảm nhiệm |
+|--------|--------------------|-------------------------|
+| **Web** | `/api/v1/*` | Khách đặt sân trên browser; staff/admin: lịch tổng, duyệt booking, báo cáo, CRUD kho/sản phẩm. |
+| **App** | `/api/v1/*` | Khách: đặt sân nhanh, lịch của tôi; shop, giỏ, đơn trên điện thoại. |
+
+**Auth**: nên thống nhất **JWT Bearer** cho cả web và app (dễ chia sẻ client); web có thể thêm refresh cookie nếu cần.
 
 ## 2. Quy ước API
 
@@ -84,6 +93,14 @@
 |--------|------|--------|
 | GET | `/reports/revenue` | Query: `from`, `to`, `facilityId` |
 
+### 3.7 Thanh toán (payments)
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| POST | `/payments/intents` | Tạo yêu cầu thanh toán cho `bookingId` hoặc `orderId` |
+| GET | `/payments/:id` | Xem trạng thái thanh toán |
+| POST | `/payments/webhook` | Webhook từ cổng thanh toán (server-to-server) |
+
 ## 4. Luồng dữ liệu — đặt sân
 
 1. Client `GET /availability` → server đọc `booking_slots` + rule giá → trả slot.
@@ -98,7 +115,7 @@
 
 ## 6. Công nghệ (tham chiếu)
 
-React (Vite), TypeScript, Node.js (Express/Fastify), MySQL, Redis; hosting: VPS/Docker hoặc các nền tảng cloud tương thích.
+Web: React (Vite); App: React Native; API: Node.js (Express/Fastify), MySQL, Redis; hosting: VPS/Docker hoặc cloud (API + web tách domain; app trỏ `API_BASE_URL`).
 
 ---
 
