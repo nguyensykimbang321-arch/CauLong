@@ -1,82 +1,61 @@
-# Cấu trúc thư mục & hướng dẫn mở rộng
+# 🏗️ Kiến trúc & Cấu trúc mã nguồn (Project Structure)
 
-## 1. Cấu trúc đề xuất (monorepo: Web + App + Backend dùng chung)
+Dự án này sử dụng mô hình **Monorepo**, chứa cả Backend, Web Admin và Mobile App trong cùng một kho lưu trữ (repository) để dễ dàng đồng bộ code và quản lý phiên bản.
 
+## 1. Cấu trúc Tổng thể (Monorepo)
+
+```text
+thethaovip-monorepo/
+├── backend/          # API Server (Node.js, Express, Sequelize, MySQL)
+├── web-admin/        # Dashboard Quản lý (React, Vite, Tailwind, AntD)
+├── customer-app/     # Ứng dụng Khách hàng (React Native, Expo)
+├── docs/             # Tài liệu dự án
+└── README.md         # Hướng dẫn chạy dự án ban đầu
 ```
-CauLong/
-├── docs/
-├── backend/                      # Node.js API dùng chung (một server)
-│   ├── src/
-│   │   ├── modules/
-│   │   │   ├── auth/            # A1: đăng ký, đăng nhập, JWT
-│   │   │   ├── users/           # A1: profile, lịch sử
-│   │   │   ├── facilities/      # W1: cơ sở, sân, loại sân
-│   │   │   ├── booking/         # W1: availability, hold, booking CRUD
-│   │   │   ├── products/        # W2: sản phẩm, variants, danh mục
-│   │   │   ├── inventory/       # W2: tồn kho, nhập hàng
-│   │   │   ├── orders/          # A2: đơn hàng, trạng thái
-│   │   │   ├── payments/        # A2: thanh toán, webhook
-│   │   │   └── reports/         # W2: doanh thu, thống kê
-│   │   ├── middlewares/
-│   │   ├── db/
-│   │   │   ├── migrations/
-│   │   │   └── seeds/
-│   │   └── app.ts
-│   └── package.json
-├── apps/
-│   ├── web/                      # React + Vite — Admin + Staff Dashboard
-│   │   ├── src/
-│   │   │   ├── court-management/ # W1: quản lý sân, lịch đặt, cấu hình
-│   │   │   ├── commerce/        # W2: sản phẩm, kho, đơn hàng, nhân viên
-│   │   │   ├── dashboard/       # W1 + W2: tổng quan, báo cáo
-│   │   │   └── shared/          # Layout, auth, components dùng chung
-│   │   └── package.json
-│   └── mobile/                     # React Native — Customer App
-│       ├── src/
-│       │   ├── booking/          # A1: đặt sân, lịch, QR check-in
-│       │   ├── shop/             # A2: mua hàng, giỏ, thanh toán
-│       │   ├── account/          # A1: tài khoản, profile
-│       │   └── shared/           # Navigation, auth, components dùng chung
-│       └── package.json
-├── packages/                       # (tuỳ chọn) types, API client sinh từ OpenAPI
-│   └── shared-types/
-├── tests/
-├── docker-compose.yml              # MySQL + Redis
-└── README.md
-```
-
-Tên thư mục `booking` / `commerce` phản ánh đúng domain nghiệp vụ. Xem chi tiết phân công trong `MVP_SCOPE.md`.
-
-## 2. Nguyên tắc tổ chức code
-
-- **Một API**, nhiều client: web và app chỉ khác UI; không fork backend.
-- **Chia backend theo module riêng biệt** để 4 người ít conflict merge (xem `MVP_SCOPE.md`).
-- **`apps/web`** và **`apps/mobile`**: có thể dùng chung hook pattern (React Query / tương đương) với `API_BASE_URL`.
-- SQL chỉ trong `backend` (repository/service), không trong component UI.
-
-## 3. Thêm tính năng mới
-
-### 3.1 Thêm loại sân mới
-
-1. Seed hoặc admin CRUD `court_types` (thuộc module **booking** + UI staff web).
-2. Cập nhật filter trên **app khách** nếu hiển thị loại sân.
-
-### 3.2 Thêm API
-
-1. Xác định module thuộc ai phụ trách (W1/W2/A1/A2) — xem `MVP_SCOPE.md`.
-2. Implement route → service → DB; cập nhật `ARCHITECTURE.md` nếu là endpoint công khai.
-
-### 3.3 Thêm màn hình trên cả Web và App
-
-1. Làm contract API trước (request/response).
-2. Implement song song: một PR backend (nếu cần) + hai PR front (web + app) hoặc gộp theo feature flag nhỏ.
-
-## 4. Biến môi trường (ví dụ)
-
-- **Backend**: `MYSQL_URL`, `REDIS_URL`, `JWT_SECRET`, `API_PORT`
-- **Web**: `VITE_API_BASE_URL`
-- **App**: `EXPO_PUBLIC_API_BASE_URL` hoặc tương đương (Expo)
 
 ---
 
-*Giữ naming feature giống nhau giữa web và app (ví dụ `BookingListScreen` / `BookingListPage`) để đồng đội khi review.*
+## 2. Quy tắc Tổ chức Thư mục Frontend (Web & App)
+
+Cả `web-admin` và `customer-app` đều tuân thủ chặt chẽ kiến trúc **Feature-Sliced Design (Chia theo tính năng)**. 
+
+Thay vì gom tất cả API vào một chỗ, tất cả Component vào một chỗ, chúng ta sẽ **gom mọi thứ liên quan đến 1 nghiệp vụ vào 1 thư mục riêng biệt**.
+
+### Cấu trúc chi tiết bên trong `src/`:
+
+```text
+src/
+├── app/ (hoặc routes/) # Nơi định nghĩa các đường dẫn (Router), KHÔNG chứa logic code ở đây.
+├── components/         # Các UI dùng CHUNG toàn dự án (VD: Nút bấm chuẩn, Popup thông báo).
+├── config/             # Cấu hình môi trường, Axios instance.
+├── utils/              # Các hàm dùng chung (VD: format tiền tệ, format ngày tháng).
+├── types/              # Các Interface dùng chung.
+│
+└── features/           # 🚀 NƠI CODE CHÍNH (Chiếm 90% thời gian code)
+    ├── auth/           # VD: Nghiệp vụ Đăng nhập/Phân quyền
+    ├── booking/        # VD: Nghiệp vụ Đặt sân (Bạn W1 / A1 code ở đây)
+    ├── commerce/       # VD: Nghiệp vụ Mua hàng (Bạn W2 / A2 code ở đây)
+    └── ...
+```
+
+### Cấu trúc bên trong một `feature`:
+Bất kỳ một thư mục nghiệp vụ nào (VD: `features/booking/`) cũng sẽ có cấu trúc như sau:
+
+```text
+features/booking/
+├── components/         # Các UI chỉ phục vụ cho việc đặt sân (VD: BookingCalendar.tsx).
+├── services/           # Chứa các hàm Axios gọi API liên quan đến đặt sân.
+├── store/              # Chứa Zustand store để quản lý state (nếu cần).
+└── types/              # Khai báo TypeScript interface riêng cho đặt sân.
+```
+
+---
+
+## 3. Quy tắc Code (Luật của Team) - ⚠️ BẮT BUỘC ĐỌC
+
+1. **Nước giếng không phạm nước sông:** Code của ai làm ở feature người đó. Hạn chế tối đa việc chỉnh sửa code trong feature của người khác để tránh Merge Conflict.
+2. **Không import chéo giữa các Feature:**
+   - ❌ Sai: `features/booking/components/BookingForm.tsx` import một hàm từ `features/commerce/services/api.ts`.
+   - ✅ Đúng: Nếu có một hàm/UI mà cả 2 feature cùng cần, hãy chuyển nó ra thư mục `src/utils/` hoặc `src/components/` (vùng dùng chung).
+3. **Luôn dùng TypeScript Interface:**
+   - Không dùng `any`. Mọi response từ API đều phải được định nghĩa Interface rõ ràng trong folder `types/`.
