@@ -1,8 +1,7 @@
 import { Router } from "express";
-
-// Import các nhánh Route
 import clientAuthRouter from "./client/auth.routes.js";
-import adminAuthRouter from "./client/auth.routes.js";
+import adminAuthRouter from "./admin/auth.routes.js";
+import adminFacilityRouter from "./client/facility.route.js";
 
 
 const rootRouter = Router();
@@ -20,6 +19,6 @@ rootRouter.use('/app/auth', clientAuthRouter);
 // Endpoint: /api/v1/admin/...
 // ==========================================
 rootRouter.use('/admin/auth', adminAuthRouter);
-// Sau này có: rootRouter.use('/admin/facilities', verifyToken, requireRoles(['admin']), adminFacilityRouter);
+rootRouter.use('/admin/facilities', adminFacilityRouter);
 
 export default rootRouter;

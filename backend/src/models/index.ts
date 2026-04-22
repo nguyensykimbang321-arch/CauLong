@@ -67,9 +67,9 @@ const models = {
     BookingSlot,
     Product,
     ProductVariant,
-    Order,          // Đã bổ sung
-    OrderItem,      // Đã bổ sung
-    InventoryLevel  // Đã bổ sung
+    Order,          
+    OrderItem,      
+    InventoryLevel  
 };
 
 export default models;
