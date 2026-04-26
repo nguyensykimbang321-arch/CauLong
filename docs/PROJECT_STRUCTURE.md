@@ -1,84 +1,82 @@
-# 🏗️ Kiến trúc & Cấu trúc mã nguồn (Project Structure)
+# Cấu trúc thư mục & hướng dẫn mở rộng
 
-Dự án này sử dụng mô hình **Monorepo**, chứa toàn bộ mã nguồn Backend, Web Admin và Mobile App trong cùng một kho lưu trữ (repository). Điều này giúp team dễ dàng đồng bộ code, chia sẻ các Interface (Kiểu dữ liệu) và quản lý phiên bản.
+## 1. Cấu trúc đề xuất (monorepo: Web + App + Backend dùng chung)
+
+```
+CauLong/
+├── docs/
+├── backend/                      # Node.js API dùng chung (một server)
+│   ├── src/
+│   │   ├── modules/
+│   │   │   ├── auth/            # A1: đăng ký, đăng nhập, JWT
+│   │   │   ├── users/           # A1: profile, lịch sử
+│   │   │   ├── facilities/      # W1: cơ sở, sân, loại sân
+│   │   │   ├── booking/         # W1: availability, hold, booking CRUD
+│   │   │   ├── products/        # W2: sản phẩm, variants, danh mục
+│   │   │   ├── inventory/       # W2: tồn kho, nhập hàng
+│   │   │   ├── orders/          # A2: đơn hàng, trạng thái
+│   │   │   ├── payments/        # A2: thanh toán, webhook
+│   │   │   └── reports/         # W2: doanh thu, thống kê
+│   │   ├── middlewares/
+│   │   ├── db/
+│   │   │   ├── migrations/
+│   │   │   └── seeds/
+│   │   └── app.ts
+│   └── package.json
+├── apps/
+│   ├── web/                      # React + Vite — Admin + Staff Dashboard
+│   │   ├── src/
+│   │   │   ├── court-management/ # W1: quản lý sân, lịch đặt, cấu hình
+│   │   │   ├── commerce/        # W2: sản phẩm, kho, đơn hàng, nhân viên
+│   │   │   ├── dashboard/       # W1 + W2: tổng quan, báo cáo
+│   │   │   └── shared/          # Layout, auth, components dùng chung
+│   │   └── package.json
+│   └── mobile/                     # React Native — Customer App
+│       ├── src/
+│       │   ├── booking/          # A1: đặt sân, lịch, QR check-in
+│       │   ├── shop/             # A2: mua hàng, giỏ, thanh toán
+│       │   ├── account/          # A1: tài khoản, profile
+│       │   └── shared/           # Navigation, auth, components dùng chung
+│       └── package.json
+├── packages/                       # (tuỳ chọn) types, API client sinh từ OpenAPI
+│   └── shared-types/
+├── tests/
+├── docker-compose.yml              # MySQL + Redis
+└── README.md
+```
+
+Tên thư mục `booking` / `commerce` phản ánh đúng domain nghiệp vụ. Xem chi tiết phân công trong `MVP_SCOPE.md`.
+
+## 2. Nguyên tắc tổ chức code
+
+- **Một API**, nhiều client: web và app chỉ khác UI; không fork backend.
+- **Chia backend theo module riêng biệt** để 4 người ít conflict merge (xem `MVP_SCOPE.md`).
+- **`apps/web`** và **`apps/mobile`**: có thể dùng chung hook pattern (React Query / tương đương) với `API_BASE_URL`.
+- SQL chỉ trong `backend` (repository/service), không trong component UI.
+
+## 3. Thêm tính năng mới
+
+### 3.1 Thêm loại sân mới
+
+1. Seed hoặc admin CRUD `court_types` (thuộc module **booking** + UI staff web).
+2. Cập nhật filter trên **app khách** nếu hiển thị loại sân.
+
+### 3.2 Thêm API
+
+1. Xác định module thuộc ai phụ trách (W1/W2/A1/A2) — xem `MVP_SCOPE.md`.
+2. Implement route → service → DB; cập nhật `ARCHITECTURE.md` nếu là endpoint công khai.
+
+### 3.3 Thêm màn hình trên cả Web và App
+
+1. Làm contract API trước (request/response).
+2. Implement song song: một PR backend (nếu cần) + hai PR front (web + app) hoặc gộp theo feature flag nhỏ.
+
+## 4. Biến môi trường (ví dụ)
+
+- **Backend**: `MYSQL_URL`, `REDIS_URL`, `JWT_SECRET`, `API_PORT`
+- **Web**: `VITE_API_BASE_URL`
+- **App**: `EXPO_PUBLIC_API_BASE_URL` hoặc tương đương (Expo)
 
 ---
 
-## 1. Cấu trúc Tổng thể (Monorepo)
-
-```text
-thethaovip-monorepo/
-├── backend/          # API Server (Node.js, Express, Sequelize, MySQL)
-├── web-admin/        # Dashboard Quản lý (React, Vite, Tailwind, AntD)
-├── customer-app/     # Ứng dụng Khách hàng (React Native, Expo)
-├── docs/             # Tài liệu dự án (Kiến trúc, API, Workflow)
-├── shared/           # (Tùy chọn) Chứa các TS Interfaces dùng chung cho cả BE và FE
-└── README.md         # Hướng dẫn khởi chạy dự án ban đầu
-```
-
----
-
-## 2. Cấu trúc Backend (Node.js + Express)
-
-Backend được tổ chức theo mô hình **Layered Architecture (Kiến trúc phân lớp)** kết hợp với chuẩn thiết kế Service Pattern. Điều này giúp tách biệt rõ ràng giữa việc nhận Request và xử lý Logic.
-
-```text
-backend/
-├── src/
-│   ├── config/        # Cấu hình hệ thống (Kết nối DB Aiven, Cloudinary,...)
-│   ├── controllers/   # Tiếp nhận Request từ FE, gọi Service và trả về Response JSON
-│   ├── middlewares/   # Lớp bảo vệ (Kiểm tra Token JWT, Bắt lỗi Zod, Phân quyền)
-│   ├── models/        # Khai báo cấu trúc bảng CSDL (Sequelize Models: User, Court...)
-│   ├── routes/        # Định nghĩa các API endpoints (GET, POST, PUT, DELETE)
-│   ├── seeders/       # Dữ liệu mầm để test (Tài khoản Admin, Danh sách sân)
-│   ├── services/      # 🧠 Nơi chứa LOGIC CHÍNH (Thao tác DB, tính toán tiền, check trùng lịch)
-│   └── utils/         # Các hàm tiện ích dùng chung (Mã hóa mật khẩu, Format thời gian)
-├── server.ts          # Điểm khởi chạy gốc của toàn bộ Server
-└── package.json
-```
-**Quy tắc luồng chạy Backend:** `Route` ➡️ `Middleware (Validate/Auth)` ➡️ `Controller` ➡️ `Service (Logic)` ➡️ `Model (Database)` ➡️ Trả về `Controller` ➡️ Gửi về `Frontend`.
-
----
-
-## 3. Cấu trúc Frontend (Web Admin & Customer App)
-
-Cả `web-admin` và `customer-app` đều tuân thủ chặt chẽ kiến trúc **Feature-Sliced Design (Chia theo tính năng)**. Mọi thứ liên quan đến 1 nghiệp vụ sẽ được đóng gói vào 1 thư mục riêng để chia việc dễ dàng.
-
-```text
-src/
-├── app/ (hoặc routes/) # Nơi định nghĩa các đường dẫn (Router), KHÔNG chứa logic code.
-├── components/         # Các UI Component dùng CHUNG (VD: CustomButton, LoadingSpinner).
-├── config/             # Cấu hình môi trường, Axios instance (có gắn sẵn Token).
-├── layouts/            # Cấu trúc khung trang (VD: AdminLayout chứa Sidebar + Header).
-├── utils/              # Các hàm dùng chung (VD: format tiền VNĐ, xử lý ngày tháng).
-│
-└── features/           # 🚀 NƠI CODE CHÍNH (Từng thành viên nhận thư mục riêng)
-    ├── auth/           # Login, Register, Quản lý Token
-    ├── booking/        # Đặt sân, Duyệt lịch, Tính tiền (Bạn W1 / A1 code)
-    ├── commerce/       # Sản phẩm, Giỏ hàng, Tồn kho (Bạn W2 / A2 code)
-    └── staff/          # Quản lý nhân viên, Phân quyền
-```
-
-**Cấu trúc bên trong một `feature` (Ví dụ: `features/booking/`):**
-```text
-features/booking/
-├── components/         # Các Component chỉ dùng cho đặt sân (VD: BookingCalendar.tsx).
-├── services/           # Các hàm gọi API (Axios: getCourts, createBooking).
-├── store/              # Zustand store để lưu trữ trạng thái đặt sân (State).
-└── types/              # Khai báo TypeScript Interface cho đối tượng Sân, Lịch đặt.
-```
-
----
-
-## 4. Quy tắc Code & Làm việc nhóm ⚠️ (BẮT BUỘC ĐỌC)
-
-1. **Nước giếng không phạm nước sông:**
-   - Mỗi bạn code trong thư mục `feature` của mình. Không tự ý sửa file trong `feature` của bạn khác để tránh Merge Conflict.
-2. **Không Import chéo giữa các Feature:**
-   - ❌ **Sai:** `features/booking/components/BookingForm.tsx` import một hàm từ `features/commerce/services/...`
-   - ✅ **Đúng:** Nếu có một logic/UI mà cả 2 feature cùng cần, hãy đưa nó ra vùng dùng chung là `src/utils/` hoặc `src/components/`.
-3. **Thống nhất API Contract (Hợp đồng dữ liệu):**
-   - Trước khi code FE, Team BE và FE phải chốt với nhau API trả về những trường gì (JSON format).
-   - Mọi response từ API đều phải được định nghĩa Interface rõ ràng bằng TypeScript, KHÔNG dùng kiểu dữ liệu `any`.
-4. **Bảo mật:**
-   - Tuyệt đối không hardcode (gõ cứng) mật khẩu Database, chuỗi Secret JWT vào code. Mọi thông tin nhạy cảm phải đặt trong file `.env`.
+*Giữ naming feature giống nhau giữa web và app (ví dụ `BookingListScreen` / `BookingListPage`) để đồng đội khi review.*

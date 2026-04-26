@@ -1,0 +1,273 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "full_name": "Nguyễn Văn Bình",
+      "email": "binh.nguyen@gmail.com",
+      "phone": "0901234567",
+      "password_hash": "$2b$10$normalized_hash_placeholder",
+      "avatar_url": "https://i.pravatar.cc/150?img=3",
+      "role": "customer",
+      "loyalty_points": 1250,
+      "created_at": "2025-10-15T08:00:00Z",
+      "updated_at": "2026-04-20T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "full_name": "Trần Thị Nhân Viên",
+      "email": "staff.nhanvien@gmail.com",
+      "phone": "0909999888",
+      "password_hash": "$2b$10$normalized_hash_placeholder",
+      "avatar_url": "https://i.pravatar.cc/150?img=5",
+      "role": "staff",
+      "loyalty_points": 0,
+      "created_at": "2025-11-01T09:00:00Z",
+      "updated_at": "2026-04-21T08:30:00Z"
+    }
+  ],
+  "staff_profiles": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "facility_id": 1,
+      "job_title": "Quản lý sân",
+      "active": true,
+      "created_at": "2025-11-01T09:00:00Z"
+    }
+  ],
+  "facilities": [
+    {
+      "id": 1,
+      "name": "Sân Cầu Lông Quận 7",
+      "address": "123 Nguyễn Thị Thập, Quận 7, TP.HCM",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "open_time": "06:00",
+      "close_time": "22:00",
+      "avatar_url": "https://images.unsplash.com/photo-1554284126-aa88f22d8b74?w=800",
+      "cancel_policy": {
+        "refund_percent": 80,
+        "cancel_before_hours": 24
+      },
+      "created_at": "2025-09-01T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "name": "CLB Thể Thao Thủ Đức",
+      "address": "88 Võ Văn Ngân, Thủ Đức, TP.HCM",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "open_time": "05:30",
+      "close_time": "23:00",
+      "avatar_url": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800",
+      "cancel_policy": {
+        "refund_percent": 100,
+        "cancel_before_hours": 48
+      },
+      "created_at": "2025-09-10T00:00:00Z"
+    }
+  ],
+  "court_types": [
+    {
+      "id": 1,
+      "name": "badminton",
+      "surface": "Thảm PVC",
+      "is_indoor": true,
+      "description": "Sân cầu lông tiêu chuẩn thi đấu"
+    },
+    {
+      "id": 2,
+      "name": "tennis",
+      "surface": "Hard court",
+      "is_indoor": false,
+      "description": "Sân tennis ngoài trời"
+    },
+    {
+      "id": 3,
+      "name": "table_tennis",
+      "surface": "Gỗ",
+      "is_indoor": true,
+      "description": "Bàn bóng bàn chuyên nghiệp"
+    }
+  ],
+  "courts": [
+    { "id": 1, "facility_id": 1, "court_type_id": 1, "name": "Sân A1", "code": "A1", "status": "active" },
+    { "id": 2, "facility_id": 1, "court_type_id": 1, "name": "Sân A2", "code": "A2", "status": "active" },
+    { "id": 3, "facility_id": 1, "court_type_id": 2, "name": "Sân B1", "code": "B1", "status": "active" },
+    { "id": 4, "facility_id": 1, "court_type_id": 3, "name": "Bàn C1", "code": "C1", "status": "maintenance" },
+    { "id": 5, "facility_id": 2, "court_type_id": 1, "name": "Sân D1", "code": "D1", "status": "active" },
+    { "id": 6, "facility_id": 2, "court_type_id": 1, "name": "Sân D2", "code": "D2", "status": "active" },
+    { "id": 7, "facility_id": 2, "court_type_id": 2, "name": "Sân T1", "code": "T1", "status": "active" }
+  ],
+  "price_rules": [
+    { "id": 1, "court_id": 1, "day_of_week": null, "start_hour": 6, "end_hour": 16, "price_cents": 80000, "active": true },
+    { "id": 2, "court_id": 1, "day_of_week": null, "start_hour": 16, "end_hour": 22, "price_cents": 150000, "active": true },
+    { "id": 3, "court_id": 2, "day_of_week": null, "start_hour": 6, "end_hour": 22, "price_cents": 90000, "active": true },
+    { "id": 4, "court_id": 3, "day_of_week": null, "start_hour": 6, "end_hour": 22, "price_cents": 200000, "active": true },
+    { "id": 5, "court_id": 5, "day_of_week": null, "start_hour": 6, "end_hour": 22, "price_cents": 70000, "active": true }
+  ],
+  "bookings": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "facility_id": 1,
+      "status": "confirmed",
+      "payment_status": "paid",
+      "total_cents": 150000,
+      "note": "",
+      "promo_code_id": null,
+      "checked_in_at": null,
+      "cancelled_at": null,
+      "cancel_reason": null,
+      "created_at": "2026-04-20T10:30:00Z",
+      "updated_at": "2026-04-20T10:35:00Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "facility_id": 1,
+      "status": "pending",
+      "payment_status": "pending",
+      "total_cents": 200000,
+      "note": "Đặt cho 4 người",
+      "promo_code_id": null,
+      "checked_in_at": null,
+      "cancelled_at": null,
+      "cancel_reason": null,
+      "created_at": "2026-04-24T09:00:00Z",
+      "updated_at": "2026-04-24T09:00:00Z"
+    }
+  ],
+  "booking_slots": [
+    {
+      "id": 1,
+      "booking_id": 1,
+      "court_id": 1,
+      "start_at": "2026-04-22T18:00:00Z",
+      "end_at": "2026-04-22T19:00:00Z",
+      "price_cents": 150000
+    },
+    {
+      "id": 2,
+      "booking_id": 2,
+      "court_id": 3,
+      "start_at": "2026-04-25T09:00:00Z",
+      "end_at": "2026-04-25T10:00:00Z",
+      "price_cents": 200000
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Vợt Cầu Lông Yonex Astrox 88D",
+      "slug": "yonex-astrox-88d",
+      "category": "racket",
+      "description": "Vợt cao cấp dành cho tấn công, full graphite, cân nặng 83g.",
+      "thumbnail_url": "https://images.unsplash.com/photo-1617083934551-ac1b39f2dda0?w=400",
+      "rating": 4.8,
+      "review_count": 124,
+      "active": true,
+      "created_at": "2025-12-01T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "name": "Cầu Lông RSL No.1",
+      "slug": "rsl-no1",
+      "category": "shuttlecock",
+      "description": "Cầu lông lông vũ chất lượng cao, ổn định đường bay.",
+      "thumbnail_url": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400",
+      "rating": 4.5,
+      "review_count": 312,
+      "active": true,
+      "created_at": "2025-12-05T00:00:00Z"
+    },
+    {
+      "id": 3,
+      "name": "Giày Cầu Lông Victor SH-A960",
+      "slug": "victor-sh-a960",
+      "category": "shoes",
+      "description": "Giày chuyên cầu lông, đế bám tốt, hỗ trợ cổ chân.",
+      "thumbnail_url": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
+      "rating": 4.7,
+      "review_count": 87,
+      "active": true,
+      "created_at": "2025-12-10T00:00:00Z"
+    },
+    {
+      "id": 4,
+      "name": "Áo Thi Đấu Li-Ning AAYQ027",
+      "slug": "li-ning-aayq027",
+      "category": "apparel",
+      "description": "Áo thoáng khí, thấm hút mồ hôi, form thể thao.",
+      "thumbnail_url": "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=400",
+      "rating": 4.3,
+      "review_count": 56,
+      "active": true,
+      "created_at": "2025-12-15T00:00:00Z"
+    }
+  ],
+  "product_variants": [
+    { "id": 1, "product_id": 1, "sku": "YNX-88D-3U", "attributes": { "weight": "3U", "color": "Red" }, "price_cents": 3200000, "barcode": "89300000001" },
+    { "id": 2, "product_id": 1, "sku": "YNX-88D-4U", "attributes": { "weight": "4U", "color": "Red" }, "price_cents": 3200000, "barcode": "89300000002" },
+    { "id": 3, "product_id": 2, "sku": "RSL-N1-75", "attributes": { "speed": 75 }, "price_cents": 185000, "barcode": "89300000003" },
+    { "id": 4, "product_id": 2, "sku": "RSL-N1-77", "attributes": { "speed": 77 }, "price_cents": 185000, "barcode": "89300000004" },
+    { "id": 5, "product_id": 3, "sku": "VTC-A960-40", "attributes": { "size": 40 }, "price_cents": 1450000, "barcode": "89300000005" },
+    { "id": 6, "product_id": 3, "sku": "VTC-A960-41", "attributes": { "size": 41 }, "price_cents": 1450000, "barcode": "89300000006" },
+    { "id": 7, "product_id": 4, "sku": "LN-AAYQ027-S", "attributes": { "size": "S" }, "price_cents": 480000, "barcode": "89300000007" }
+  ],
+  "inventory_levels": [
+    { "id": 1, "variant_id": 1, "warehouse_id": 1, "quantity_on_hand": 5 },
+    { "id": 2, "variant_id": 2, "warehouse_id": 1, "quantity_on_hand": 3 },
+    { "id": 3, "variant_id": 3, "warehouse_id": 1, "quantity_on_hand": 50 },
+    { "id": 4, "variant_id": 4, "warehouse_id": 1, "quantity_on_hand": 32 },
+    { "id": 5, "variant_id": 5, "warehouse_id": 1, "quantity_on_hand": 4 },
+    { "id": 6, "variant_id": 6, "warehouse_id": 1, "quantity_on_hand": 6 },
+    { "id": 7, "variant_id": 7, "warehouse_id": 1, "quantity_on_hand": 10 }
+  ],
+  "warehouses": [
+    { "id": 1, "facility_id": 1, "name": "Kho Quận 7" }
+  ],
+  "cart_items": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "variant_id": 4,
+      "quantity": 2,
+      "created_at": "2026-04-24T15:00:00Z",
+      "updated_at": "2026-04-24T15:00:00Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "type": "booking_confirmed",
+      "title": "Đặt sân thành công!",
+      "body": "Sân A1 ngày 22/04 lúc 18:00. Nhớ đến đúng giờ nhé!",
+      "is_read": false,
+      "ref_type": "booking",
+      "ref_id": 1,
+      "created_at": "2026-04-20T10:31:00Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "type": "promotion",
+      "title": "Khuyến mãi cuối tuần",
+      "body": "Giảm 20% tất cả sân cầu lông thứ 7 và chủ nhật. Đặt ngay!",
+      "is_read": true,
+      "ref_type": "promotion",
+      "ref_id": null,
+      "created_at": "2026-04-19T07:00:00Z"
+    },
+    {
+      "id": 3,
+      "user_id": 1,
+      "type": "order",
+      "title": "Đơn hàng đã được ghi nhận",
+      "body": "Đơn hàng của bạn đang được xử lý. Chúng tôi sẽ liên hệ sớm.",
+      "is_read": false,
+      "ref_type": "order",
+      "ref_id": null,
+      "created_at": "2026-04-21T09:31:00Z"
+    }
+  ]
+}

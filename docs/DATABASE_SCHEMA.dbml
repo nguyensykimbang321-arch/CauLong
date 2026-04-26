@@ -1,0 +1,212 @@
+// Sử dụng tại dbdiagram.io
+
+Table users {
+  id int [pk, increment]
+  full_name varchar
+  email varchar [unique]
+  phone varchar [unique]
+  password_hash varchar
+  avatar_url varchar
+  role varchar // admin, staff, customer
+  loyalty_points int [default: 0]
+  created_at datetime [default: `now()`]
+  updated_at datetime
+}
+
+Table staff_profiles {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  facility_id int [ref: > facilities.id]
+  job_title varchar
+  active boolean [default: true]
+  created_at datetime
+}
+
+Table refresh_tokens {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  token_hash varchar
+  expires_at datetime
+  revoked boolean [default: false]
+  created_at datetime
+}
+
+Table facilities {
+  id int [pk, increment]
+  name varchar
+  address text
+  timezone varchar
+  cancel_policy json
+  created_at datetime
+}
+
+Table court_types {
+  id int [pk, increment]
+  name varchar // badminton, tennis, table_tennis
+  surface varchar
+  is_indoor boolean
+  description text
+}
+
+Table courts {
+  id int [pk, increment]
+  facility_id int [ref: > facilities.id]
+  court_type_id int [ref: > court_types.id]
+  name varchar
+  code varchar
+  status varchar // active, maintenance, inactive
+  created_at datetime
+}
+
+Table price_rules {
+  id int [pk, increment]
+  court_id int [ref: > courts.id]
+  day_of_week int // 0-6, null=everyday
+  start_hour int
+  end_hour int
+  price_cents int
+  active boolean [default: true]
+  created_at datetime
+}
+
+Table bookings {
+  id int [pk, increment]
+  user_id int [ref: > users.id, note: 'nullable for walk-in']
+  facility_id int [ref: > facilities.id]
+  status varchar // pending, confirmed, cancelled, completed, no_show
+  payment_status varchar
+  total_cents int
+  note text
+  promo_code_id int [ref: > promo_codes.id]
+  checked_in_at datetime
+  cancelled_at datetime
+  cancel_reason text
+  created_at datetime
+  updated_at datetime
+}
+
+Table booking_slots {
+  id int [pk, increment]
+  booking_id int [ref: > bookings.id]
+  court_id int [ref: > courts.id]
+  start_at datetime
+  end_at datetime
+  price_cents int
+}
+
+Table products {
+  id int [pk, increment]
+  name varchar
+  slug varchar [unique]
+  category varchar // racket, shuttlecock, shoes, apparel, accessory
+  description text
+  thumbnail_url varchar
+  active boolean [default: true]
+  created_at datetime
+}
+
+Table product_variants {
+  id int [pk, increment]
+  product_id int [ref: > products.id]
+  sku varchar [unique]
+  attributes json
+  price_cents int
+  barcode varchar
+  created_at datetime
+}
+
+Table cart_items {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  variant_id int [ref: > product_variants.id]
+  quantity int
+  created_at datetime
+  updated_at datetime
+}
+
+Table orders {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  facility_id int [ref: > facilities.id]
+  status varchar // pending, confirmed, completed, cancelled, refunded
+  payment_method varchar
+  subtotal_cents int
+  discount_cents int
+  total_cents int
+  note text
+  created_at datetime
+  updated_at datetime
+}
+
+Table order_items {
+  id int [pk, increment]
+  order_id int [ref: > orders.id]
+  variant_id int [ref: > product_variants.id]
+  quantity int
+  unit_price_cents int
+  discount_cents int
+}
+
+Table warehouses {
+  id int [pk, increment]
+  facility_id int [ref: > facilities.id]
+  name varchar
+  created_at datetime
+}
+
+Table inventory_levels {
+  id int [pk, increment]
+  variant_id int [ref: > product_variants.id]
+  warehouse_id int [ref: > warehouses.id]
+  quantity_on_hand int
+}
+
+Table inventory_movements {
+  id int [pk, increment]
+  variant_id int [ref: > product_variants.id]
+  warehouse_id int [ref: > warehouses.id]
+  qty_delta int
+  reason varchar // sale, return, adjustment, import
+  ref_order_id int [ref: > orders.id, note: 'nullable']
+  note text
+  created_at datetime
+}
+
+Table promo_codes {
+  id int [pk, increment]
+  code varchar [unique]
+  type varchar // percent, fixed
+  value int
+  min_order_cents int
+  max_uses int
+  used_count int
+  expires_at datetime
+  active boolean [default: true]
+  created_at datetime
+}
+
+Table payments {
+  id int [pk, increment]
+  provider varchar // manual_transfer, sandbox, momo, vnpay
+  status varchar // pending, paid, failed, refunded
+  amount_cents int
+  booking_id int [ref: - bookings.id]
+  order_id int [ref: - orders.id]
+  provider_ref varchar
+  metadata json
+  paid_at datetime
+  created_at datetime
+  updated_at datetime
+}
+
+Table notifications {
+  id int [pk, increment]
+  user_id int [ref: > users.id]
+  type varchar
+  title varchar
+  body text
+  is_read boolean [default: false]
+  ref_type varchar
+  ref_id int
+  created_at datetime
+}
