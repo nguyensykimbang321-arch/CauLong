@@ -1,7 +1,8 @@
 import { Router } from "express";
 import clientAuthRouter from "./client/auth.routes.js";
 import adminAuthRouter from "./admin/auth.routes.js";
-import adminFacilityRouter from "./client/facility.route.js";
+import adminFacilityRouter from "./admin/facility.route.js";
+import adminCourtRouter from "./admin/court.route.js";
 
 
 const rootRouter = Router();
@@ -20,5 +21,6 @@ rootRouter.use('/app/auth', clientAuthRouter);
 // ==========================================
 rootRouter.use('/admin/auth', adminAuthRouter);
 rootRouter.use('/admin/facilities', adminFacilityRouter);
+rootRouter.use('/admin/courts', adminCourtRouter);
 
 export default rootRouter;
