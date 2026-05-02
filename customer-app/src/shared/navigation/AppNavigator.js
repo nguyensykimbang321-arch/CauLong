@@ -19,6 +19,7 @@ import CheckoutScreen from '../../shop/screens/CheckoutScreen';
 
 import AccountScreen from '../../account/screens/AccountScreen';
 import NotificationsScreen from '../../account/screens/NotificationsScreen';
+import PaymentWebView from '../components/PaymentWebView';
 
 const Tab = createBottomTabNavigator();
 
@@ -44,6 +45,7 @@ function BookingStackScreen() {
       <BookingStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <BookingStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <BookingStack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
+      <BookingStack.Screen name="PaymentWebView" component={PaymentWebView} />
     </BookingStack.Navigator>
   );
 }
@@ -55,6 +57,7 @@ function ShopStackScreen() {
       <ShopStack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <ShopStack.Screen name="Cart" component={CartScreen} />
       <ShopStack.Screen name="Checkout" component={CheckoutScreen} />
+      <ShopStack.Screen name="PaymentWebView" component={PaymentWebView} />
     </ShopStack.Navigator>
   );
 }

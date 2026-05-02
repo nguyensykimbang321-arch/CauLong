@@ -5,6 +5,8 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../
 import Button from '../../shared/components/Button';
 import { formatPrice } from '../../utils/formatters';
 import { getCourts, getFacilities, getCourtTypes } from '../../data/mockStore';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable } from 'react-native';
 
 export default function BookingConfirmScreen({ route, navigation }) {
   const desiredKeys = route?.params?.desiredKeys ?? [];
@@ -13,6 +15,7 @@ export default function BookingConfirmScreen({ route, navigation }) {
   const facilityId = route?.params?.facilityId ?? null;
   const sportId = route?.params?.sportId ?? null;
   const date = route?.params?.date ?? null;
+  const [paymentMethod, setPaymentMethod] = React.useState('cod'); 
 
   const facility = getFacilities().find((f) => f.id === facilityId);
   const sport = getCourtTypes().find((s) => s.id === sportId);
@@ -75,11 +78,53 @@ export default function BookingConfirmScreen({ route, navigation }) {
             </View>
           ) : null}
           <View style={styles.divider} />
-          <Text style={styles.total}>Tổng: {formatPrice(total)}</Text>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Tổng cộng</Text>
+            <Text style={styles.totalValue}>{formatPrice(total)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.paymentCard}>
+          <Text style={styles.paymentTitle}>Phương thức thanh toán</Text>
+          <PaymentOption 
+            label="Thanh toán tại quầy" 
+            selected={paymentMethod === 'cod'} 
+            onPress={() => setPaymentMethod('cod')} 
+            icon="cash-outline"
+          />
+          <PaymentOption 
+            label="VNPay (Thanh toán online)" 
+            selected={paymentMethod === 'vnpay'} 
+            onPress={() => setPaymentMethod('vnpay')} 
+            icon="card-outline"
+          />
         </View>
 
         <View style={styles.actions}>
-          <Button title="Xác nhận (mock)" onPress={() => navigation.navigate('MyBookings')} fullWidth={true} />
+          <Button 
+            title={paymentMethod === 'vnpay' ? "Thanh toán VNPay" : "Xác nhận đặt sân"} 
+            onPress={() => {
+              if (paymentMethod === 'vnpay') {
+                 // Mock VNPay URL for demonstration with your TmnCode
+                 const mockVnpayUrl = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=1000000&vnp_Command=pay&vnp_CreateDate=20210801153333&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+dat+san&vnp_OrderType=other&vnp_ReturnUrl=caulong%3A%2F%2Fpayment-return&vnp_TmnCode=M0A3F9BU&vnp_TxnRef=123456&vnp_Version=2.1.0&vnp_SecureHash=...';
+
+                 navigation.navigate('PaymentWebView', { 
+                   url: mockVnpayUrl,
+                   onPaymentSuccess: (url) => {
+                     navigation.navigate('MyBookings');
+                     alert('Thanh toán đặt sân thành công!');
+                   },
+                   onPaymentCancel: (url) => {
+                     alert('Giao dịch đặt sân đã bị hủy.');
+                   }
+                 });
+              } else {
+                navigation.navigate('MyBookings');
+                alert('Đặt sân thành công!');
+              }
+            }} 
+            fullWidth={true} 
+          />
           <View style={{ height: spacing.sm }} />
           <Button title="Quay lại" variant="outline" onPress={() => navigation.goBack()} fullWidth={true} />
         </View>
@@ -115,8 +160,44 @@ const styles = StyleSheet.create({
   meta: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: 6, fontWeight: fontWeight.semiBold },
   item: { fontSize: fontSize.md, color: colors.textPrimary, marginBottom: 6 },
   divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.sm },
-  total: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.primary },
-  actions: { marginTop: spacing.lg },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semiBold, color: colors.textMuted },
+  totalValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.primary },
+  actions: { marginTop: spacing.xl },
+  paymentCard: {
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
+  },
+  paymentTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.textPrimary, marginBottom: spacing.md },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  paymentOptionSelected: {
+    // borderBottomColor: colors.primary,
+  },
+  paymentLabel: { fontSize: fontSize.md, color: colors.textSecondary, fontWeight: fontWeight.medium },
+  paymentLabelSelected: { color: colors.primary, fontWeight: fontWeight.bold },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioSelected: { borderColor: colors.primary },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
   warnBox: {
     marginTop: spacing.sm,
     backgroundColor: '#FFF7ED',
