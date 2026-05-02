@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
@@ -10,16 +10,54 @@ import Button from '../../shared/components/Button';
 import PressableCard from '../../shared/components/PressableCard';
 
 export default function HomeScreen({ navigation }) {
-  const currentUser = getCurrentUser();
-  const facility = getFacilities()[0]; // Lấy cơ sở đầu tiên làm mặc định
-  const bookings = getBookings(currentUser?.id);
-  const products = getProducts();
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [facility, setFacility] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [user, facilities, allProducts] = await Promise.all([
+          getCurrentUser(),
+          getFacilities(),
+          getProducts()
+        ]);
+        
+        setCurrentUser(user);
+        setFacility(facilities[0]);
+        setProducts(allProducts);
+
+        if (user) {
+          const userBookings = await getBookings(user.id);
+          setBookings(userBookings);
+        }
+      } catch (error) {
+        console.error("Lỗi tải dữ liệu Home:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const quickActions = [
     { id: 'book', label: 'Đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('BookingTab') },
     { id: 'shop', label: 'Cửa hàng', icon: 'cart-outline', onPress: () => navigation.navigate('ShopTab') },
     { id: 'qr', label: 'QR Check-in', icon: 'qr-code-outline', onPress: () => navigation.navigate('QRCheckin') },
   ];
+
+  if (loading && !facility) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -29,7 +67,7 @@ export default function HomeScreen({ navigation }) {
             {currentUser?.avatar_url && <Image source={{ uri: currentUser.avatar_url }} style={styles.avatar} />}
             <View style={styles.userText}>
               <Text style={styles.greeting}>Xin chào</Text>
-              <Text style={styles.userName}>{currentUser?.full_name}</Text>
+              <Text style={styles.userName}>{currentUser?.full_name || 'Khách'}</Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} activeOpacity={0.8} style={styles.bell}>
@@ -39,7 +77,7 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.heroCard}>
           <View style={styles.heroGlow} />
-          <Text style={styles.cardTitle}>{facility?.name}</Text>
+          <Text style={styles.cardTitle}>{facility?.name || 'Đang tải...'}</Text>
           <Text style={styles.cardSub}>{facility?.address}</Text>
           {facility && (
             <View style={styles.openRow}>
@@ -78,13 +116,17 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.link}>Xem tất cả</Text>
             </TouchableOpacity>
           </View>
-          {bookings.slice(0, 2).map((b) => (
-            <BookingCard
-              key={b.id}
-              booking={b}
-              onPress={() => navigation.navigate('BookingTab', { screen: 'BookingDetail', params: { booking: b } })}
-            />
-          ))}
+          {bookings.length > 0 ? (
+            bookings.slice(0, 2).map((b) => (
+              <BookingCard
+                key={b.id}
+                booking={b}
+                onPress={() => navigation.navigate('BookingTab', { screen: 'BookingDetail', params: { booking: b } })}
+              />
+            ))
+          ) : (
+            <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: spacing.md }}>Chưa có đơn đặt sân nào.</Text>
+          )}
         </View>
 
         <View style={styles.section}>

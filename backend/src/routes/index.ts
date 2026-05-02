@@ -1,5 +1,8 @@
 import { Router } from "express";
 import clientAuthRouter from "./client/auth.routes.js";
+import clientFacilityRouter from "./client/facility.routes.js";
+import clientProductRouter from "./client/product.routes.js";
+import clientBookingRouter from "./client/booking.routes.js";
 import adminAuthRouter from "./admin/auth.routes.js";
 import adminFacilityRouter from "./admin/facility.route.js";
 import adminCourtRouter from "./admin/court.route.js";
@@ -12,6 +15,9 @@ const rootRouter = Router();
 // Endpoint: /api/v1/app/...
 // ==========================================
 rootRouter.use('/app/auth', clientAuthRouter);
+rootRouter.use('/app/facilities', clientFacilityRouter);
+rootRouter.use('/app/products', clientProductRouter);
+rootRouter.use('/app/bookings', clientBookingRouter);
 // Sau này có: rootRouter.use('/app/bookings', verifyToken, requireRoles(['customer']), clientBookingRouter);
 
 

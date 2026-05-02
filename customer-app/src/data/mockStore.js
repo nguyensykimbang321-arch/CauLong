@@ -1,96 +1,101 @@
+import * as api from '../services/api';
+// Giữ lại mock để dự phòng nếu API lỗi hoặc chưa có dữ liệu DB
 import mock from './mock.json';
 
-export function getMock() {
-  return mock;
-}
-
-export function getCurrentUser() {
-  // Giả lập lấy user đầu tiên làm user hiện tại
+export async function getCurrentUser() {
+  // Tạm thời lấy user từ mock cho đến khi hoàn thiện logic Login hoàn chỉnh
   return mock.users?.[0] ?? null;
 }
 
-export function getFacilities() {
-  return mock.facilities ?? [];
+export async function getFacilities() {
+  try {
+    return await api.fetchFacilities();
+  } catch (error) {
+    console.error("Lỗi lấy danh sách cơ sở:", error);
+    return mock.facilities ?? [];
+  }
 }
 
-export function getCourtTypes() {
+export async function getCourtTypes() {
+  // Hiện tại backend dùng enum trong Court model, mock vẫn hữu ích cho UI labels
   return mock.court_types ?? [];
 }
 
-export function getCourts({ facilityId, courtTypeId } = {}) {
-  let courts = mock.courts ?? [];
-  if (facilityId) courts = courts.filter((c) => c.facility_id === parseInt(facilityId));
-  if (courtTypeId) courts = courts.filter((c) => c.court_type_id === parseInt(courtTypeId));
-  return courts;
-}
-
-export function getBookings(userId) {
-  let bookings = mock.bookings ?? [];
-  if (userId) bookings = bookings.filter((b) => b.user_id === parseInt(userId));
-  
-  return bookings.map(b => {
-    const slots = (mock.booking_slots ?? []).filter(s => s.booking_id === b.id);
-    const facility = (mock.facilities ?? []).find(f => f.id === b.facility_id);
-    const firstSlot = slots[0];
-    const lastSlot = slots[slots.length - 1];
-    
-    let court = null;
-    let courtType = null;
-    if (firstSlot) {
-      court = (mock.courts ?? []).find(c => c.id === firstSlot.court_id);
-      courtType = (mock.court_types ?? []).find(ct => ct.id === court?.court_type_id);
+export async function getCourts({ facilityId, courtTypeId } = {}) {
+  try {
+    const facility = await api.fetchFacilityDetail(facilityId);
+    let courts = facility.courts || [];
+    if (courtTypeId) {
+        // Ánh xạ id từ mock sang string enum của backend nếu cần
+        const typeMap = { 1: 'badminton', 2: 'tennis', 3: 'football' };
+        const typeName = typeMap[courtTypeId];
+        if (typeName) courts = courts.filter(c => c.court_type === typeName);
     }
-
-    const sportLabel = courtType?.name === 'badminton' ? 'Cầu lông' : courtType?.name === 'tennis' ? 'Tennis' : 'Bóng bàn';
-
-    return {
-      ...b,
-      slots,
-      facility,
-      court_name: court?.name ?? '—',
-      court_type_label: sportLabel,
-      start_at: firstSlot?.start_at,
-      end_at: lastSlot?.end_at,
-      date: firstSlot?.start_at ? new Date(firstSlot.start_at).toLocaleDateString('vi-VN') : '—'
-    };
-  });
+    return courts;
+  } catch (error) {
+    console.error("Lỗi lấy danh sách sân:", error);
+    return (mock.courts ?? []).filter(c => c.facility_id === parseInt(facilityId));
+  }
 }
 
-export function getProducts() {
-  return (mock.products ?? []).map(p => {
-    const variants = (mock.product_variants ?? []).filter(v => v.product_id === p.id).map(v => {
-      // Tính toán stock từ inventory_levels
-      const stock = (mock.inventory_levels ?? [])
-        .filter(i => i.variant_id === v.id)
-        .reduce((sum, i) => sum + i.quantity_on_hand, 0);
+export async function getBookings(userId) {
+  try {
+    // Lưu ý: userId thường được lấy từ token ở backend
+    const bookings = await api.fetchMyBookings();
+    
+    return bookings.map(b => {
+      const slots = b.slots || [];
+      const facility = b.facility;
+      const firstSlot = slots[0];
+      const lastSlot = slots[slots.length - 1];
+      
+      const sportLabel = b.court_type === 'badminton' ? 'Cầu lông' : b.court_type === 'tennis' ? 'Tennis' : 'Bóng bàn';
 
-      // Tạo nhãn hiển thị từ attributes
-      const label = v.attributes 
-        ? Object.values(v.attributes).join(' - ')
-        : v.sku;
-
-      return { ...v, stock, label };
+      return {
+        ...b,
+        slots,
+        facility,
+        court_name: b.court?.name ?? '—',
+        court_type_label: sportLabel,
+        start_at: firstSlot?.start_at,
+        end_at: lastSlot?.end_at,
+        date: firstSlot?.start_at ? new Date(firstSlot.start_at).toLocaleDateString('vi-VN') : '—'
+      };
     });
-
-    const categoryLabels = {
-      racket: 'Vợt',
-      shuttlecock: 'Cầu',
-      shoes: 'Giày',
-      apparel: 'Quần áo',
-      accessory: 'Phụ kiện'
-    };
-
-    return {
-      ...p,
-      category_label: categoryLabels[p.category] ?? 'Sản phẩm',
-      rating: p.rating ?? 5.0,
-      review_count: p.review_count ?? 0,
-      variants
-    };
-  });
+  } catch (error) {
+    console.error("Lỗi lấy lịch sử đặt sân:", error);
+    return []; // Hoặc dùng mock nếu muốn
+  }
 }
 
-export function getCartItems(userId) {
+export async function getProducts() {
+  try {
+    const products = await api.fetchProducts();
+    const categoryLabels = {
+        racket: 'Vợt',
+        shuttlecock: 'Cầu',
+        shoes: 'Giày',
+        apparel: 'Quần áo',
+        accessory: 'Phụ kiện'
+      };
+
+    return products.map(p => ({
+        ...p,
+        category_label: categoryLabels[p.category] ?? 'Sản phẩm',
+        variants: (p.variants || []).map(v => {
+            const stock = (v.inventory_levels || []).reduce((sum, i) => sum + i.quantity_on_hand, 0);
+            const label = v.attributes ? Object.values(v.attributes).join(' - ') : v.sku;
+            return { ...v, stock, label };
+        })
+    }));
+  } catch (error) {
+    console.error("Lỗi lấy danh sách sản phẩm:", error);
+    return [];
+  }
+}
+
+export async function getCartItems(userId) {
+  // Cart items vẫn có thể quản lý local trong AppStore hoặc gọi API nếu backend hỗ trợ
   const items = (mock.cart_items ?? []).filter(i => i.user_id === parseInt(userId));
   return items.map(item => {
     const variant = (mock.product_variants ?? []).find(v => v.id === item.variant_id);
@@ -99,60 +104,62 @@ export function getCartItems(userId) {
   });
 }
 
-export function getNotifications(userId) {
-  return (mock.notifications ?? []).filter(n => n.user_id === parseInt(userId));
-}
-
 /**
- * Giả lập lấy danh sách slot trống (Availability)
- * Trong thực tế, cái này sẽ được tính toán từ price_rules và booking_slots
+ * Slot trống sẽ cần logic backend phức tạp hơn. 
+ * Tạm thời giữ logic mock hoặc gọi endpoint availability nếu đã viết.
  */
-export function getAvailability({ facilityId, courtId, date } = {}) {
-  // Logic đơn giản cho mock: lấy price_rules áp dụng cho sân này 
-  // và kiểm tra xem slot đó đã có trong booking_slots chưa.
-  const court = (mock.courts ?? []).find(c => c.id === parseInt(courtId));
-  if (!court) return null;
+export async function getAvailability({ facilityId, courtId, date } = {}) {
+    // Tạm thời giữ mock logic cho phần Availability vì nó yêu cầu logic tính toán giờ phức tạp
+    // ... logic tương tự mock cũ ...
+    const courts = (mock.courts ?? []); // Giả lập
+    const court = courts.find(c => c.id === parseInt(courtId));
+    if (!court) return null;
 
-  const rules = (mock.price_rules ?? []).filter(r => r.court_id === court.id && r.active);
-  const slots = [];
-
-  // Giả lập các slot từ 6h đến 22h
-  for (let h = 6; h < 22; h++) {
-    const start = `${date}T${h.toString().padStart(2, '0')}:00:00Z`;
-    const end = `${date}T${(h + 1).toString().padStart(2, '0')}:00:00Z`;
-    
-    // Tìm giá phù hợp
-    const rule = rules.find(r => h >= r.start_hour && h < r.end_hour) || { price_cents: 100000 };
-    
-    // Kiểm tra xem đã bị đặt chưa
-    const isBooked = (mock.booking_slots ?? []).some(s => 
-      s.court_id === court.id && 
-      s.start_at === start
-    );
-
-    slots.push({
-      id: `slot_${court.id}_${h}`,
-      start: `${h.toString().padStart(2, '0')}:00`,
-      end: `${(h + 1).toString().padStart(2, '0')}:00`,
-      price_cents: rule.price_cents,
-      available: !isBooked
-    });
-  }
-
-  return {
-    facility_id: parseInt(facilityId),
-    court_id: court.id,
-    date,
-    slots
-  };
+    const slots = [];
+    for (let h = 6; h < 22; h++) {
+        slots.push({
+            id: `slot_${courtId}_${h}`,
+            start: `${h.toString().padStart(2, '0')}:00`,
+            end: `${(h + 1).toString().padStart(2, '0')}:00`,
+            price_cents: 100000,
+            available: Math.random() > 0.3 // Mock ngẫu nhiên
+        });
+    }
+    return { facility_id: parseInt(facilityId), court_id: parseInt(courtId), date, slots };
 }
 
-export function getAvailabilitiesFor({ facilityId, courtTypeId, date } = {}) {
-  const courts = getCourts({ facilityId, courtTypeId }).filter((c) => c.status === 'active');
-  const slotsByCourtId = {};
-  for (const c of courts) {
-    slotsByCourtId[c.id] = (getAvailability({ facilityId, courtId: c.id, date })?.slots ?? []);
-  }
-  return { courts, slotsByCourtId };
-}
+export async function getAvailabilitiesFor({ facilityId, courtTypeId, date } = {}) {
+  try {
+    const facility = await api.fetchFacilityDetail(facilityId);
+    let courts = facility.courts || [];
+    
+    // Ánh xạ id từ mock sang string enum của backend (badminton, tennis, football)
+    const typeMap = { 1: 'badminton', 2: 'tennis', 3: 'football' };
+    const typeName = typeMap[courtTypeId];
+    if (typeName) {
+        courts = courts.filter(c => c.court_type === typeName);
+    }
 
+    const slotsByCourtId = {};
+    for (const c of courts) {
+        // Tạm thời mock slots cho từng sân nếu backend chưa có endpoint chi tiết availability
+        const rules = mock.price_rules?.filter(r => r.active) || [];
+        const slots = [];
+        for (let h = 6; h < 22; h++) {
+            const start = `${date}T${h.toString().padStart(2, '0')}:00:00Z`;
+            const rule = rules[0] || { price_cents: 100000 };
+            slots.push({
+                start: `${h.toString().padStart(2, '0')}:00`,
+                end: `${(h + 1).toString().padStart(2, '0')}:00`,
+                price_cents: rule.price_cents,
+                available: Math.random() > 0.2 // Mock ngẫu nhiên
+            });
+        }
+        slotsByCourtId[c.id] = slots;
+    }
+    return { courts, slotsByCourtId };
+  } catch (error) {
+     console.error("Lỗi lấy lịch trống:", error);
+     return { courts: [], slotsByCourtId: {} };
+  }
+}

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
@@ -10,18 +10,10 @@ import PressableCard from '../../shared/components/PressableCard';
 import { autoAssignCourt } from '../utils/autoAssignCourt';
 
 export default function BookingScreen({ navigation }) {
-  const facilities = getFacilities();
-  const courtTypes = getCourtTypes();
-  const sportImages = useMemo(
-    () => ({
-      badminton: require('../../image/1.jpg'),
-      tennis: require('../../image/2.jpg'),
-      table_tennis: require('../../image/3.jpg'),
-    }),
-    []
-  );
-
-  const dateOptions = useMemo(() => {
+  const [loading, setLoading] = useState(true);
+  const [facilities, setFacilities] = useState([]);
+  const [courtTypes, setCourtTypes] = useState([]);
+  const [dateOptions] = useState(() => {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
 
@@ -35,21 +27,60 @@ export default function BookingScreen({ navigation }) {
       const weekday = d.toLocaleDateString('vi-VN', { weekday: 'short' });
       return { id: iso, weekday, day: dd, month: mm, isToday: i === 0 };
     });
+  });
+
+  const [facilityId, setFacilityId] = useState(null);
+  const [sportId, setSportId] = useState(null);
+  const [dateId, setDateId] = useState(dateOptions[0]?.id ?? null);
+  
+  const [courts, setCourts] = useState([]);
+  const [slotsByCourtId, setSlotsByCourtId] = useState({});
+
+  useEffect(() => {
+    async function loadInitial() {
+      try {
+        const [f, ct] = await Promise.all([getFacilities(), getCourtTypes()]);
+        setFacilities(f);
+        setCourtTypes(ct);
+        if (f.length > 0) setFacilityId(f[0].id);
+        if (ct.length > 0) setSportId(ct[0].id);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInitial();
   }, []);
 
-  const [facilityId, setFacilityId] = useState(facilities[0]?.id ?? null);
-  const [sportId, setSportId] = useState(courtTypes[0]?.id ?? null);
-  const [dateId, setDateId] = useState(dateOptions[0]?.id ?? null);
-  const selectedFacility = facilities.find((f) => f.id === facilityId) ?? facilities[0];
-  const selectedSport = courtTypes.find((s) => s.id === sportId) ?? courtTypes[0];
+  useEffect(() => {
+    async function loadAvailability() {
+      if (!facilityId || !sportId || !dateId) return;
+      try {
+        const res = await getAvailabilitiesFor({ facilityId, courtTypeId: sportId, date: dateId });
+        setCourts(res.courts || []);
+        setSlotsByCourtId(res.slotsByCourtId || {});
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    loadAvailability();
+  }, [facilityId, sportId, dateId]);
+
+  const sportImages = useMemo(
+    () => ({
+      badminton: require('../../image/1.jpg'),
+      tennis: require('../../image/2.jpg'),
+      table_tennis: require('../../image/3.jpg'),
+    }),
+    []
+  );
+
+  const selectedFacility = useMemo(() => facilities.find((f) => f.id === facilityId) ?? facilities[0], [facilities, facilityId]);
+  const selectedSport = useMemo(() => courtTypes.find((s) => s.id === sportId) ?? courtTypes[0], [courtTypes, sportId]);
 
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
   const [selectionNote, setSelectionNote] = useState('');
-
-  const { courts, slotsByCourtId } = useMemo(() => {
-    if (!facilityId || !sportId || !dateId) return { courts: [], slotsByCourtId: {} };
-    return getAvailabilitiesFor({ facilityId, courtTypeId: sportId, date: dateId });
-  }, [facilityId, sportId, dateId]);
 
   const allKeys = useMemo(() => {
     const set = new Set();
@@ -122,6 +153,16 @@ export default function BookingScreen({ navigation }) {
       return next;
     });
   };
+
+  if (loading) {
+      return (
+          <Screen>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+          </Screen>
+      );
+  }
 
   return (
     <Screen>

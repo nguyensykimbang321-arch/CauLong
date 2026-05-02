@@ -1,13 +1,7 @@
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useMemo, useReducer, useState, useEffect } from 'react';
 import mock from './mock.json';
 
 const AppStoreContext = createContext(null);
-
-function createInitialState() {
-  return {
-    cartItems: (mock.cart_items ?? []).map((it) => ({ ...it })),
-  };
-}
 
 function reducer(state, action) {
   switch (action.type) {
@@ -53,13 +47,29 @@ function reducer(state, action) {
     case 'cart/clear': {
       return { ...state, cartItems: [] };
     }
+    case 'cart/init': {
+      return { ...state, cartItems: action.payload };
+    }
     default:
       return state;
   }
 }
 
 export function AppStoreProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(reducer, { cartItems: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function init() {
+        try {
+            // Khởi tạo giỏ hàng từ mock hoặc storage
+            dispatch({ type: 'cart/init', payload: (mock.cart_items ?? []).map(it => ({ ...it })) });
+        } finally {
+            setLoading(false);
+        }
+    }
+    init();
+  }, []);
 
   const api = useMemo(() => {
     const addToCart = (product, variant, quantity = 1) =>
@@ -74,8 +84,8 @@ export function AppStoreProvider({ children }) {
     const clearCart = () =>
       dispatch({ type: 'cart/clear', payload: {} });
 
-    return { state, addToCart, setCartQty, removeFromCart, clearCart };
-  }, [state]);
+    return { state, addToCart, setCartQty, removeFromCart, clearCart, loading };
+  }, [state, loading]);
 
   return <AppStoreContext.Provider value={api}>{children}</AppStoreContext.Provider>;
 }
@@ -85,4 +95,3 @@ export function useAppStore() {
   if (!ctx) throw new Error('useAppStore must be used within AppStoreProvider');
   return ctx;
 }
-

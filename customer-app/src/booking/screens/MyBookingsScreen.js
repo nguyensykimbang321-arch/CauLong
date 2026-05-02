@@ -1,23 +1,53 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import { getBookings, getCurrentUser } from '../../data/mockStore';
 import BookingCard from '../../shared/components/BookingCard';
 
 export default function MyBookingsScreen({ navigation }) {
-  const user = getCurrentUser();
-  const bookings = getBookings(user?.id);
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState([]);
   const [tab, setTab] = useState('upcoming'); // upcoming | past | cancelled
+
+  useEffect(() => {
+    async function loadBookings() {
+        try {
+            const user = await getCurrentUser();
+            if (user) {
+                const res = await getBookings(user.id);
+                setBookings(res);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }
+    loadBookings();
+  }, []);
 
   const data = useMemo(() => {
     const now = new Date();
-    const parse = (b) => new Date(String(b?.start_at ?? b?.date ?? ''));
+    const parse = (b) => {
+        const dStr = b?.start_at ?? b?.date ?? '';
+        return dStr ? new Date(dStr) : new Date(0);
+    };
 
     if (tab === 'cancelled') return bookings.filter((b) => b.status === 'cancelled');
     if (tab === 'past') return bookings.filter((b) => parse(b) < now && b.status !== 'cancelled');
     return bookings.filter((b) => parse(b) >= now && b.status !== 'cancelled');
   }, [bookings, tab]);
+
+  if (loading) {
+      return (
+          <Screen>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+          </Screen>
+      );
+  }
 
   return (
     <Screen>

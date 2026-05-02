@@ -1,12 +1,13 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import Button from '../../shared/components/Button';
 import { formatPrice } from '../../utils/formatters';
 import { getCourts, getFacilities, getCourtTypes } from '../../data/mockStore';
+import * as api from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable } from 'react-native';
+import PaymentOption from '../../shared/components/PaymentOption';
 
 export default function BookingConfirmScreen({ route, navigation }) {
   const desiredKeys = route?.params?.desiredKeys ?? [];
@@ -15,20 +16,97 @@ export default function BookingConfirmScreen({ route, navigation }) {
   const facilityId = route?.params?.facilityId ?? null;
   const sportId = route?.params?.sportId ?? null;
   const date = route?.params?.date ?? null;
-  const [paymentMethod, setPaymentMethod] = React.useState('cod'); 
 
-  const facility = getFacilities().find((f) => f.id === facilityId);
-  const sport = getCourtTypes().find((s) => s.id === sportId);
-  const courts = getCourts({ facilityId });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [facility, setFacility] = useState(null);
+  const [sport, setSport] = useState(null);
+  const [courts, setCourts] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('cod'); 
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [facilities, types, allCourts] = await Promise.all([
+          getFacilities(),
+          getCourtTypes(),
+          getCourts({ facilityId })
+        ]);
+        setFacility(facilities.find(f => f.id === facilityId));
+        setSport(types.find(s => s.id === sportId));
+        setCourts(allCourts);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [facilityId, sportId]);
+
   const courtName = (id) => courts.find((c) => c.id === id)?.name ?? id;
-
   const sportLabel = sport?.name === 'badminton' ? 'Cầu lông' : sport?.name === 'tennis' ? 'Tennis' : sport?.name === 'table_tennis' ? 'Bóng bàn' : '—';
+
+  const handleConfirm = async () => {
+    if (paymentMethod === 'vnpay') {
+        const mockVnpayUrl = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=1000000&vnp_Command=pay&vnp_CreateDate=20210801153333&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+dat+san&vnp_OrderType=other&vnp_ReturnUrl=caulong%3A%2F%2Fpayment-return&vnp_TmnCode=M0A3F9BU&vnp_TxnRef=123456&vnp_Version=2.1.0&vnp_SecureHash=...';
+
+        navigation.navigate('PaymentWebView', { 
+          url: mockVnpayUrl,
+          onPaymentSuccess: (url) => {
+            navigation.navigate('MyBookings');
+            Alert.alert('Thành công', 'Thanh toán đặt sân thành công!');
+          },
+          onPaymentCancel: (url) => {
+            Alert.alert('Thông báo', 'Giao dịch đặt sân đã bị hủy.');
+          }
+        });
+        return;
+    }
+
+    try {
+        setSubmitting(true);
+        // Chuẩn bị dữ liệu slots cho backend
+        const slots = assignment.segments.flatMap(seg => seg.keys.map(k => ({
+            court_id: seg.courtId,
+            start_at: `${date}T${k.split('-')[0]}:00Z`,
+            end_at: `${date}T${k.split('-')[1]}:00Z`,
+            price_cents: seg.price_cents / seg.keys.length // Giả định chia đều
+        })));
+
+        await api.createBooking({
+            facility_id: facilityId,
+            total_cents: total,
+            note: '',
+            slots
+        });
+
+        Alert.alert('Thành công', 'Đặt sân thành công!', [
+            { text: 'OK', onPress: () => navigation.navigate('MyBookings') }
+        ]);
+    } catch (error) {
+        console.error(error);
+        Alert.alert('Lỗi', 'Không thể hoàn tất đặt sân. Vui lòng thử lại.');
+    } finally {
+        setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+      return (
+          <Screen>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+          </Screen>
+      )
+  }
 
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Xác nhận đặt sân</Text>
-        <Text style={styles.sub}>Demo mock: chưa gọi backend, chỉ hiển thị tạm.</Text>
+        <Text style={styles.sub}>Vui lòng kiểm tra kỹ thông tin trước khi xác nhận.</Text>
 
         <View style={styles.card}>
           <Text style={styles.label}>Thông tin</Text>
@@ -103,30 +181,12 @@ export default function BookingConfirmScreen({ route, navigation }) {
         <View style={styles.actions}>
           <Button 
             title={paymentMethod === 'vnpay' ? "Thanh toán VNPay" : "Xác nhận đặt sân"} 
-            onPress={() => {
-              if (paymentMethod === 'vnpay') {
-                 // Mock VNPay URL for demonstration with your TmnCode
-                 const mockVnpayUrl = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=1000000&vnp_Command=pay&vnp_CreateDate=20210801153333&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+dat+san&vnp_OrderType=other&vnp_ReturnUrl=caulong%3A%2F%2Fpayment-return&vnp_TmnCode=M0A3F9BU&vnp_TxnRef=123456&vnp_Version=2.1.0&vnp_SecureHash=...';
-
-                 navigation.navigate('PaymentWebView', { 
-                   url: mockVnpayUrl,
-                   onPaymentSuccess: (url) => {
-                     navigation.navigate('MyBookings');
-                     alert('Thanh toán đặt sân thành công!');
-                   },
-                   onPaymentCancel: (url) => {
-                     alert('Giao dịch đặt sân đã bị hủy.');
-                   }
-                 });
-              } else {
-                navigation.navigate('MyBookings');
-                alert('Đặt sân thành công!');
-              }
-            }} 
+            onPress={handleConfirm}
+            loading={submitting}
             fullWidth={true} 
           />
           <View style={{ height: spacing.sm }} />
-          <Button title="Quay lại" variant="outline" onPress={() => navigation.goBack()} fullWidth={true} />
+          <Button title="Quay lại" variant="outline" onPress={() => navigation.goBack()} fullWidth={true} disabled={submitting} />
         </View>
       </ScrollView>
     </Screen>
