@@ -1,25 +1,42 @@
 import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Screen from './Screen';
 import { colors } from '../../theme';
+import { useAppStore } from '../../data/AppStore';
 
 export default function PaymentWebView({ route, navigation }) {
-  const { url, onPaymentSuccess, onPaymentCancel } = route.params;
+  const { url, type = 'shop' } = route.params;
+  const { clearCart } = useAppStore();
 
   const handleNavigationStateChange = (navState) => {
-    // Replace this with your actual return URL from VNPay redirect
-    const returnUrl = 'caulong://payment-return'; 
+    // Lắng nghe cả Deep Link và Website Return URL (sử dụng IP)
+    const isVnpayReturn = navState.url.includes('vnpay_return') || navState.url.includes('payment-return');
 
-    if (navState.url.includes(returnUrl)) {
-      if (navState.url.includes('vnp_ResponseCode=00')) {
-        onPaymentSuccess && onPaymentSuccess(navState.url);
+    if (isVnpayReturn) {
+      const isSuccess = navState.url.includes('vnp_ResponseCode=00');
+      
+      if (isSuccess) {
+        if (type === 'shop') {
+          clearCart && clearCart();
+          navigation.navigate('Shop');
+          setTimeout(() => {
+            Alert.alert('Thành công', 'Thanh toán đơn hàng thành công!');
+          }, 500);
+        } else {
+          // Luồng Đặt sân
+          navigation.navigate('MyBookings');
+          setTimeout(() => {
+            Alert.alert('Thành công', 'Đặt sân thành công!');
+          }, 500);
+        }
       } else {
-        onPaymentCancel && onPaymentCancel(navState.url);
+        Alert.alert('Thông báo', 'Giao dịch đã bị hủy hoặc thất bại.');
+        navigation.goBack();
       }
-      navigation.goBack();
     }
   };
+
 
   return (
     <Screen>

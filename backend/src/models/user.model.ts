@@ -4,10 +4,13 @@ import sequelize from '../config/database.js';
 // 1. Khai báo Interface mô tả các cột trong Database
 export interface UserAttributes {
   id: number;
+  full_name: string | null;
   email: string;
   phone: string | null;
   password_hash: string;
-  role: 'admin' | 'manager' | 'receptionist' | 'customer';
+  avatar_url: string | null;
+  role: 'admin' | 'staff' | 'customer';
+  loyalty_points: number;
   is_active: boolean;
   created_at?: Date;
   updated_at?: Date;
@@ -15,15 +18,18 @@ export interface UserAttributes {
 }
 
 // 2. Định nghĩa các trường có thể bỏ trống khi Create (VD: id tự tăng)
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'role' | 'is_active'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'role' | 'is_active' | 'loyalty_points'> {}
 
 // 3. Khởi tạo Class Model
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
+  declare full_name: string | null;
   declare email: string;
   declare phone: string | null;
   declare password_hash: string;
-  declare role: 'admin' | 'manager' | 'receptionist' | 'customer';
+  declare avatar_url: string | null;
+  declare role: 'admin' | 'staff' | 'customer';
+  declare loyalty_points: number;
   declare is_active: boolean;
 
   // Timestamps
@@ -39,6 +45,10 @@ User.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+    },
+    full_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
     },
     email: {
       type: DataTypes.STRING(100),
@@ -56,15 +66,24 @@ User.init(
       type: DataTypes.STRING(255),
       allowNull: false,
     },
+    avatar_url: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     role: {
       type: DataTypes.ENUM('admin', 'staff', 'customer'),
       defaultValue: 'customer',
+    },
+    loyalty_points: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
     },
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
   },
+
   {
     sequelize,
     tableName: 'users',

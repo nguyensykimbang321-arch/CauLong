@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Animated, Image, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
@@ -8,12 +8,62 @@ import ProductCard from '../../shared/components/ProductCard';
 import Button from '../../shared/components/Button';
 import { useAppStore } from '../../data/AppStore';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function ShopScreen({ navigation }) {
-  const { state } = useAppStore();
-  const products = getProducts();
+  const { state, addToCart } = useAppStore();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('all');
+  
+  // Animation refs và state
+  const cartRef = useRef(null);
+  const [flyingObject, setFlyingObject] = useState(null);
+  const flyingAnim = useRef(new Animated.Value(0)).current;
+  const cartScale = useRef(new Animated.Value(1)).current;
+
+  const handleAddToCart = ({ product, variant, startPos, image }) => {
+    cartRef.current?.measureInWindow((destX, destY, destWidth, destHeight) => {
+      const endPos = { x: destX + destWidth / 2, y: destY + destHeight / 2 };
+      setFlyingObject({ image, startPos, endPos });
+      flyingAnim.setValue(0);
+
+      Animated.sequence([
+        Animated.timing(flyingAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: false,
+        }),
+        Animated.spring(cartScale, {
+          toValue: 1.4,
+          friction: 3,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cartScale, {
+          toValue: 1,
+          friction: 3,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setFlyingObject(null);
+        addToCart(product, variant, 1);
+      });
+    });
+  };
+
   const query = q.trim().toLowerCase();
+
+  useEffect(() => {
+    let mounted = true;
+    getProducts().then(res => {
+      if (mounted) {
+        setProducts(res || []);
+        setLoading(false);
+      }
+    });
+    return () => { mounted = false };
+  }, []);
 
   const categories = useMemo(() => {
     const map = new Map();
@@ -34,6 +84,16 @@ export default function ShopScreen({ navigation }) {
 
   const cartCount = state.cartItems?.reduce((sum, x) => sum + (x.quantity ?? 0), 0) ?? 0;
 
+  if (loading) {
+    return (
+      <Screen>
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -41,14 +101,21 @@ export default function ShopScreen({ navigation }) {
           <Text style={styles.title}>Cửa hàng</Text>
           <Text style={styles.sub}>Chọn đồ xịn cho buổi chơi chất.</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Cart')} activeOpacity={0.8} style={styles.cartBtn}>
-          <Ionicons name="cart-outline" size={20} color={colors.textPrimary} />
-          {cartCount > 0 ? (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: cartScale }] }}>
+          <TouchableOpacity 
+            ref={cartRef}
+            onPress={() => navigation.navigate('Cart')} 
+            activeOpacity={0.8} 
+            style={styles.cartBtn}
+          >
+            <Ionicons name="cart-outline" size={22} color={colors.textPrimary} />
+            {cartCount > 0 ? (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       <View style={styles.searchWrap}>
@@ -72,6 +139,8 @@ export default function ShopScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
+        numColumns={2}
+        key="shop-grid"
         ListHeaderComponent={
           <View style={styles.filters}>
             <FlatList
@@ -100,7 +169,7 @@ export default function ShopScreen({ navigation }) {
         renderItem={({ item }) => (
           <ProductCard
             product={item}
-            horizontal={true}
+            onAddToCart={handleAddToCart}
             onPress={() => navigation.navigate('ProductDetail', { product: item })}
           />
         )}
@@ -111,6 +180,44 @@ export default function ShopScreen({ navigation }) {
           </View>
         }
       />
+
+      {/* Animation Layer */}
+      {flyingObject && (
+        <Animated.Image
+          source={{ uri: flyingObject.image }}
+          style={[
+            styles.flyingImg,
+            {
+              left: flyingAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [flyingObject.startPos.x - 30, flyingObject.endPos.x - 20],
+              }),
+              top: flyingAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [flyingObject.startPos.y - 30, flyingObject.endPos.y - 20],
+              }),
+              transform: [
+                {
+                  scale: flyingAnim.interpolate({
+                    inputRange: [0, 0.2, 1],
+                    outputRange: [1, 1.2, 0.1],
+                  })
+                },
+                {
+                  rotate: flyingAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  })
+                }
+              ],
+              opacity: flyingAnim.interpolate({
+                inputRange: [0, 0.8, 1],
+                outputRange: [1, 1, 0],
+              })
+            }
+          ]}
+        />
+      )}
     </Screen>
   );
 }
@@ -120,9 +227,9 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.textPrimary },
   sub: { marginTop: 4, fontSize: fontSize.sm, color: colors.textSecondary },
   cartBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -144,22 +251,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.surface,
   },
-  cartBadgeText: { color: colors.white, fontSize: 11, fontWeight: fontWeight.bold },
+  cartBadgeText: { color: colors.white, fontSize: 10, fontWeight: fontWeight.bold },
   searchWrap: {
     marginTop: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+    borderRadius: 16,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadow.sm,
   },
-  search: { flex: 1, paddingVertical: 10, fontSize: fontSize.md },
-  clearBtn: { paddingVertical: 6 },
-  list: { paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  search: { flex: 1, paddingVertical: 12, fontSize: fontSize.md, color: colors.textPrimary },
+  list: { paddingTop: spacing.lg, paddingBottom: 100 },
   filters: { marginBottom: spacing.md },
   chipsRow: { paddingRight: spacing.lg, gap: spacing.sm },
   chip: {
@@ -167,28 +273,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.full,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     ...shadow.sm,
   },
-  chipSelected: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.sm, color: colors.textSecondary, fontWeight: fontWeight.semiBold },
-  chipTextSelected: { color: colors.textPrimary },
-  chipCount: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold },
-  chipCountSelected: { color: colors.textPrimary },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  chipTextSelected: { color: colors.white },
+  chipCount: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
+  chipCountSelected: { color: 'rgba(255,255,255,0.8)' },
   empty: {
     marginTop: spacing.xl,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    padding: spacing.xl,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
   },
-  emptyText: { fontSize: fontSize.md, color: colors.textSecondary, marginBottom: spacing.sm },
+  emptyText: { fontSize: fontSize.md, color: colors.textSecondary, marginBottom: spacing.md },
+  flyingImg: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    zIndex: 9999,
+  }
 });
-

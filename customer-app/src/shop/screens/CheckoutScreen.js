@@ -7,12 +7,14 @@ import Button from '../../shared/components/Button';
 import { calcCartTotal, formatPrice } from '../../utils/formatters';
 import { useAppStore } from '../../data/AppStore';
 import PaymentOption from '../../shared/components/PaymentOption';
+import { createOrder } from '../../services/api';
 
 export default function CheckoutScreen({ navigation }) {
   const { state, clearCart } = useAppStore();
   const total = useMemo(() => calcCartTotal(state.cartItems), [state.cartItems]);
 
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -26,7 +28,7 @@ export default function CheckoutScreen({ navigation }) {
                 setName(user.full_name);
                 setPhone(user.phone);
             }
-            if (facilities.length > 0) {
+            if (facilities && facilities.length > 0) {
                 setAddress(facilities[0].address);
             }
         } catch (e) {
@@ -37,6 +39,42 @@ export default function CheckoutScreen({ navigation }) {
     }
     loadInitial();
   }, []);
+
+  const handleCheckout = async () => {
+    if (!canSubmit) return;
+    setIsSubmitting(true);
+    try {
+      const orderData = {
+        customer_name: name,
+        customer_phone: phone,
+        shipping_address: address,
+        payment_method: paymentMethod,
+        items: state.cartItems.map(it => ({
+          product_variant_id: it.variant_id,
+          quantity: it.quantity,
+          price_cents: it.price_cents
+        }))
+      };
+
+      const result = await createOrder(orderData);
+
+      if (paymentMethod === 'vnpay' && result.payment_url) {
+        navigation.navigate('PaymentWebView', {
+          url: result.payment_url,
+          type: 'shop'
+        });
+      } else {
+        clearCart();
+        navigation.navigate('Shop');
+        Alert.alert('Thành công', 'Đặt hàng thành công!');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const canSubmit = useMemo(() => name.trim() && phone.trim() && address.trim(), [name, phone, address]);
 
@@ -53,7 +91,7 @@ export default function CheckoutScreen({ navigation }) {
   return (
     <Screen>
       <Text style={styles.title}>Thanh toán</Text>
-      <Text style={styles.sub}>Vui lòng điền thông tin giao hàng.</Text>
+      <Text style={styles.sub}>Vui lòng điền thông tin giao hàng để chốt đơn.</Text>
 
       <View style={styles.card}>
         <Field label="Họ tên" value={name} onChangeText={setName} />
@@ -84,29 +122,10 @@ export default function CheckoutScreen({ navigation }) {
         </View>
 
         <Button
-          title={paymentMethod === 'vnpay' ? "Thanh toán VNPay" : "Đặt hàng ngay"}
-          onPress={() => {
-            if (paymentMethod === 'vnpay') {
-              const mockVnpayUrl = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=1000000&vnp_Command=pay&vnp_CreateDate=20210801153333&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+don+hang&vnp_OrderType=other&vnp_ReturnUrl=caulong%3A%2F%2Fpayment-return&vnp_TmnCode=M0A3F9BU&vnp_TxnRef=123456&vnp_Version=2.1.0&vnp_SecureHash=...';
-              
-              navigation.navigate('PaymentWebView', { 
-                url: mockVnpayUrl,
-                onPaymentSuccess: (url) => {
-                  clearCart();
-                  navigation.navigate('Shop');
-                  Alert.alert('Thành công', 'Thanh toán VNPay thành công!');
-                },
-                onPaymentCancel: (url) => {
-                  Alert.alert('Thông báo', 'Giao dịch đã bị hủy.');
-                }
-              });
-            } else {
-              clearCart();
-              navigation.navigate('Shop');
-              Alert.alert('Thành công', 'Đặt hàng thành công!');
-            }
-          }}
-          disabled={!canSubmit || total <= 0}
+          title={isSubmitting ? "Đang xử lý..." : (paymentMethod === 'vnpay' ? "Thanh toán VNPay" : "Đặt hàng ngay")}
+          onPress={handleCheckout}
+          loading={isSubmitting}
+          disabled={!canSubmit || total <= 0 || isSubmitting}
           fullWidth={true}
         />
       </View>

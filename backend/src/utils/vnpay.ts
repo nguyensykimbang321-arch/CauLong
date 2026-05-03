@@ -21,7 +21,8 @@ export class VNPayUtils {
     ipAddr: string;
     createDate?: string;
   }): string {
-    const date = params.createDate || moment().format('YYYYMMDDHHmmss');
+    const date = params.createDate || moment().utcOffset(7).format('YYYYMMDDHHmmss');
+    const expireDate = moment().utcOffset(7).add(15, 'minutes').format('YYYYMMDDHHmmss');
     
     let vnp_Params: any = {
       vnp_Version: '2.1.0',
@@ -36,6 +37,7 @@ export class VNPayUtils {
       vnp_ReturnUrl: this.returnUrl,
       vnp_IpAddr: params.ipAddr,
       vnp_CreateDate: date,
+      vnp_ExpireDate: expireDate,
     };
 
     // Sắp xếp các tham số theo alphabet (Yêu cầu của VNPay)
@@ -69,10 +71,19 @@ export class VNPayUtils {
 
   private static sortObject(obj: any) {
     const sorted: any = {};
-    const keys = Object.keys(obj).sort();
-    keys.forEach((key) => {
-      sorted[key] = obj[key];
-    });
+    const str = [];
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        str.push(encodeURIComponent(key));
+      }
+    }
+    str.sort();
+    for (let i = 0; i < str.length; i++) {
+        const key = str[i];
+        if (key) {
+           sorted[key] = encodeURIComponent(obj[decodeURIComponent(key)]).replace(/%20/g, "+");
+        }
+    }
     return sorted;
   }
 }

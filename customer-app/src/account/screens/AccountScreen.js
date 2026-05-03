@@ -3,36 +3,54 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
-import { getCurrentUser } from '../../data/mockStore';
+import { useAppStore } from '../../data/AppStore';
 
 export default function AccountScreen({ navigation }) {
-  const user = getCurrentUser();
+  const { user, logout } = useAppStore();
+
+  const handleLogout = () => {
+    logout();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
 
   const items = [
     { id: 'bookings', label: 'Lịch đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('MyBookings') },
     { id: 'noti', label: 'Thông báo', icon: 'notifications-outline', onPress: () => navigation.navigate('Notifications') },
+    { id: 'logout', label: 'Đăng xuất', icon: 'log-out-outline', onPress: handleLogout, danger: true },
   ];
 
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={styles.profile}>
-          <Image source={{ uri: user?.avatar_url }} style={styles.avatar} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{user?.full_name}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
-            <Text style={styles.points}>Điểm: {user?.loyalty_points}</Text>
+        {!user ? (
+          <View style={styles.profile}>
+             <View style={styles.avatar} />
+             <View style={{ flex: 1 }}>
+               <Text style={styles.name}>Chưa đăng nhập</Text>
+               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                  <Text style={[styles.email, { color: colors.primary }]}>Bấm để đăng nhập ngay</Text>
+               </TouchableOpacity>
+             </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.profile}>
+            <Image source={{ uri: user?.avatar_url || 'https://i.pravatar.cc/150' }} style={styles.avatar} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{user?.full_name}</Text>
+              <Text style={styles.email}>{user?.email}</Text>
+              <Text style={styles.points}>Hạng: {user?.role === 'customer' ? 'Thành viên' : 'Nhân viên'}</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.card}>
           {items.map((it) => (
             <TouchableOpacity key={it.id} onPress={it.onPress} activeOpacity={0.85} style={styles.row}>
               <View style={styles.rowLeft}>
-                <View style={styles.iconWrap}>
-                  <Ionicons name={it.icon} size={18} color={colors.primary} />
+                <View style={[styles.iconWrap, it.danger && { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name={it.icon} size={18} color={it.danger ? '#EF4444' : colors.primary} />
                 </View>
-                <Text style={styles.rowLabel}>{it.label}</Text>
+                <Text style={[styles.rowLabel, it.danger && { color: '#EF4444' }]}>{it.label}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </TouchableOpacity>

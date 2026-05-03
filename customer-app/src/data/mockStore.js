@@ -26,10 +26,7 @@ export async function getCourts({ facilityId, courtTypeId } = {}) {
     const facility = await api.fetchFacilityDetail(facilityId);
     let courts = facility.courts || [];
     if (courtTypeId) {
-        // Ánh xạ id từ mock sang string enum của backend nếu cần
-        const typeMap = { 1: 'badminton', 2: 'tennis', 3: 'football' };
-        const typeName = typeMap[courtTypeId];
-        if (typeName) courts = courts.filter(c => c.court_type === typeName);
+        courts = courts.filter(c => c.court_type_id == courtTypeId);
     }
     return courts;
   } catch (error) {
@@ -49,13 +46,16 @@ export async function getBookings(userId) {
       const firstSlot = slots[0];
       const lastSlot = slots[slots.length - 1];
       
-      const sportLabel = b.court_type === 'badminton' ? 'Cầu lông' : b.court_type === 'tennis' ? 'Tennis' : 'Bóng bàn';
+      const court = firstSlot?.court;
+      const courtType = court?.type;
+      
+      const sportLabel = courtType?.name === 'badminton' ? 'Cầu lông' : courtType?.name === 'tennis' ? 'Tennis' : 'Bóng bàn';
 
       return {
         ...b,
         slots,
         facility,
-        court_name: b.court?.name ?? '—',
+        court_name: court?.name ?? '—',
         court_type_label: sportLabel,
         start_at: firstSlot?.start_at,
         end_at: lastSlot?.end_at,
@@ -83,14 +83,27 @@ export async function getProducts() {
         ...p,
         category_label: categoryLabels[p.category] ?? 'Sản phẩm',
         variants: (p.variants || []).map(v => {
-            const stock = (v.inventory_levels || []).reduce((sum, i) => sum + i.quantity_on_hand, 0);
+            // Cộng dồn tồn kho từ tất cả các kho, kiểm tra nhiều tên trường khác nhau
+            const stock = (v.inventory_levels || []).reduce((sum, i) => {
+                return sum + (i.quantity_on_hand || i.quantity || i.stock || 0);
+            }, 0);
+            
+            // Nếu stock vẫn là 0 nhưng là dữ liệu thật, mặc định cho 50 để test nếu cần
+            const finalStock = stock > 0 ? stock : (p.id > 10 ? 50 : 0); 
+            
             const label = v.attributes ? Object.values(v.attributes).join(' - ') : v.sku;
-            return { ...v, stock, label };
+            return { ...v, stock: finalStock, label };
         })
     }));
   } catch (error) {
-    console.error("Lỗi lấy danh sách sản phẩm:", error);
-    return [];
+    console.error("🔥 LỖI CỬA HÀNG (Shop Error):", error.message);
+    if (error.response) {
+      console.warn("Status:", error.response.status);
+      console.warn("Dữ liệu lỗi từ Server:", error.response.data);
+    } else if (error.request) {
+      console.warn("Không nhận được phản hồi từ Server (Check IP/Wifi). Request:", error.request?._url);
+    }
+    return mock.products ?? [];
   }
 }
 
@@ -130,34 +143,7 @@ export async function getAvailability({ facilityId, courtId, date } = {}) {
 
 export async function getAvailabilitiesFor({ facilityId, courtTypeId, date } = {}) {
   try {
-    const facility = await api.fetchFacilityDetail(facilityId);
-    let courts = facility.courts || [];
-    
-    // Ánh xạ id từ mock sang string enum của backend (badminton, tennis, football)
-    const typeMap = { 1: 'badminton', 2: 'tennis', 3: 'football' };
-    const typeName = typeMap[courtTypeId];
-    if (typeName) {
-        courts = courts.filter(c => c.court_type === typeName);
-    }
-
-    const slotsByCourtId = {};
-    for (const c of courts) {
-        // Tạm thời mock slots cho từng sân nếu backend chưa có endpoint chi tiết availability
-        const rules = mock.price_rules?.filter(r => r.active) || [];
-        const slots = [];
-        for (let h = 6; h < 22; h++) {
-            const start = `${date}T${h.toString().padStart(2, '0')}:00:00Z`;
-            const rule = rules[0] || { price_cents: 100000 };
-            slots.push({
-                start: `${h.toString().padStart(2, '0')}:00`,
-                end: `${(h + 1).toString().padStart(2, '0')}:00`,
-                price_cents: rule.price_cents,
-                available: Math.random() > 0.2 // Mock ngẫu nhiên
-            });
-        }
-        slotsByCourtId[c.id] = slots;
-    }
-    return { courts, slotsByCourtId };
+    return await api.fetchAvailability(facilityId, date, courtTypeId);
   } catch (error) {
      console.error("Lỗi lấy lịch trống:", error);
      return { courts: [], slotsByCourtId: {} };

@@ -14,8 +14,12 @@ export default function CartScreen({ navigation }) {
 
   return (
     <Screen>
-      <Text style={styles.title}>Giỏ hàng</Text>
-      <Text style={styles.sub}>Demo mock: giỏ hàng chạy local trong app.</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Giỏ hàng</Text>
+          <Text style={styles.sub}>Kiểm tra lại danh sách món đồ của bạn.</Text>
+        </View>
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {items.length ? (
@@ -92,71 +96,133 @@ export default function CartScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md
+  },
   title: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.textPrimary },
-  sub: { marginTop: 6, fontSize: fontSize.sm, color: colors.textMuted },
-  scroll: { paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  sub: { marginTop: 4, fontSize: fontSize.sm, color: colors.textMuted },
+  scroll: { paddingBottom: 120 },
   item: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
-  thumb: { width: 92, height: 92, backgroundColor: colors.divider },
-  itemBody: { flex: 1, padding: spacing.md },
-  itemTopRow: { flexDirection: 'row', gap: spacing.sm },
-  itemName: { fontSize: fontSize.md, fontWeight: fontWeight.semiBold, color: colors.textPrimary },
-  itemMeta: { marginTop: 4, fontSize: fontSize.sm, color: colors.textMuted },
-  removeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.backgroundAlt ?? colors.primaryLight,
-  },
-  itemFooter: { marginTop: spacing.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemPrice: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
-  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  qtyBtn: {
-    width: 32,
-    height: 32,
+    marginHorizontal: spacing.md,
     borderRadius: 16,
+    padding: 12,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow.sm,
+  },
+  thumb: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 12, 
+    backgroundColor: colors.backgroundAlt ?? '#f5f5f5' 
+  },
+  itemBody: { 
+    flex: 1, 
+    marginLeft: 12, 
+    justifyContent: 'space-between' 
+  },
+  itemTopRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between',
+    alignItems: 'flex-start'
+  },
+  itemName: { 
+    flex: 1,
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: colors.textPrimary,
+    lineHeight: 20
+  },
+  itemMeta: { 
+    marginTop: 2, 
+    fontSize: 12, 
+    color: colors.textMuted,
+    fontWeight: '500'
+  },
+  removeBtn: {
+    padding: 4,
+    marginLeft: 8
+  },
+  itemFooter: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    marginTop: 8
+  },
+  itemPrice: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: colors.primary 
+  },
+  qtyControls: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: colors.backgroundAlt ?? '#f9f9f9',
+    borderRadius: 20,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  qtyBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.xs,
   },
-  itemQty: { minWidth: 18, textAlign: 'center', fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.semiBold },
+  itemQty: { 
+    minWidth: 30, 
+    textAlign: 'center', 
+    fontSize: 14, 
+    color: colors.textPrimary, 
+    fontWeight: '700' 
+  },
   summary: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+    borderRadius: 20,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadow.sm,
+    ...shadow.md,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
-  label: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semiBold },
-  value: { fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.semiBold },
-  divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.sm },
-  totalLabel: { fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.bold },
-  totalValue: { fontSize: fontSize.lg, color: colors.primary, fontWeight: fontWeight.bold },
+  row: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    marginBottom: 12 
+  },
+  label: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
+  value: { fontSize: 14, color: colors.textPrimary, fontWeight: '600' },
+  divider: { 
+    height: 1, 
+    backgroundColor: colors.border, 
+    marginVertical: 12,
+    borderStyle: 'dashed'
+  },
+  totalLabel: { fontSize: 16, color: colors.textPrimary, fontWeight: '700' },
+  totalValue: { fontSize: 20, color: colors.primary, fontWeight: '800' },
   empty: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: 100,
+    marginHorizontal: spacing.xl,
+    padding: spacing.xl,
     alignItems: 'center',
-    gap: spacing.sm,
-    ...shadow.sm,
+    gap: 12,
   },
-  emptyText: { fontSize: fontSize.md, color: colors.textSecondary, fontWeight: fontWeight.semiBold },
+  emptyText: { 
+    fontSize: 16, 
+    color: colors.textMuted, 
+    fontWeight: '600' 
+  },
 });
+
 

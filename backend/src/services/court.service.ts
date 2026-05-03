@@ -6,7 +6,7 @@ import type { CreateCourtInput, UpdateCourtInput } from "../validations/court.va
 export class CourtService {
     static async getAllCourts() {
         return await models.Court.findAll({
-            where: { is_active: true },
+            where: { status: 'active' },
             order: [['created_at', 'DESC']],
             include:[
                 {
@@ -20,7 +20,7 @@ export class CourtService {
 
     static async getCourtById(id: number) {
         const court = await models.Court.findOne({
-            where: {id: id, is_active: true },
+            where: {id: id, status: 'active' },
             include: [{model: models.Facility, as: "facility", attributes: ['id', 'name', 'address']}]
         });
         if(!court) {
@@ -43,8 +43,8 @@ export class CourtService {
             }
         });
         if(existingCourt){
-            if(!existingCourt.is_active){
-                await existingCourt.update({ ...data, is_active: true});
+            if(existingCourt.status !== 'active'){
+                await existingCourt.update({ ...data, status: 'active'});
                 return existingCourt;
             }
             throw new ApiError(`Tên sân '${data.name}' đã tồn tại trong cơ sở này`, 400);
@@ -82,7 +82,7 @@ export class CourtService {
     static async deleteCourt(id: number) {
         const court = await this.getCourtById(id);
 
-        await court.update({is_active: false} as any);
+        await court.update({status: 'inactive'} as any);
         return { message: 'Đã xóa sân thành công' };
     }
 }

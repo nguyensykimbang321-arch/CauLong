@@ -21,12 +21,23 @@ import AccountScreen from '../../account/screens/AccountScreen';
 import NotificationsScreen from '../../account/screens/NotificationsScreen';
 import PaymentWebView from '../components/PaymentWebView';
 
-const Tab = createBottomTabNavigator();
+import { useAppStore } from '../../data/AppStore';
+import LoginScreen from '../../account/screens/LoginScreen';
 
+const Tab = createBottomTabNavigator();
 const HomeStack = createStackNavigator();
 const BookingStack = createStackNavigator();
 const ShopStack = createStackNavigator();
 const AccountStack = createStackNavigator();
+const AuthStack = createStackNavigator();
+
+function AuthStackScreen() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+    </AuthStack.Navigator>
+  );
+}
 
 function HomeStackScreen() {
   return (
@@ -81,8 +92,15 @@ const TABS = [
 ];
 
 export default function AppNavigator() {
+  const { user, loading } = useAppStore();
   const insets = useSafeAreaInsets();
   const tabBarHeight = 60 + insets.bottom;
+
+  if (loading) return null;
+
+  if (!user) {
+    return <AuthStackScreen />;
+  }
 
   return (
     <Tab.Navigator
@@ -102,7 +120,7 @@ export default function AppNavigator() {
         tabBarLabelStyle: { fontSize: fontSize.xs, fontWeight: fontWeight.medium },
         tabBarIcon: ({ focused, color, size }) => {
           const config = TABS.find((t) => t.name === route.name);
-          const iconName = focused ? config.icon : `${config.icon}-outline`;
+          const iconName = config ? (focused ? config.icon : `${config.icon}-outline`) : 'alert';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
@@ -118,4 +136,3 @@ export default function AppNavigator() {
     </Tab.Navigator>
   );
 }
-

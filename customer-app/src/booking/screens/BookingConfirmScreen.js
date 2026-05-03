@@ -48,42 +48,40 @@ export default function BookingConfirmScreen({ route, navigation }) {
   const sportLabel = sport?.name === 'badminton' ? 'Cầu lông' : sport?.name === 'tennis' ? 'Tennis' : sport?.name === 'table_tennis' ? 'Bóng bàn' : '—';
 
   const handleConfirm = async () => {
-    if (paymentMethod === 'vnpay') {
-        const mockVnpayUrl = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=1000000&vnp_Command=pay&vnp_CreateDate=20210801153333&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+dat+san&vnp_OrderType=other&vnp_ReturnUrl=caulong%3A%2F%2Fpayment-return&vnp_TmnCode=M0A3F9BU&vnp_TxnRef=123456&vnp_Version=2.1.0&vnp_SecureHash=...';
-
-        navigation.navigate('PaymentWebView', { 
-          url: mockVnpayUrl,
-          onPaymentSuccess: (url) => {
-            navigation.navigate('MyBookings');
-            Alert.alert('Thành công', 'Thanh toán đặt sân thành công!');
-          },
-          onPaymentCancel: (url) => {
-            Alert.alert('Thông báo', 'Giao dịch đặt sân đã bị hủy.');
-          }
-        });
-        return;
-    }
-
     try {
         setSubmitting(true);
-        // Chuẩn bị dữ liệu slots cho backend
+        const pricePerSlot = Math.round(total / desiredKeys.length);
         const slots = assignment.segments.flatMap(seg => seg.keys.map(k => ({
             court_id: seg.courtId,
             start_at: `${date}T${k.split('-')[0]}:00Z`,
             end_at: `${date}T${k.split('-')[1]}:00Z`,
-            price_cents: seg.price_cents / seg.keys.length // Giả định chia đều
+            price_cents: pricePerSlot
         })));
 
-        await api.createBooking({
+        const response = await api.createBooking({
             facility_id: facilityId,
             total_cents: total,
             note: '',
+            payment_method: paymentMethod,
             slots
         });
 
-        Alert.alert('Thành công', 'Đặt sân thành công!', [
-            { text: 'OK', onPress: () => navigation.navigate('MyBookings') }
-        ]);
+        if (paymentMethod === 'vnpay' && response?.paymentUrl) {
+           navigation.navigate('PaymentWebView', { 
+             url: response.paymentUrl,
+             onPaymentSuccess: (url) => {
+               navigation.navigate('MyBookings');
+               Alert.alert('Thành công', 'Thanh toán đặt sân thành công qua VNPay!');
+             },
+             onPaymentCancel: (url) => {
+               Alert.alert('Thông báo', 'Giao dịch đặt sân đã bị hủy.');
+             }
+           });
+        } else {
+           Alert.alert('Thành công', 'Đặt sân thành công!', [
+               { text: 'OK', onPress: () => navigation.navigate('MyBookings') }
+           ]);
+        }
     } catch (error) {
         console.error(error);
         Alert.alert('Lỗi', 'Không thể hoàn tất đặt sân. Vui lòng thử lại.');

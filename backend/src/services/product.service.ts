@@ -3,7 +3,7 @@ import  models  from "../models/index.js";
 export class ProductService {
     static async getAllProducts() {
         return await (models.Product as any).findAll({
-            where: { active: true },
+            where: { is_active: true },
             include: [
                 {
                     model: models.ProductVariant,
@@ -22,7 +22,8 @@ export class ProductService {
 
     static async getBySlug(slug: string) {
         return await (models.Product as any).findOne({
-            where: { slug, active: true },
+            where: { slug, is_active: true },
+
             include: [
                 {
                     model: models.ProductVariant,

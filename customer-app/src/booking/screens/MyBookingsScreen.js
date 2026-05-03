@@ -5,6 +5,8 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../
 import { getBookings, getCurrentUser } from '../../data/mockStore';
 import BookingCard from '../../shared/components/BookingCard';
 
+import { Ionicons } from '@expo/vector-icons';
+
 export default function MyBookingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
@@ -52,8 +54,23 @@ export default function MyBookingsScreen({ navigation }) {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Lịch sử đặt sân</Text>
-        <Text style={styles.sub}>Demo mock</Text>
+        <TouchableOpacity 
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('Booking');
+            }
+          }} 
+          activeOpacity={0.8} 
+          style={styles.backBtn}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.title}>Lịch sử đặt sân</Text>
+          <Text style={styles.sub}>Quản lý các buổi tập của bạn</Text>
+        </View>
       </View>
 
       <View style={styles.tabs}>
@@ -93,7 +110,18 @@ function TabButton({ label, active, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   title: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.textPrimary },
   sub: { marginTop: 4, fontSize: fontSize.sm, color: colors.textMuted },
   tabs: {

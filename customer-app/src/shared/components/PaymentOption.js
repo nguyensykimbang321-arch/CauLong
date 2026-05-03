@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function PaymentOption({ label, selected, onPress, icon }) {
