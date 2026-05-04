@@ -1,79 +1,110 @@
-# 📋 Tài liệu Nghiệp vụ Hệ thống (Business Logic & Roles) - MVP Phase
+# 📋 TÀI LIỆU QUY HOẠCH NGHIỆP VỤ & PHÂN CHIA TRÁCH NHIỆM (MVP PHASE)
 
-Tài liệu này mô tả chi tiết quyền hạn của từng nhóm người dùng (Roles) và các luồng nghiệp vụ cốt lõi trong hệ thống Quản lý Sân Thể Thao kết hợp Bán lẻ.
-
----
-
-## 1. Định nghĩa Vai trò (Roles)
-
-Hệ thống MVP chỉ duy trì 3 phân quyền (Role) để tối ưu thời gian phát triển và vận hành:
-
-1. **`admin` (Chủ hệ thống / Quản lý cấp cao):** Người có toàn quyền thiết lập hệ thống, xem báo cáo doanh thu và quản lý nhân sự. Thao tác chủ yếu trên **Web Admin**.
-2. **`staff` (Nhân viên vận hành / Lễ tân):** Người trực tiếp làm việc tại sân, xử lý check-in cho khách và bán hàng tại quầy. Thao tác chủ yếu trên **Web Admin**.
-3. **`customer` (Khách hàng):** Người sử dụng dịch vụ đặt sân và mua hàng. Thao tác độc quyền trên **Mobile App**.
+Tài liệu này định nghĩa ranh giới công việc, quyền sở hữu Database và các luồng nghiệp vụ cốt lõi của dự án Quản lý Sân Thể Thao kết hợp Bán lẻ. 
+**⚠️ QUY TẮC TỐI THƯỢNG:** Không ai được phép dùng `sequelize.sync({ force: true })` trên Database chung. Bảng của ai người nấy quản lý, cấm tự ý thay đổi cấu trúc bảng của người khác!
 
 ---
 
-## 2. Ma trận Phân quyền (Permission Matrix)
+## 1. PHÂN CHIA TRÁCH NHIỆM DEV THEO DOMAIN
 
-Bảng dưới đây quy định rõ ai được phép làm gì trên hệ thống Web Admin.
+Hệ thống được chia làm 2 Domain lớn, mỗi Domain do 1 cặp (Web + App) phụ trách.
 
-| Nhóm Tính Năng | Thao tác | `admin` | `staff` |
-| :--- | :--- | :---: | :---: |
-| **Cơ sở & Sân** | Xem danh sách / Xem lịch | ✅ | ✅ |
-| *(W1 phụ trách)* | Thêm / Sửa / Xóa (Ẩn) Cơ sở & Sân | ✅ | ❌ |
-| | Cấu hình giá tiền theo khung giờ | ✅ | ❌ |
-| **Lịch đặt (Booking)** | Tạo lịch đặt mới (giúp khách gọi hotline) | ✅ | ✅ |
-| *(W1 phụ trách)* | Check-in khách đến sân | ✅ | ✅ |
-| | Hủy lịch / Hoàn tiền | ✅ | ❌ (Chỉ được báo cáo) |
-| **Hàng hóa & Kho** | Xem danh sách sản phẩm & Tồn kho | ✅ | ✅ |
-| *(W2 phụ trách)* | Thêm / Sửa / Xóa Sản phẩm | ✅ | ❌ |
-| | Nhập kho (Tăng số lượng tồn) | ✅ | ❌ |
-| **Bán hàng (POS / Đơn)** | Tạo đơn bán lẻ tại quầy & Thu tiền | ✅ | ✅ |
-| *(W2 phụ trách)* | Cập nhật trạng thái đơn Online của khách | ✅ | ✅ |
-| **Nhân sự & Báo cáo** | Tạo tài khoản Staff mới / Khóa tài khoản | ✅ | ❌ |
-| *(W2 phụ trách)* | Xem báo cáo Tổng doanh thu | ✅ | ❌ |
-| | Xem doanh thu theo Ca trực của mình | ✅ | ✅ |
+### 🔴 DOMAIN 1: QUẢN LÝ SÂN & ĐẶT LỊCH (Booking & Facility)
+**W1 (Web Admin Backend/Frontend) & A1 (Mobile App Frontend)** phối hợp thực hiện.
 
----
+#### Trách nhiệm của W1 (Nắm trùm Backend Đặt sân):
+*   **Sở hữu các bảng (DB):** `facilities`, `courts`, `price_configs` (Cấm W2 đụng vào), `bookings`, `booking_slots`.
+*   **Nhiệm vụ Web Admin:**
+    *   Quản lý danh sách Cơ sở & Sân (Thêm/Sửa/Xóa).
+    *   Quản lý Cấu hình Giá (`price_configs` theo giờ và loại sân).
+    *   Màn hình Lễ tân: Xem lịch đặt, Check-in khách, Tạo lịch đặt mới (Hotline).
+    *   Dashboard Thống kê: Doanh thu tiền sân, Số lượng booking, Tỷ lệ lấp đầy.
+*   **Nhiệm vụ API:** Cung cấp API lấy danh sách sân trống, tính tiền, tạo lịch đặt cho A1 gọi.
 
-## 3. Luồng Nghiệp vụ Cốt lõi (Core Business Flows)
-
-Để tránh hệ thống bị quá tải logic, luồng Đặt Sân và Mua Hàng được tách biệt hoàn toàn.
-
-### 3.1 Luồng Đặt Sân (Khách hàng làm chủ) - Phối hợp A1 & W1
-1. **Khách hàng (A1):** Mở App ➡️ Chọn Cơ sở ➡️ Chọn Ngày ➡️ Hệ thống hiển thị các Sân và Khung giờ CÒN TRỐNG.
-2. **Khách hàng (A1):** Chọn khung giờ ➡️ Bấm "Đặt sân". Hệ thống tạm khóa (Hold) slot đó trong 5-10 phút để chờ thanh toán.
-3. **Thanh toán:** Khách chuyển khoản (giả lập) ➡️ Trạng thái Booking đổi thành `CONFIRMED` (Đã xác nhận).
-4. **Đến sân (W1):** Tới giờ đá/đánh cầu, khách đến quầy đọc SĐT. Lễ tân (Staff) trên Web Admin tìm Booking ➡️ Bấm `CHECK-IN`. Sân chuyển trạng thái đang sử dụng.
-
-### 3.2 Luồng Bán hàng Tại quầy (Offline POS) - W2 phụ trách
-*(Dành cho khách đến sân khát nước hoặc mua thêm cầu)*
-1. Khách hàng ra quầy yêu cầu mua 2 chai nước và 1 ống cầu.
-2. **Lễ tân (Staff):** Mở Web Admin (Tab POS Bán hàng) ➡️ Chọn sản phẩm ➡️ Nhập số lượng.
-3. **Thanh toán:** Lễ tân thu tiền mặt/chuyển khoản ➡️ Bấm "Hoàn tất đơn".
-4. **Hệ thống (W2 API):** Tự động trừ số lượng nước và cầu trong Bảng Tồn kho (Inventory). Lưu lịch sử Đơn hàng (Order).
-
-### 3.3 Luồng Bán hàng Online (In-App Purchases) - Phối hợp A2 & W2
-*(Dành cho khách muốn đặt mua đồ trước qua App, đến sân chỉ việc lấy)*
-1. **Khách hàng (A2):** Mở App ➡️ Vào tab Cửa hàng ➡️ Thêm hàng vào Giỏ ➡️ Bấm "Đặt hàng".
-2. **Hệ thống:** Tạo Order với trạng thái `PENDING` (Chờ xử lý). Tạm trừ tồn kho để tránh khách khác mua mất.
-3. **Tại sân (W2):** Lễ tân thấy có Đơn Online mới trên màn hình Web Admin ➡️ Gom đồ sẵn ra túi.
-4. **Nhận hàng:** Khách đến sân lấy đồ ➡️ Lễ tân bấm chuyển trạng thái đơn thành `COMPLETED` (Hoàn thành).
+#### Trách nhiệm của A1 (Giao diện App Đặt sân):
+*   Làm việc trực tiếp với API của W1.
+*   Thiết kế luồng tìm kiếm sân (chọn cơ sở, ngày, môn thể thao).
+*   Thiết kế giao diện chọn giờ (block 30 phút), hiển thị tiền sân.
+*   Xử lý luồng thanh toán / xác nhận đặt sân.
+*   Màn hình "Lịch đặt của tôi" cho khách hàng.
 
 ---
 
-## 4. Chi tiết Dữ liệu cần có (Database Entities)
+### 🔵 DOMAIN 2: E-COMMERCE, KHO HÀNG & NHÂN SỰ (Retail & Ops)
+**W2 (Web Admin Backend/Frontend) & A2 (Mobile App Frontend)** phối hợp thực hiện.
 
-Để phục vụ các luồng trên, hệ thống cần các trạng thái (Status) chuẩn như sau:
+#### Trách nhiệm của W2 (Nắm trùm Backend Bán lẻ & Hệ thống):
+*   **Sở hữu các bảng (DB):** `users` (Khách & Staff), `products`, `categories`, `inventory_levels` (Tồn kho), `orders`, `order_items`.
+*   **Nhiệm vụ Web Admin:**
+    *   Quản lý Tài khoản (Xác thực Auth, Cấp quyền Admin/Staff).
+    *   Quản lý Sản phẩm (Nước, Cầu...) và Nhập kho.
+    *   Giao diện POS Bán hàng tại quầy cho Lễ tân.
+    *   Màn hình quản lý Đơn hàng Online (Từ App đổ về).
+    *   Dashboard Thống kê: Doanh thu bán lẻ, Hàng tồn kho.
+*   **Nhiệm vụ API:** Cung cấp API cửa hàng, giỏ hàng, đặt đơn, Auth cho A2 gọi.
 
-* **Trạng thái Lịch đặt (Booking Status):**
-    * `PENDING`: Đang giữ chỗ chờ thanh toán (Sau 10p không trả tiền -> Tự hủy).
-    * `CONFIRMED`: Đã thanh toán, giữ sân thành công.
-    * `CHECKED_IN`: Khách đang chơi trên sân.
-    * `CANCELLED`: Lịch đã bị hủy.
-* **Trạng thái Đơn hàng (Order Status):**
-    * `PENDING`: Khách vừa đặt online, chưa xử lý.
-    * `PROCESSING`: Lễ tân đang gom hàng / chờ khách đến lấy.
-    * `COMPLETED`: Khách đã nhận hàng và thanh toán đủ.
-    * `CANCELLED`: Hết hàng hoặc khách không nhận.
+#### Trách nhiệm của A2 (Giao diện App Bán lẻ & User):
+*   Làm việc trực tiếp với API của W2.
+*   Màn hình Đăng nhập / Đăng ký / Hồ sơ cá nhân.
+*   Thiết kế luồng Cửa hàng (Xem sản phẩm, tìm kiếm).
+*   Quản lý Giỏ hàng và luồng Đặt mua Online (In-App Purchases).
+*   Màn hình "Đơn hàng của tôi".
+
+---
+
+## 2. QUYYỀN HẠN CỦA VAI TRÒ (Role Permissions)
+
+Hệ thống chỉ có 3 Role, áp dụng cho toàn bộ API và UI:
+
+| Nhóm Tính Năng | Thao tác | `admin` (Web) | `staff` (Web) | `customer` (App) |
+| :--- | :--- | :---: | :---: | :---: |
+| **Hệ thống** | Tạo/Khóa tài khoản Staff | ✅ | ❌ | ❌ |
+| **Sân & Giá (W1)** | Cấu hình Sân & Bảng Giá | ✅ | ❌ | ❌ |
+| | Tìm kiếm sân trống | ✅ | ✅ | ✅ |
+| **Booking (W1)** | Đặt sân (Hotline / App) | ✅ | ✅ | ✅ |
+| | Check-in / Hủy lịch | ✅ | ✅ | ❌ (Chỉ xem) |
+| **Kho & POS (W2)**| Quản lý SP / Nhập kho | ✅ | ❌ | ❌ |
+| | Bán POS / Xử lý đơn Online | ✅ | ✅ | ❌ |
+| **Cửa hàng (A2)** | Xem hàng / Đặt mua | ❌ | ❌ | ✅ |
+| **Báo cáo** | Xem tất cả Doanh thu | ✅ | ❌ | ❌ |
+| | Xem doanh thu ca trực | ✅ | ✅ | ❌ |
+
+---
+
+## 3. LUỒNG NGHIỆP VỤ CỐT LÕI (Core Business Flows)
+
+### 3.1 Luồng Đặt Sân (A1 + W1)
+1. **[A1] Khách hàng:** Chọn Môn -> Chọn Cơ sở -> Chọn Ngày. 
+2. **[A1] Khách hàng:** Gọi API của W1 để lấy danh sách sân trống và giá tiền.
+3. **[A1] Khách hàng:** Chọn giờ, bấm Đặt Sân.
+4. **[W1] Backend:** Ràng buộc luật chống lủng giờ (Smart Gap) -> Tạo Booking trạng thái `PENDING`.
+5. **[W1] Lễ tân (Web):** Khách đến sân, Lễ tân tìm Booking, bấm `CHECK-IN` -> Sân chuyển trạng thái đang dùng.
+
+### 3.2 Luồng Bán hàng Tại quầy - POS (W2)
+1. **[W2] Lễ tân (Web):** Mở tab POS, chọn 2 chai nước, 1 ống cầu.
+2. **[W2] Backend:** Kiểm tra tồn kho trong `inventory_levels`. Nếu đủ, cho phép thanh toán.
+3. **[W2] Lễ tân (Web):** Thu tiền mặt, bấm Hoàn tất.
+4. **[W2] Backend:** Trừ tồn kho, lưu Log đơn hàng trạng thái `COMPLETED`.
+
+### 3.3 Luồng Bán hàng Online (A2 + W2)
+1. **[A2] Khách hàng:** Lên App mua 1 bộ quần áo, thanh toán online.
+2. **[W2] Backend:** Tạo Order trạng thái `PENDING`, tạm trừ tồn kho.
+3. **[W2] Lễ tân (Web):** Nhận thông báo có đơn mới, chuẩn bị đồ sẵn ở quầy, chuyển trạng thái `PROCESSING`.
+4. **[W2] Lễ tân (Web):** Khách tới lấy đồ, Lễ tân bấm `COMPLETED`.
+
+---
+
+## 4. QUY CHUẨN TRẠNG THÁI (Status Enums)
+
+Bắt buộc sử dụng các chuỗi (String) chuẩn sau trong Database và API:
+
+*   **Booking Status (W1):**
+    *   `pending`: Đang chờ thanh toán/xác nhận.
+    *   `confirmed`: Đã chốt lịch.
+    *   `checked_in`: Khách đang chơi trên sân.
+    *   `cancelled`: Đã hủy.
+*   **Order Status (W2):**
+    *   `pending`: Vừa đặt xong.
+    *   `processing`: Đang chuẩn bị hàng.
+    *   `completed`: Đã giao hàng & thu tiền.
+    *   `cancelled`: Hủy đơn (Trả lại tồn kho).
