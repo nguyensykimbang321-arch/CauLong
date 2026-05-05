@@ -67,13 +67,73 @@ const runSeeder = async () => {
             console.log(`⚠️ Cơ sở "${facilityName}" đã tồn tại, bỏ qua bước tạo Facility & Court.`);
         }
 
+        // ==========================================
+        // 4. TẠO CẤU HÌNH GIÁ (DYNAMIC PRICING CÓ COURT_TYPE)
+        // ==========================================
+        // Đếm xem Cơ sở này đã có cấu hình giá chưa
+        const priceConfigCount = await models.PriceConfig.count({ where: { facility_id: facility.id } });
+
+        if (priceConfigCount === 0) {
+            await models.PriceConfig.bulkCreate([
+                // --- GIÁ SÂN CẦU LÔNG ---
+                {
+                    facility_id: facility.id,
+                    court_type: 'badminton',
+                    start_time: '05:00:00', // Sáng - chiều
+                    end_time: '17:00:00',
+                    price_per_hour: 50000   // 50k / giờ
+                },
+                {
+                    facility_id: facility.id,
+                    court_type: 'badminton',
+                    start_time: '17:00:00', // Giờ Vàng (Chiều tối)
+                    end_time: '22:00:00',
+                    price_per_hour: 80000   // 80k / giờ
+                },
+
+                // --- GIÁ SÂN TENNIS ---
+                {
+                    facility_id: facility.id,
+                    court_type: 'tennis',
+                    start_time: '05:00:00', 
+                    end_time: '17:00:00',
+                    price_per_hour: 100000  // 100k / giờ
+                },
+                {
+                    facility_id: facility.id,
+                    court_type: 'tennis',
+                    start_time: '17:00:00', 
+                    end_time: '22:00:00',
+                    price_per_hour: 150000  // 150k / giờ
+                },
+
+                // --- GIÁ SÂN BÓNG ĐÁ ---
+                {
+                    facility_id: facility.id,
+                    court_type: 'football',
+                    start_time: '05:00:00', 
+                    end_time: '17:00:00',
+                    price_per_hour: 150000  // 150k / giờ
+                },
+                {
+                    facility_id: facility.id,
+                    court_type: 'football',
+                    start_time: '17:00:00', 
+                    end_time: '22:00:00',
+                    price_per_hour: 200000  // 200k / giờ
+                }
+            ]);
+            console.log('✅ Đã bơm dữ liệu Bảng Giá phân loại theo Cầu lông, Tennis và Bóng đá.');
+        } else {
+            console.log('⚠️ Bảng giá cho cơ sở này đã tồn tại, bỏ qua bước tạo PriceConfig.');
+        }
+
         console.log('🎉 Seeder chạy hoàn tất thành công!');
-        process.exit(0); // Thoát tiến trình Node.js an toàn
+        process.exit(0); 
     } catch (error) {
         console.error('❌ Lỗi khi chạy Seeder:', error);
-        process.exit(1); // Thoát tiến trình kèm mã báo lỗi
+        process.exit(1); 
     }
 };
 
-// Chạy hàm
 runSeeder();

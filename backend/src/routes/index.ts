@@ -3,6 +3,9 @@ import clientAuthRouter from "./client/auth.routes.js";
 import adminAuthRouter from "./admin/auth.routes.js";
 import adminFacilityRouter from "./admin/facility.route.js";
 import adminCourtRouter from "./admin/court.route.js";
+import clientBookingRouter from './client/booking.route.js'
+import adminBookingRouter from './admin/booking.route.js'
+import priceConfigRouter from './admin/price_config.route.js'
 
 
 const rootRouter = Router();
@@ -12,7 +15,7 @@ const rootRouter = Router();
 // Endpoint: /api/v1/app/...
 // ==========================================
 rootRouter.use('/app/auth', clientAuthRouter);
-// Sau này có: rootRouter.use('/app/bookings', verifyToken, requireRoles(['customer']), clientBookingRouter);
+rootRouter.use('/app/bookings', clientBookingRouter);
 
 
 // ==========================================
@@ -22,5 +25,7 @@ rootRouter.use('/app/auth', clientAuthRouter);
 rootRouter.use('/admin/auth', adminAuthRouter);
 rootRouter.use('/admin/facilities', adminFacilityRouter);
 rootRouter.use('/admin/courts', adminCourtRouter);
+rootRouter.use('/admin/bookings', adminBookingRouter);
+rootRouter.use('/admin/price-configs', priceConfigRouter);
 
 export default rootRouter;

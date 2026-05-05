@@ -5,7 +5,7 @@ export interface CourtAttributes {
     id: number;
     facility_id: number;
     name: string;
-    court_type: 'badminton' | 'tennis' | 'football'; // Tạm thời dùng ENUM cho nhanh MVP
+    court_type: 'badminton' | 'tennis' | 'football';
     is_active: boolean;
     created_at?: Date;
     updated_at?: Date;
