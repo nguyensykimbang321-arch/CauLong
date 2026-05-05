@@ -13,6 +13,8 @@ import adminFacilityRouter from "./admin/facility.route.js";
 import adminCourtRouter from "./admin/court.route.js";
 import adminBookingRouter from './admin/booking.route.js';
 import priceConfigRouter from './admin/price_config.route.js';
+import clientPaymentRouter from './client/payment.route.js';
+
 
 const rootRouter = Router();
 
@@ -21,6 +23,9 @@ const rootRouter = Router();
 // Endpoint: /api/v1/app/...
 // ==========================================
 rootRouter.use('/app/auth', clientAuthRouter);
+rootRouter.use('/app/payments', clientPaymentRouter);
+
+
 rootRouter.use('/app/bookings', clientBookingRouter);
 
 // Tích hợp thêm các route mới của đồng đội
