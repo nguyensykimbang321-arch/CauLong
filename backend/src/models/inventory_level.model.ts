@@ -4,7 +4,7 @@ import sequelize from '../config/database.js';
 export interface InventoryLevelAttributes {
   id: number;
   variant_id: number;
-  warehouse_id: number;
+  facility_id: number;
   quantity_on_hand: number;
   created_at?: Date;
   updated_at?: Date;
@@ -15,7 +15,7 @@ export interface InventoryLevelCreationAttributes extends Optional<InventoryLeve
 class InventoryLevel extends Model<InventoryLevelAttributes, InventoryLevelCreationAttributes> implements InventoryLevelAttributes {
   declare id: number;
   declare variant_id: number;
-  declare warehouse_id: number;
+  declare facility_id: number;
   declare quantity_on_hand: number;
 
   declare readonly created_at: Date;
@@ -26,7 +26,7 @@ InventoryLevel.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     variant_id: { type: DataTypes.INTEGER, allowNull: false },
-    warehouse_id: { type: DataTypes.INTEGER, allowNull: false },
+    facility_id: { type: DataTypes.INTEGER, allowNull: false },
     quantity_on_hand: { type: DataTypes.INTEGER, defaultValue: 0 },
   },
   {

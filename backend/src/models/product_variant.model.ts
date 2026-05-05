@@ -5,7 +5,7 @@ export interface ProductVariantAttributes {
   id: number;
   product_id: number;
   sku: string;
-  attributes: any | null; // JSON: size, color
+  attributes: any | null;
   price_cents: number;
   barcode: string | null;
   is_active: boolean;

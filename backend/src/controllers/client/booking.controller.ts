@@ -1,31 +1,68 @@
-import type { Request, Response, NextFunction } from "express";
-import models from "../../models/index.js";
-import AppResponse from "../../utils/AppResponse.js";
-import ApiError from "../../utils/ErrorClass.js";
-import { VNPayUtils } from "../../utils/vnpay.js";
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat.js';
+import AppResponse from '../../utils/AppResponse.js';
+import ApiError from '../../utils/ErrorClass.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { CheckAvailabilityQuery, CreateBookingInput } from '../../validations/booking.validation.js';
+import { BookingService } from '../../services/booking.service.js';
+import { VNPayUtils } from '../../utils/vnpay.js';
+import models from '../../models/index.js';
+
+dayjs.extend(customParseFormat);
 
 export class ClientBookingController {
+    
+    static async checkAvailability(req: Request, res: Response, next: NextFunction) {
+        try {
+            const query = req.query as CheckAvailabilityQuery;
+            
+            const startDateTime = dayjs(`${query.date} ${query.start_time}`, 'YYYY-MM-DD HH:mm');
+            const endDateTime = dayjs(`${query.date} ${query.end_time}`, 'YYYY-MM-DD HH:mm');
+            const courtType = query.court_type;
+
+            if (!startDateTime.isValid() || !endDateTime.isValid()) {
+                throw new ApiError('Thời gian không hợp lệ', 400);
+            }
+            if (startDateTime.isBefore(dayjs())) {
+                throw new ApiError('Không thể đặt sân ở thời điểm trong quá khứ', 400);
+            }
+            if (endDateTime.isBefore(startDateTime) || endDateTime.isSame(startDateTime)) {
+                throw new ApiError('Giờ kết thúc phải sau giờ bắt đầu', 400);
+            }
+
+            const availableCourts = await BookingService.getAvailableCourts(
+                startDateTime.toDate(), 
+                endDateTime.toDate(),
+                courtType
+            );
+
+            return AppResponse.success(res, availableCourts, 'Lấy danh sách sân trống thành công', 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getDailyBooked(req: Request, res: Response, next: NextFunction) {
+        try {
+            const facilityId = Number(req.query.facility_id);
+            const date = req.query.date as string;
+            const courtType = req.query.court_type as string;
+
+            const result = await BookingService.getDailyBookedSlots(facilityId, date, courtType);
+            
+            return AppResponse.success(res, result, 'Lấy danh sách giờ đã đặt thành công');
+        } catch (error) { 
+            next(error); 
+        }
+    }
+
     static async getMyBookings(req: any, res: Response, next: NextFunction) {
         try {
-            const userId = req.user.id;
-            const bookings = await (models.Booking as any).findAll({
-                where: { user_id: userId },
-                include: [
-                    { model: models.Facility, as: 'facility' },
-                    { 
-                        model: models.BookingSlot, 
-                        as: 'slots',
-                        include: [
-                            { 
-                                model: models.Court, 
-                                as: 'court',
-                                include: [{ model: models.CourtType, as: 'type' }]
-                            }
-                        ]
-                    }
-                ],
-                order: [['created_at', 'DESC']]
-            });
+            const userId = req.user?.id;
+            if(!userId) throw new ApiError('Không tìm thấy thông tin người dùng', 401);
+
+            // Gọi sang Service thay vì tự chọc Database
+            const bookings = await BookingService.getMyBookings(userId);
 
             return AppResponse.success(res, bookings, "Lấy danh sách đơn đặt sân thành công", 200);
         } catch (error) {
@@ -35,40 +72,25 @@ export class ClientBookingController {
 
     static async createBooking(req: any, res: Response, next: NextFunction) {
         try {
-            const userId = req.user.id;
-            const { facility_id, slots, total_cents, note, payment_method } = req.body;
-
-            const booking = await (models.Booking as any).create({
-                user_id: userId,
-                facility_id,
-                status: 'confirmed',
-                payment_status: 'unpaid',
-                total_cents,
-                note
-            });
-
-            if (slots && slots.length > 0) {
-                const bookingSlots = slots.map((s: any) => ({
-                    booking_id: booking.id,
-                    court_id: s.court_id,
-                    start_at: s.start_at,
-                    end_at: s.end_at,
-                    price_cents: s.price_cents
-                }));
-                await (models.BookingSlot as any).bulkCreate(bookingSlots);
-            }
+            const body = req.body as CreateBookingInput;
+            const userId = req.user?.id;
+            if(!userId) throw new ApiError('Không tìm thấy thông tin người dùng', 401);
+            
+            // Dùng BookingService của em để đảm bảo tính toàn vẹn dữ liệu (Transaction)
+            const result = await BookingService.createBooking(userId, body);
 
             let paymentUrl = null;
-            if (payment_method === 'vnpay') {
+            if (req.body.payment_method === 'vnpay' && result?.id) {
                 paymentUrl = VNPayUtils.createPaymentUrl({
-                    amount: total_cents,
-                    orderId: booking.id.toString() + '_' + Date.now().toString().slice(-6),
-                    orderInfo: `Thanh toan don hang ${booking.id}`,
+                    amount: result.total_cents,
+                    orderId: result.id.toString() + '_' + Date.now().toString().slice(-6),
+                    orderInfo: `Thanh toan don dat san ${result.id}`,
                     ipAddr: req.ip || '127.0.0.1'
                 });
             }
 
-            return AppResponse.success(res, { booking, paymentUrl }, "Đặt sân thành công", 201);
+            return AppResponse.success(res, { booking: result, paymentUrl }, 'Giữ chỗ thành công!', 201);
+
         } catch (error) {
             next(error);
         }

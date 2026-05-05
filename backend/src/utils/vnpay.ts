@@ -55,7 +55,9 @@ export class VNPayUtils {
   /**
    * Kiểm tra tính hợp lệ của dữ liệu phản hồi từ VNPay (Checksum)
    */
-  static verifyReturnUrl(vnp_Params: any): boolean {
+  static verifyIpnSignature(vnpayParams: any): boolean {
+    // COPY object ra để không làm rách dữ liệu gốc (req.query)
+    const vnp_Params = { ...vnpayParams }; 
     const secureHash = vnp_Params['vnp_SecureHash'];
 
     delete vnp_Params['vnp_SecureHash'];

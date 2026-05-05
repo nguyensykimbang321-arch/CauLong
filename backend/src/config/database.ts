@@ -26,18 +26,20 @@ const sequelize = new Sequelize(
 // Bọc logic vào hàm testConnection và export ra cho server.ts dùng
 export const testConnection = async () => {
   try {
-    // 1. Thử kết nối
     await sequelize.authenticate();
     console.log('🎉 Kết nối CSDL Aiven Cloud thành công chuẩn SQA!');
     
-    // 2. Đồng bộ bảng (Tạo bảng tự động trên Cloud)
-    // Lưu ý: Chỉ dùng sync() bình thường, không dùng { alter: true } để tránh lỗi khóa bảng
-    await sequelize.sync(); 
-    console.log('✅ Đã đồng bộ (Sync) cấu trúc bảng lên Cloud!');
+    // BẢO VỆ DATABASE: Chỉ Sync khi file .env có biến SYNC_DB=true
+    if (process.env.SYNC_DB === 'true') {
+        await sequelize.sync(); 
+        console.log('✅ Đã đồng bộ (Sync) cấu trúc bảng lên Cloud!');
+    } else {
+        console.log('🛡️ Chế độ an toàn: Đã bỏ qua bước đồng bộ cấu trúc bảng.');
+    }
 
   } catch (error) {
     console.error('❌ Lỗi kết nối CSDL Cloud:', error);
-    process.exit(1); // Nếu không kết nối được DB thì bắt buộc dừng hẳn Server
+    process.exit(1); 
   }
 };
 

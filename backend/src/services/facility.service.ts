@@ -23,6 +23,19 @@ export class FacilityService {
         return facility;
     }
 
+    static async getFacilityWithCourts(id: number) {
+        const facility = await this.getFacilityById(id);
+        
+        const courts = await (models.Court as any).findAll({
+            where: { facility_id: id, is_active: true } 
+        });
+
+        return {
+            ...facility.toJSON(),
+            courts
+        };
+    }
+
     static async createFacility(data: CreateFacilityInput) {
         const existingFacility = await models.Facility.findOne({ where: { name: data.name } });
         if (existingFacility) {
