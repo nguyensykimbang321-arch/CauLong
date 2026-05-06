@@ -15,25 +15,16 @@ export class ClientBookingController {
     static async checkAvailability(req: Request, res: Response, next: NextFunction) {
         try {
             const query = req.query as CheckAvailabilityQuery;
-            
-            const startDateTime = dayjs(`${query.date} ${query.start_time}`, 'YYYY-MM-DD HH:mm');
-            const endDateTime = dayjs(`${query.date} ${query.end_time}`, 'YYYY-MM-DD HH:mm');
-            const courtType = query.court_type;
-
-            if (!startDateTime.isValid() || !endDateTime.isValid()) {
-                throw new ApiError('Thời gian không hợp lệ', 400);
-            }
-            if (startDateTime.isBefore(dayjs())) {
-                throw new ApiError('Không thể đặt sân ở thời điểm trong quá khứ', 400);
-            }
-            if (endDateTime.isBefore(startDateTime) || endDateTime.isSame(startDateTime)) {
-                throw new ApiError('Giờ kết thúc phải sau giờ bắt đầu', 400);
-            }
+            const { startDateTime, endDateTime } = await BookingService.validateBookingTimes(
+                query.date, 
+                query.start_time, 
+                query.end_time
+            );
 
             const availableCourts = await BookingService.getAvailableCourts(
                 startDateTime.toDate(), 
                 endDateTime.toDate(),
-                courtType
+                query.court_type
             );
 
             return AppResponse.success(res, availableCourts, 'Lấy danh sách sân trống thành công', 200);

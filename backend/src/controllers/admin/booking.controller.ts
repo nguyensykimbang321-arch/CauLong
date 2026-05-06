@@ -34,23 +34,12 @@ export class AdminBookingController {
     static async createByHotline(req: Request, res: Response, next: NextFunction) {
         try {
             const body = req.body as CreateBookingByHotlineInput;
-            
-            const { customer_phone, ...bookingData } = body;
+            const result = await BookingService.createBookingByHotline(body);
 
-            // 1. Tìm user qua SĐT
-            let user = await UserService.getUserByPhone(customer_phone);
-            if (!user) {
-                user = await UserService.createGuestUser(customer_phone);
-            }
-
-            const result = await BookingService.createBooking(user.id, bookingData);
-
-           return AppResponse.success(
+            return AppResponse.success(
                 res, 
-                result, 
-                user.created_at.getTime() === user.updated_at.getTime() 
-                    ? 'Đã tạo tài khoản mới và đặt sân hộ khách thành công' 
-                    : 'Đã đặt sân hộ khách thành công', 
+                result.booking, 
+                result.message, 
                 201
             );
         } catch (error) {

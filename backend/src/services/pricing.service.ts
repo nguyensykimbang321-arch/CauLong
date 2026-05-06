@@ -21,28 +21,32 @@ export class PricingService {
             throw new ApiError('Không tìm thấy cấu hình giá cho sân này. Vui lòng liên hệ Admin.', 400);
         }
 
-        
+        const { totalPrice, totalCalculatedMinutes } = this.calculateFromConfigs(configs, startDateTime, endDateTime);
+
+        if (totalCalculatedMinutes < diffInMinutes) {
+            throw new ApiError('Khung giờ bạn đặt chứa khoảng thời gian chưa được thiết lập giá (Lỗi hệ thống). Vui lòng đổi giờ khác.', 400);
+        }
+
+        return Math.ceil(totalPrice);
+    }
+
+    static calculateFromConfigs(configs: any[], startDateTime: Date, endDateTime: Date) {
         const bStartMins = dayjs(startDateTime).hour() * 60 + dayjs(startDateTime).minute();
         const bEndMins = dayjs(endDateTime).hour() * 60 + dayjs(endDateTime).minute();
 
         let totalPrice = 0;
         let totalCalculatedMinutes = 0;
 
-        
         for (const config of configs) {
-            
             const [cStartHour = 0, cStartMin = 0] = config.start_time.split(':').map(Number);
             const [cEndHour = 0, cEndMin = 0] = config.end_time.split(':').map(Number);
             
             const cStartMins = cStartHour * 60 + cStartMin;
             const cEndMins = cEndHour * 60 + cEndMin;
             
-
-           
             const overlapStart = Math.max(bStartMins, cStartMins);
             const overlapEnd = Math.min(bEndMins, cEndMins);
 
-            
             if (overlapStart < overlapEnd) {
                 const overlapMinutes = overlapEnd - overlapStart;
                 const overlapHours = overlapMinutes / 60;
@@ -52,10 +56,6 @@ export class PricingService {
             }
         }
 
-        if (totalCalculatedMinutes < diffInMinutes) {
-            throw new ApiError('Khung giờ bạn đặt chứa khoảng thời gian chưa được thiết lập giá (Lỗi hệ thống). Vui lòng đổi giờ khác.', 400);
-        }
-
-        return Math.ceil(totalPrice);
+        return { totalPrice, totalCalculatedMinutes };
     }
 }
