@@ -23,15 +23,18 @@ import RefreshToken from './refresh_token.model.js';
 // THIẾT LẬP MỐI QUAN HỆ (ASSOCIATIONS)
 // ==========================================
 
-// --- 1. Người dùng & Phân quyền ---
+// --- 1. Người dùng, Mở rộng & Phân quyền ---
 User.hasMany(RefreshToken, { foreignKey: 'user_id', as: 'refresh_tokens' });
 RefreshToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasOne(StaffProfile, { foreignKey: 'user_id', as: 'staff_profile' });
 StaffProfile.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-Facility.hasMany(StaffProfile, { foreignKey: 'facility_id', as: 'staff' });
+Facility.hasMany(StaffProfile, { foreignKey: 'facility_id', as: 'staffs' });
 StaffProfile.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
+
+User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // --- 2. Cơ sở, Sân & Giá ---
 Facility.hasMany(Court, { foreignKey: 'facility_id', as: 'courts' });
@@ -40,7 +43,7 @@ Court.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 Facility.hasMany(PriceConfig, { foreignKey: 'facility_id', as: 'price_configs' });
 PriceConfig.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 
-// --- 2. Đặt Sân (Bookings) ---
+// --- 3. Đặt Sân (Bookings) ---
 User.hasMany(Booking, { foreignKey: 'user_id', as: 'bookings' });
 Booking.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
@@ -53,22 +56,20 @@ BookingSlot.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 Court.hasMany(BookingSlot, { foreignKey: 'court_id', as: 'slots' });
 BookingSlot.belongsTo(Court, { foreignKey: 'court_id', as: 'court' });
 
-// Bổ sung: Booking & PromoCode
 Booking.belongsTo(PromoCode, { foreignKey: 'promo_code_id', as: 'promo_code' });
 PromoCode.hasMany(Booking, { foreignKey: 'promo_code_id', as: 'bookings' });
 
-// --- 3. Sản phẩm & Giỏ hàng (Products & Cart) ---
+// --- 4. Sản phẩm & Giỏ hàng (Products & Cart) ---
 Product.hasMany(ProductVariant, { foreignKey: 'product_id', as: 'variants' });
 ProductVariant.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 
-// Bổ sung: CartItem
 User.hasMany(CartItem, { foreignKey: 'user_id', as: 'cart_items' });
 CartItem.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 ProductVariant.hasMany(CartItem, { foreignKey: 'variant_id', as: 'cart_items' });
 CartItem.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'variant' });
 
-// --- 4. Đơn hàng Bán lẻ (Orders & Order Items) ---
+// --- 5. Đơn hàng Bán lẻ (Orders & Order Items) ---
 User.hasMany(Order, { foreignKey: 'user_id', as: 'orders' });
 Order.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
@@ -95,32 +96,11 @@ InventoryLevel.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'varian
 Facility.hasMany(InventoryLevel, { foreignKey: 'facility_id', as: 'inventory_levels' });
 InventoryLevel.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 
-// Bổ sung: Lịch sử nhập xuất kho (InventoryMovement)
 ProductVariant.hasMany(InventoryMovement, { foreignKey: 'variant_id', as: 'movements' });
 InventoryMovement.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'variant' });
 
 Facility.hasMany(InventoryMovement, { foreignKey: 'facility_id', as: 'movements' });
 InventoryMovement.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
-
-// --- 6. Mở rộng User (Tokens, Staff, Notifications) ---
-User.hasMany(RefreshToken, { foreignKey: 'user_id', as: 'refresh_tokens' });
-RefreshToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-
-User.hasOne(StaffProfile, { foreignKey: 'user_id', as: 'staff_profile' });
-StaffProfile.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-
-User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
-Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-
-Facility.hasMany(StaffProfile, { foreignKey: 'facility_id', as: 'staffs' });
-StaffProfile.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
-
-// --- 7. Thanh toán (Payments) ---
-Booking.hasOne(Payment, { foreignKey: 'booking_id', as: 'payment' });
-Payment.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
-
-Order.hasOne(Payment, { foreignKey: 'order_id', as: 'payment' });
-Payment.belongsTo(Order, { foreignKey: 'order_id', as: 'order' });
 
 // ==========================================
 // XUẤT MÔ HÌNH (EXPORT)
@@ -137,7 +117,6 @@ const models = {
     OrderItem,      
     InventoryLevel,
     PriceConfig,
-
     StaffProfile,
     RefreshToken,
     CartItem,
