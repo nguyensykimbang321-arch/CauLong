@@ -80,4 +80,33 @@ export class PaymentService {
             return { RspCode: '99', Message: 'Unknown error' };
         }
     }
+
+    static getVNPayReturnHtml(vnpayQuery: any): string {
+        const vnp_ResponseCode = vnpayQuery.vnp_ResponseCode;
+
+        if (vnp_ResponseCode === '00') {
+            return `
+                <html lang="vi">
+                    <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; text-align:center;">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <h1 style="color:#16a34a; margin-top: 20px;">Thanh toán thành công!</h1>
+                        <p style="color:#4b5563;">Bạn có thể đóng cửa sổ này và nhìn lên màn hình của Lễ tân.</p>
+                        <script>
+                            setTimeout(() => window.close(), 3000);
+                        </script>
+                    </body>
+                </html>
+            `;
+        } else {
+            return `
+                <html lang="vi">
+                    <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; text-align:center;">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                        <h1 style="color:#dc2626; margin-top: 20px;">Thanh toán thất bại hoặc đã hủy!</h1>
+                        <p style="color:#4b5563;">Vui lòng thử lại hoặc liên hệ Lễ tân để đổi phương thức thanh toán.</p>
+                    </body>
+                </html>
+            `;
+        }
+    }
 }

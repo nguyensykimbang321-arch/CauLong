@@ -18,4 +18,16 @@ export class PaymentController {
             return res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
         }
     }
+
+    static async vnpayReturn(req: Request, res: Response, next: NextFunction) {
+        try {
+            // Gọi Service để lấy chuỗi HTML
+            const htmlContent = PaymentService.getVNPayReturnHtml(req.query);
+            
+            // Trả thẳng HTML về cho trình duyệt
+            return res.send(htmlContent);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
