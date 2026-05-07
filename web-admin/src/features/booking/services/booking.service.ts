@@ -1,6 +1,6 @@
 import axiosClient from "../../../config/axios";
 import type { ApiResponse } from "../../../types/api.type";
-import type { BookedSlotDTO, Booking, CreateBookingPayload } from "../types/booking.types";
+import type { Booking, CreateBookingPayload, DailySlotGridResponse } from "../types/booking.types";
 
 export const BookingService = {
   getAllBookings: async (params?: any) => {
@@ -16,7 +16,7 @@ export const BookingService = {
   },
 
   getDailySlots: async (facility_id: number, date: string, court_type: string) => {
-    return await axiosClient.get<any, ApiResponse<BookedSlotDTO[]>>('/app/bookings/daily-booked-slots', {
+    return await axiosClient.get<any, ApiResponse<DailySlotGridResponse>>('/app/bookings/daily-booked-slots', {
       params: { facility_id, date, court_type }
     });
   },
@@ -25,5 +25,14 @@ export const BookingService = {
     return await axiosClient.get<any, ApiResponse<any>>('/admin/users/search-phone', {
       params: { phone }
     });
-  }
+  },
+
+  getBookingDetail: async (id: number) => {
+    return await axiosClient.get<any, ApiResponse<Booking>>(`/admin/bookings/${id}`);
+  },
+
+  generateVNPayUrl: async (bookingId: number) => {
+    return await axiosClient.get<any, ApiResponse<{ paymentUrl: string }>>(`/admin/bookings/${bookingId}/vnpay-url`);
+  },
+  
 };

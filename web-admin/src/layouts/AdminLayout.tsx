@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Layout, Menu, Button, Dropdown } from 'antd';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { 
-  DashboardOutlined, 
-  TableOutlined, 
+  DashboardOutlined,  
   UserOutlined, 
   LogoutOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  AppstoreOutlined,
+  SettingOutlined,
+  CalendarOutlined
 } from '@ant-design/icons';
 import { useAuthStore } from '../features/auth/store/auth.store';
 
@@ -31,8 +33,32 @@ const AdminLayout: React.FC = () => {
 
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
-    { key: '/booking', icon: <TableOutlined />, label: 'Quản lý Đặt Sân' },
-    { key: '/products', icon: <TableOutlined />, label: 'Hàng hóa & Kho' },
+    
+    // NHÓM QUẢN LÝ ĐẶT SÂN
+    { 
+      key: '/booking', 
+      icon: <CalendarOutlined />, 
+      label: 'Quản lý Đặt Sân',
+      children: [
+        { key: '/booking/schedule', label: 'Sa bàn lịch sân' },
+        { key: '/booking/list', label: 'Danh sách đơn hàng' },
+      ]
+    },
+
+    // NHÓM CƠ SỞ VẬT CHẤT & GIÁ (Chỉ Admin mới thấy - Em có thể check role ở đây sau)
+    {
+      key: '/facility-management',
+      icon: <AppstoreOutlined />,
+      label: 'Cơ sở & Sân',
+      children: [
+        { key: '/facility/branches', label: 'Quản lý Cơ sở' },
+        { key: '/facility/courts', label: 'Quản lý Sân' },
+        { key: '/pricing', label: 'Cấu hình bảng giá' },
+      ]
+    },
+
+    // CÁC MODULE KHÁC
+    { key: '/products', icon: <SettingOutlined />, label: 'Hàng hóa & Kho' },
     { key: '/staff', icon: <UserOutlined />, label: 'Nhân viên' },
   ];
 
@@ -41,6 +67,14 @@ const AdminLayout: React.FC = () => {
       { key: 'profile', label: 'Tài khoản của tôi', icon: <UserOutlined /> },
       { key: 'logout', label: 'Đăng xuất', icon: <LogoutOutlined />, onClick: handleLogout, danger: true },
     ]
+  };
+
+  const getOpenKeys = () => {
+    const paths = location.pathname.split('/').filter(i => i);
+    if (paths.length > 1) {
+      return [`/${paths[0]}`];
+    }
+    return [];
   };
 
   return (
@@ -64,6 +98,7 @@ const AdminLayout: React.FC = () => {
           theme="light"
           mode="inline"
           selectedKeys={[location.pathname]}
+          defaultOpenKeys={getOpenKeys()}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
           className="mt-2 border-r-0"

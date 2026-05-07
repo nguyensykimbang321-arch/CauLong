@@ -6,6 +6,7 @@ import sequelize from '../config/database.js';
 import ApiError from '../utils/ErrorClass.js';
 import { BOOKING_STATUS_TRANSITIONS, PAYMENT_STATUS_TRANSITIONS } from '../constants/booking.constant.js';
 import { PricingService } from './pricing.service.js';
+import { VNPayUtils } from '../utils/vnpay.js';
 
 export class BookingService {
     static async getAvailableCourts(startDateTime: Date, endDateTime: Date, courtType?: string) {
@@ -107,7 +108,7 @@ export class BookingService {
                 where: { status: { [Op.ne]: 'cancelled' } },
                 attributes: []
             }],
-            attributes: ['court_id', 'start_at', 'end_at'],
+            attributes: ['court_id', 'start_at', 'end_at', 'booking_id', 'price_cents'],
             raw: true
         });
 
@@ -154,9 +155,18 @@ export class BookingService {
             slotsByCourtId[court.id] = courtSlots;
         });
 
+        const rawSlots = bookedSlots.map(slot => ({
+            booking_id: slot.booking_id, 
+            price_cents: slot.price_cents,
+            court_id: slot.court_id,
+            start_time: dayjs(slot.start_at).format('HH:mm'),
+            end_time: dayjs(slot.end_at).format('HH:mm')
+        }));
+
         return {
             courts,
-            slotsByCourtId
+            slotsByCourtId,
+            rawBookedSlots: rawSlots
         };
     }
 
@@ -323,6 +333,43 @@ export class BookingService {
         });
     }
 
+    static async getByBookingId(bookingId: number) {
+        // Sử dụng findByPk (Find By Primary Key) kết hợp Include (JOIN)
+        const booking = await models.Booking.findByPk(bookingId, {
+            include: [
+                {
+                    model: models.User,
+                    as: 'user', // 🔥 Lưu ý: Khớp với alias khai báo trong DB
+                    attributes: ['id', 'full_name', 'phone', 'email'] // Lấy đúng các trường Frontend cần
+                },
+                {
+                    model: models.Facility,
+                    as: 'facility',
+                    attributes: ['id', 'name']
+                },
+                {
+                    model: models.BookingSlot,
+                    as: 'slots',
+                    attributes: ['id', 'court_id', 'start_at', 'end_at', 'price_cents'],
+                    include: [
+                        {
+                            model: models.Court,
+                            as: 'court',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        // Xử lý lỗi nếu ID tào lao
+        if (!booking) {
+            throw new ApiError('Không tìm thấy thông tin đơn đặt sân này!', 404);
+        }
+
+        return booking;
+    }
+
     static async updateBookingStatus(id: number, data: UpdateBookingStatusInput) {
         const booking = await models.Booking.findByPk(id);
         if(!booking) throw new ApiError('Không tìm thấy lịch đặt này', 404);
@@ -396,5 +443,29 @@ export class BookingService {
                 ? 'Đã tạo tài khoản mới và đặt sân hộ khách thành công' 
                 : 'Đã đặt sân hộ khách thành công'
         };
+    }
+
+    static async generateVNPayUrl(bookingId: number, ipAddr: string) {
+        // 1. Tìm đơn hàng
+        const booking = await models.Booking.findByPk(bookingId);
+        
+        if (!booking) {
+            throw new ApiError('Không tìm thấy đơn đặt sân', 404);
+        }
+        
+        if (booking.payment_status === 'paid') {
+            throw new ApiError('Đơn này đã được thanh toán rồi!', 400);
+        }
+
+        // 2. Tạo link VNPay (Dùng tiện ích cũ của app Mobile)
+        const paymentUrl = VNPayUtils.createPaymentUrl({
+            amount: booking.total_cents,
+            // Thêm random string để chống trùng orderId của VNPay nếu khách quét mã nhiều lần
+            orderId: booking.id.toString() + '_' + Date.now().toString().slice(-6),
+            orderInfo: `Thanh toan don dat san ${booking.id}`,
+            ipAddr: ipAddr || '127.0.0.1'
+        });
+
+        return { paymentUrl };
     }
 }
