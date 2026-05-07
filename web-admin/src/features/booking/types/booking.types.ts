@@ -1,3 +1,5 @@
+import type dayjs from "dayjs";
+
 export interface BookingUser {
   id: number;
   email: string;
@@ -5,7 +7,6 @@ export interface BookingUser {
   full_name?: string;
 }
 
-// Bổ sung kiểu dữ liệu cho Ca đặt (Slot)
 export interface BookingSlot {
   id: number;
   booking_id: number;
@@ -49,4 +50,42 @@ export interface BookedSlotDTO {
   court_name: string;
   start_time: string;
   end_time: string;
+}
+
+export interface FacilityLite {
+  id: number;
+  name: string;
+}
+
+export interface CourtLite {
+  id: number;
+  name: string;
+  court_type: string;
+}
+
+export interface BookingFormValues {
+  phone: string;
+  full_name?: string;
+  facility_id: number;
+  court_type: string;
+  court_id: number;
+  play_date: dayjs.Dayjs;   
+  start_time: dayjs.Dayjs;
+  end_time: dayjs.Dayjs;
+}
+
+export interface FacilityWithCourtsResponse {
+  id: number;
+  name: string;
+  courts: CourtLite[];
+}
+export interface DailySlotGridResponse {
+  courts: any[]; // Có thể để CourtLite[] nếu em muốn chặt chẽ hơn
+  slotsByCourtId: Record<string, {
+    start: string;
+    end: string;
+    available: boolean;
+    price_cents: number;
+  }[]>;
+  rawBookedSlots: BookedSlotDTO[];
 }

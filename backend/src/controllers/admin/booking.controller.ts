@@ -15,6 +15,16 @@ export class AdminBookingController {
         }
     }
 
+    static async getById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const bookingId = req.params.booking_id;
+            const result = await BookingService.getByBookingId(Number(bookingId));
+            return AppResponse.success(res, result, "Lấy chi tiết thông tin Booking thành công!", 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     static async updateStatus(req: Request, res: Response, next: NextFunction) {
         try {
             const id = Number(req.params.id);
@@ -58,6 +68,19 @@ export class AdminBookingController {
                     : 'Đã đặt sân hộ khách thành công', 
                 201
             );
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getVNPayUrl(req: Request, res: Response, next: NextFunction) {
+        try {
+            const bookingId = Number(req.params.booking_id);
+            const ipAddr = req.ip || req.connection.remoteAddress || '127.0.0.1';
+            
+            const result = await BookingService.generateVNPayUrl(bookingId, ipAddr);
+            
+            return AppResponse.success(res, result, "Tạo link VNPay thành công!", 200);
         } catch (error) {
             next(error);
         }
