@@ -6,7 +6,7 @@ import type { CreateCourtInput, UpdateCourtInput } from "../../validations/court
 export class CourtController {
     static async getAll(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await CourtService.getAllCourts();
+            const result = await CourtService.getAllCourtsByAdmin();
 
             return AppResponse.success(res, result, "Lấy danh sách sân thành công", 200);
         } catch (error) {

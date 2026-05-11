@@ -6,7 +6,20 @@ import type { CreateCourtInput, UpdateCourtInput } from "../validations/court.va
 export class CourtService {
     static async getAllCourts() {
         return await models.Court.findAll({
-            where: { status: 'active' },
+            where: { is_active: true },
+            order: [['created_at', 'DESC']],
+            include:[
+                {
+                    model: models.Facility,
+                    as: "facility",
+                    attributes:['id', 'name', 'address']
+                }
+            ]
+        });
+    }
+
+    static async getAllCourtsByAdmin() {
+        return await models.Court.findAll({
             order: [['created_at', 'DESC']],
             include:[
                 {
@@ -20,7 +33,19 @@ export class CourtService {
 
     static async getCourtById(id: number) {
         const court = await models.Court.findOne({
-            where: {id: id, status: 'active' },
+            where: {id: id, is_active: true },
+            include: [{model: models.Facility, as: "facility", attributes: ['id', 'name', 'address']}]
+        });
+        if(!court) {
+            throw new ApiError("Không tìm thấy sân này", 404);
+        }
+
+        return court;
+    }
+
+    static async getCourtByIdByAdmin(id: number) {
+        const court = await models.Court.findOne({
+            where: {id: id },
             include: [{model: models.Facility, as: "facility", attributes: ['id', 'name', 'address']}]
         });
         if(!court) {
@@ -43,8 +68,8 @@ export class CourtService {
             }
         });
         if(existingCourt){
-            if(existingCourt.status !== 'active'){
-                await existingCourt.update({ ...data, status: 'active'});
+            if(existingCourt.is_active){
+                await existingCourt.update({ ...data, is_active: true});
                 return existingCourt;
             }
             throw new ApiError(`Tên sân '${data.name}' đã tồn tại trong cơ sở này`, 400);
@@ -54,7 +79,7 @@ export class CourtService {
     }
 
     static async updateCourt(id: number, data: UpdateCourtInput) {
-        const court = await this.getCourtById(id);
+        const court = await this.getCourtByIdByAdmin(id);
 
         if(data.facility_id && data.facility_id !== court.facility_id) {
             const newFacility = await models.Facility.findOne({
@@ -80,9 +105,10 @@ export class CourtService {
     }
 
     static async deleteCourt(id: number) {
-        const court = await this.getCourtById(id);
+         const court = await this.getCourtById(id);    
 
-        await court.update({status: 'inactive'} as any);
-        return { message: 'Đã xóa sân thành công' };
+        await court.destroy(); 
+        
+        return { message: 'Đã xóa (mềm) sân thành công' };
     }
 }
