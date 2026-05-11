@@ -107,6 +107,42 @@ InventoryMovement.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'var
 Warehouse.hasMany(InventoryMovement, { foreignKey: 'warehouse_id', as: 'movements' });
 InventoryMovement.belongsTo(Warehouse, { foreignKey: 'warehouse_id', as: 'warehouse' });
 
+// 🔴 1. HOOK XÓA MỀM (CASCADE SOFT DELETE)
+// Thêm ": Facility" vào đây 👇
+Facility.addHook('afterDestroy', async (facility: Facility, options) => {
+    const currentTransaction = options.transaction || null;
+
+    try {
+        await Promise.all([
+            Court.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+            Warehouse.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+            PriceConfig.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+            InventoryLevel.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction })
+        ]);
+    } catch (error) {
+        console.error(`[Hook Error] Lỗi khi Cascade Delete cho Facility ${facility.id}:`, error);
+        throw error; 
+    }
+});
+
+// 🟢 2. HOOK KHÔI PHỤC (CASCADE RESTORE)
+// Thêm ": Facility" vào đây 👇
+Facility.addHook('afterRestore', async (facility: Facility, options) => {
+    const currentTransaction = options.transaction || null;
+
+    try {
+        await Promise.all([
+            Court.restore({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+            Warehouse.restore({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+            PriceConfig.restore({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+            InventoryLevel.restore({ where: { facility_id: facility.id }, transaction: currentTransaction })
+        ]);
+    } catch (error) {
+        console.error(`[Hook Error] Lỗi khi Cascade Restore cho Facility ${facility.id}:`, error);
+        throw error;
+    }
+});
+
 // ==========================================
 // XUẤT MÔ HÌNH (EXPORT)
 // ==========================================

@@ -9,10 +9,9 @@ const { Text } = Typography;
 interface BookingDetailDrawerProps {
   open: boolean;
   onClose: () => void;
-  // Cho phép truyền 1 trong 2: Hoặc nguyên cái object, hoặc chỉ cái ID
   booking?: Booking | null; 
   bookingId?: number | null; 
-  onRefresh?: () => void; // Thêm prop này để trigger F5 lưới/bảng khi hủy đơn
+  onRefresh?: () => void;
 }
 
 const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose, booking: initialBooking, bookingId, onRefresh }) => {
@@ -21,22 +20,18 @@ const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose
 
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-  // 💥 ĐÂY LÀ KHÚC "SMART" CỦA COMPONENT
   useEffect(() => {
     if (open) {
       if (initialBooking) {
-        // Nếu có sẵn data (từ trang Danh sách truyền vào), xài luôn
         setInternalBooking(initialBooking);
       } else if (bookingId) {
-        // Nếu chỉ có ID (từ trang Sa bàn truyền vào), phải gọi API đi lấy
         setLoading(true);
-        BookingService.getBookingDetail(bookingId) // 🔥 Đảm bảo em đã viết API này trong Service nhé!
+        BookingService.getBookingDetail(bookingId)
           .then(res => setInternalBooking(res.data))
           .catch(() => message.error('Không thể tải chi tiết đơn hàng'))
           .finally(() => setLoading(false));
       }
     } else {
-      // Khi đóng Drawer thì dọn dẹp data để lần sau mở cái khác không bị chớp giật data cũ
       setInternalBooking(null); 
     }
   }, [open, initialBooking, bookingId]);
@@ -47,7 +42,7 @@ const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose
       setLoading(true);
       await BookingService.updateBooking(internalBooking.id, { status: 'cancelled' });
       message.success('Đã hủy đơn thành công');
-      if (onRefresh) onRefresh(); // Ép trang cha F5 lại danh sách/lưới
+      if (onRefresh) onRefresh();
       onClose(); 
     } catch (error) {
       message.error('Lỗi hủy đơn');
@@ -134,7 +129,7 @@ const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose
             {/* 🔥 KHU VỰC NÚT BẤM DÀNH CHO LỄ TÂN */}
             <div className="mt-8 border-t pt-4 bg-gray-50 -mx-6 px-6 pb-6">
               <Space direction="vertical" className="w-full mt-4">
-                {/* 1. Nút tạo mã QR (Dành cho đơn chưa thanh toán) */}
+                
                 {internalBooking.payment_status === 'unpaid' && internalBooking.status !== 'cancelled' && (
                   <Button type="primary" block size="large" className="bg-green-600 font-semibold shadow-md"
                     onClick={() => setIsQrModalOpen(true)}>
@@ -142,7 +137,6 @@ const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose
                   </Button>
                 )}
                 
-                {/* 2. Nút Hủy Đơn (Chỉ hiện nếu chưa hủy hoặc chưa chơi xong) */}
                 {internalBooking.status !== 'cancelled' && internalBooking.status !== 'completed' && (
                   <Popconfirm 
                     title="Hủy đơn đặt sân" 
@@ -169,10 +163,8 @@ const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose
           totalCents={internalBooking.total_cents}
           onClose={() => setIsQrModalOpen(false)}
           onSuccess={() => {
-            setIsQrModalOpen(false); // Đóng mã QR
-            // F5 lại data của Drawer và Lưới bên ngoài
+            setIsQrModalOpen(false);
             if (onRefresh) onRefresh();
-            // Gọi lại API lấy chi tiết để UI Drawer cập nhật thành Đã thanh toán
             BookingService.getBookingDetail(internalBooking.id).then(res => setInternalBooking(res.data));
           }}
         />

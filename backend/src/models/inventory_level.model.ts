@@ -8,6 +8,7 @@ export interface InventoryLevelAttributes {
   quantity_on_hand: number;
   created_at?: Date;
   updated_at?: Date;
+  deleted_at?: Date; // Bổ sung
 }
 
 export interface InventoryLevelCreationAttributes extends Optional<InventoryLevelAttributes, 'id' | 'quantity_on_hand'> {}
@@ -20,6 +21,7 @@ class InventoryLevel extends Model<InventoryLevelAttributes, InventoryLevelCreat
 
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
+  declare readonly deleted_at: Date; // Bổ sung
 }
 
 InventoryLevel.init(
@@ -35,8 +37,9 @@ InventoryLevel.init(
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
+    paranoid: true,           // BẬT KHIÊN XÓA MỀM
+    deletedAt: 'deleted_at',  // Bổ sung
     indexes: [
-      // Đảm bảo mỗi variant chỉ có 1 bản ghi tồn kho tại mỗi kho
       { unique: true, fields: ['variant_id', 'facility_id'] },
     ],
   }

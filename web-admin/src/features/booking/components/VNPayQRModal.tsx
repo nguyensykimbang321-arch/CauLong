@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Spin, message } from 'antd';
 import { BookingService } from '../services/booking.service';
 import { QRCodeSVG } from 'qrcode.react';
+import { speakSuccessSound } from '../../../utils/speakSuccessSound';
 
 interface VNPayQRModalProps {
   bookingId: number;
   totalCents: number;
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void; // Gọi khi khách quét mã xong
+  onSuccess: () => void;
 }
 
 const VNPayQRModal: React.FC<VNPayQRModalProps> = ({ bookingId, totalCents, open, onClose, onSuccess }) => {
@@ -16,26 +17,23 @@ const VNPayQRModal: React.FC<VNPayQRModalProps> = ({ bookingId, totalCents, open
   const [loading, setLoading] = useState(false);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 1. Khi mở Modal -> Gọi API lấy Link VNPay
   useEffect(() => {
     if (open && bookingId) {
       setLoading(true);
       BookingService.generateVNPayUrl(bookingId) // Lát nữa ta sẽ viết API này
         .then(res => {
           setVnpayUrl(res.data.paymentUrl);
-          startPolling(); // Bắt đầu vòng lặp hỏi thăm Backend
+          startPolling();
         })
         .catch(() => message.error('Không thể tạo mã VNPay'))
         .finally(() => setLoading(false));
     }
     
-    // Cleanup khi đóng
     return () => {
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, [open, bookingId]);
 
-  // 2. Vòng lặp kiểm tra thanh toán
   const startPolling = () => {
     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     pollingIntervalRef.current = setInterval(async () => {
@@ -43,8 +41,9 @@ const VNPayQRModal: React.FC<VNPayQRModalProps> = ({ bookingId, totalCents, open
         const res = await BookingService.getBookingDetail(bookingId);
         if (res.data.payment_status === 'paid') {
           clearInterval(pollingIntervalRef.current!);
+          speakSuccessSound(totalCents);
           message.success('Khách đã thanh toán thành công!');
-          onSuccess(); // Đóng Modal và báo cho Drawer refresh
+          onSuccess();
         }
       } catch (err) {
         console.error(err);

@@ -15,6 +15,7 @@ import adminBookingRouter from './admin/booking.route.js';
 import priceConfigRouter from './admin/price_config.route.js';
 import clientPaymentRouter from './client/payment.route.js';
 import adminUserRouter from './admin/user.routes.js'
+import uploadRouter from './upload.routes.js'
 
 
 const rootRouter = Router();
@@ -45,5 +46,6 @@ rootRouter.use('/admin/courts', adminCourtRouter);
 rootRouter.use('/admin/bookings', adminBookingRouter);
 rootRouter.use('/admin/price-configs', priceConfigRouter);
 rootRouter.use('/admin/users', adminUserRouter);
+rootRouter.use('/upload', uploadRouter);
 
 export default rootRouter;

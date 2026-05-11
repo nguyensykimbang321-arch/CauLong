@@ -6,6 +6,8 @@ export interface WarehouseAttributes {
     facility_id: number;
     name: string;
     created_at?: Date;
+    updated_at?: Date; // Bổ sung
+    deleted_at?: Date; // Bổ sung
 }
 
 export interface WarehouseCreationAttributes extends Optional<WarehouseAttributes, 'id'> {}
@@ -16,6 +18,8 @@ class Warehouse extends Model<WarehouseAttributes, WarehouseCreationAttributes> 
     declare name: string;
 
     declare readonly created_at: Date;
+    declare readonly updated_at: Date; // Bổ sung
+    declare readonly deleted_at: Date; // Bổ sung
 }
 
 Warehouse.init(
@@ -39,7 +43,9 @@ Warehouse.init(
         tableName: 'warehouses',
         timestamps: true,
         createdAt: 'created_at',
-        updatedAt: false,
+        updatedAt: 'updated_at', // Đổi thành true/string thay vì false
+        paranoid: true,          // BẬT KHIÊN XÓA MỀM
+        deletedAt: 'deleted_at', // Tên cột trong DB
     }
 );
 

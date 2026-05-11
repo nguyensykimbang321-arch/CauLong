@@ -10,6 +10,8 @@ const router = Router();
 router.use(verifyToken, requireRoles(['admin', 'staff']));
 
 router.get('/', FacilityController.getAll);
+router.get('/trash', FacilityController.getTrash); 
+router.post('/:id/restore', FacilityController.restore);
 router.get('/:id', FacilityController.getById);
 router.get('/:id/courts', FacilityController.getFacilityWithCourts);
 router.post('/', validate(createFacilitySchema), FacilityController.create);

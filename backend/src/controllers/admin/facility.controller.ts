@@ -6,7 +6,7 @@ import type { CreateFacilityInput, updateFacilityInput } from "../../validations
 export class FacilityController {
     static async getAll(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await FacilityService.getAllFacilities();
+            const result = await FacilityService.getAllFacilitiesForAdmin();
 
             return AppResponse.success(res, result, "Lấy danh sách cơ sở thành công", 200);
         } catch (error) {
@@ -70,6 +70,25 @@ export class FacilityController {
 
             const result = await FacilityService.deleteFacility(Number(id));
             return AppResponse.success(res, result, "Xóa cơ sở thành công", 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getTrash(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await FacilityService.getDeletedFacilities();
+            return AppResponse.success(res, result, "Lấy danh sách thùng rác thành công", 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async restore(req: Request, res: Response, next: NextFunction) {
+        try {
+            const {id} = req.params;
+            const result = await FacilityService.restoreFacility(Number(id));
+            return AppResponse.success(res, result, "Khôi phục cơ sở thành công", 200);
         } catch (error) {
             next(error);
         }

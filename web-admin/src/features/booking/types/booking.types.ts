@@ -52,10 +52,6 @@ export interface BookedSlotDTO {
   end_time: string;
 }
 
-export interface FacilityLite {
-  id: number;
-  name: string;
-}
 
 export interface CourtLite {
   id: number;
