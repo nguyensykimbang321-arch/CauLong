@@ -4,7 +4,7 @@ import sequelize from '../config/database.js';
 export interface PriceConfigAttributes {
     id: number;
     facility_id: number;
-    court_type: 'badminton' | 'tennis' | 'football';
+    court_type: 'badminton' | 'tennis' | 'football' | 'table_tennis';
     start_time: string; 
     end_time: string;  
     price_per_hour: number;
@@ -19,7 +19,7 @@ export interface PriceConfigCreationAttributes extends Optional<PriceConfigAttri
 class PriceConfig extends Model<PriceConfigAttributes, PriceConfigCreationAttributes> implements PriceConfigAttributes {
     declare id: number;
     declare facility_id: number;
-    declare court_type: 'badminton' | 'tennis' | 'football';
+    declare court_type: 'badminton' | 'tennis' | 'football' | 'table_tennis';
     declare start_time: string;
     declare end_time: string;
     declare price_per_hour: number;

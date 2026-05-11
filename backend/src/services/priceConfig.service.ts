@@ -65,13 +65,18 @@ export class PriceConfigService {
         const config = await models.PriceConfig.findByPk(id);
         if (!config) throw new ApiError('Không tìm thấy cấu hình giá này', 404);
 
-        const newStartTime = data.start_time || config.start_time;
-        const newEndTime = data.end_time || config.end_time;
+        const checkFacilityId = data.facility_id || config.facility_id;
+        const checkCourtType = data.court_type || config.court_type;
+        const checkStartTime = data.start_time || config.start_time;
+        const checkEndTime = data.end_time || config.end_time;
 
-        if (data.start_time || data.end_time) {
-            await this.checkTimeOverlap(config.facility_id, config.court_type, newStartTime, newEndTime, id);
-        }
-
+        await this.checkTimeOverlap(
+            checkFacilityId,
+            checkCourtType, 
+            checkStartTime, 
+            checkEndTime,  
+            id            
+        );
         await config.update(data as any);
         return config;
     }

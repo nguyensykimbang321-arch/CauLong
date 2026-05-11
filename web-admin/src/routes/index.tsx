@@ -5,10 +5,10 @@ import BookingPage from '../features/booking/components/BookingPage'; // Trang T
 import BookingSchedulePage from '../features/booking/components/BookingSchedulePage';
 import FacilityPage from '../features/facility/components/FacilityPage';
 import CourtPage from '../features/court/components/CourtPage';
+import PriceConfigPage from '../features/priceConfig/components/PriceConfigPage';
 
 // --- TẠM THỜI MOCK CÁC COMPONENT ĐỂ TEST UI ---
 const DashboardPage = () => <div className="p-4 font-semibold text-lg text-gray-700">Trang Tổng quan (Thống kê doanh thu)</div>;
-const PricingPage = () => <div className="p-4 font-semibold text-lg text-gray-700">Trang Cấu hình Bảng giá</div>;
 
 export const router = createBrowserRouter([
   {
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
       // 3. CÁC MODULE ĐỘC LẬP
       {
         path: 'pricing',
-        element: <PricingPage />,
+        element: <PriceConfigPage />,
       },
       {
         path: 'products',
