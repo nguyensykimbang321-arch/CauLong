@@ -7,3 +7,8 @@ export interface UserAttributes {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}

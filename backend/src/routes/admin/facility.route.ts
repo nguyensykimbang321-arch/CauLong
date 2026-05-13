@@ -7,10 +7,11 @@ import { createFacilitySchema, updateFacilitySchema } from '../../validations/fa
 
 const router = Router();
 
-router.use(verifyToken, requireRoles(['admin']));
+router.use(verifyToken, requireRoles(['admin', 'staff']));
 
 router.get('/', FacilityController.getAll);
 router.get('/:id', FacilityController.getById);
+router.get('/:id/courts', FacilityController.getFacilityWithCourts);
 router.post('/', validate(createFacilitySchema), FacilityController.create);
 router.put('/:id', validate(updateFacilitySchema), FacilityController.update);
 router.delete('/:id', FacilityController.delete);

@@ -19,6 +19,7 @@ export default function CheckoutScreen({ navigation }) {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod'); 
+  const [facilityId, setFacilityId] = useState(null);
 
   useEffect(() => {
     async function loadInitial() {
@@ -30,6 +31,7 @@ export default function CheckoutScreen({ navigation }) {
             }
             if (facilities && facilities.length > 0) {
                 setAddress(facilities[0].address);
+                setFacilityId(facilities[0].id);
             }
         } catch (e) {
             console.error(e);
@@ -49,6 +51,7 @@ export default function CheckoutScreen({ navigation }) {
         customer_phone: phone,
         shipping_address: address,
         payment_method: paymentMethod,
+        facility_id: facilityId,
         items: state.cartItems.map(it => ({
           product_variant_id: it.variant_id,
           quantity: it.quantity,

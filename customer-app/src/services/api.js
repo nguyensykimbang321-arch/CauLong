@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Thay đổi IP này thành IP máy tính của bạn nếu chạy trên thiết bị thật
 // Android Emulator thường dùng 10.0.2.2 để truy cập localhost máy host
-const baseURL = 'http://10.50.1.20:5000/api/v1'; 
+const baseURL = 'http://192.168.1.19:5000/api/v1'; 
 
 const api = axios.create({
     baseURL,
@@ -12,11 +12,18 @@ const api = axios.create({
     },
 });
 
+import storage from '../utils/storage';
+
 // Interceptor để thêm Token vào header nếu có
 api.interceptors.request.use(async (config) => {
-    // Tương lai có thể thêm logic lấy token từ storage ở đây
-    // const token = await AsyncStorage.getItem('token');
-    // if (token) config.headers.Authorization = `Bearer ${token}`;
+    try {
+        const token = await storage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    } catch (e) {
+        console.error("Lỗi lấy token từ storage:", e);
+    }
     return config;
 });
 
@@ -30,9 +37,13 @@ export const fetchFacilityDetail = async (id) => {
     return response.data.data;
 };
 
-export const fetchAvailability = async (id, date, courtTypeId) => {
-    const response = await api.get(`/app/facilities/${id}/availability`, {
-        params: { date, courtTypeId }
+export const fetchAvailability = async (facilityId, date, courtType) => {
+    const response = await api.get('/app/bookings/daily-booked-slots', {
+        params: { 
+            facility_id: facilityId, 
+            date, 
+            court_type: courtType 
+        }
     });
     return response.data.data;
 };

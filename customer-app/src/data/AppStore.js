@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useReducer, useState, useEffect } from 'react';
 import mock from './mock.json';
+import storage from '../utils/storage';
 
 const AppStoreContext = createContext(null);
 
@@ -66,7 +67,16 @@ export function AppStoreProvider({ children }) {
         // Khởi tạo giỏ hàng trống để bắt đầu fresh
         dispatch({ type: 'cart/init', payload: [] });
         
-        // Tương lai: Kiểm tra token trong AsyncStorage để tự động đăng nhập
+        // Load user và token từ storage nếu có
+        const savedToken = await storage.getItem('token');
+        const savedUser = await storage.getItem('user');
+        
+        if (savedToken && savedUser) {
+          setUserState(JSON.parse(savedUser));
+          // Token sẽ được interceptor ở api.js tự động lấy từ AsyncStorage
+        }
+      } catch (e) {
+        console.warn("Lỗi khơi tạo AppStore:", e);
       } finally {
         setLoading(false);
       }
@@ -74,21 +84,26 @@ export function AppStoreProvider({ children }) {
     init();
   }, []);
 
-  const setUser = (userData, token) => {
-    setUserState(userData);
-    if (token) {
-      // Cập nhật token cho axios instance
-      import('../services/api').then((m) => {
-          m.default.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      });
+  const setUser = async (userData, token) => {
+    try {
+      setUserState(userData);
+      if (token) {
+        await storage.setItem('token', token);
+        await storage.setItem('user', JSON.stringify(userData));
+      }
+    } catch (e) {
+      console.error("Lỗi lưu thông tin đăng nhập:", e);
     }
   };
 
-  const logout = () => {
-    setUserState(null);
-    import('../services/api').then((m) => {
-        delete m.default.defaults.headers.common['Authorization'];
-    });
+  const logout = async () => {
+    try {
+      setUserState(null);
+      await storage.removeItem('token');
+      await storage.removeItem('user');
+    } catch (e) {
+        console.error("Lỗi đăng xuất:", e);
+    }
   };
 
   const apiContent = useMemo(() => {

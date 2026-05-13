@@ -26,6 +26,19 @@ export class FacilityController {
         }
     }
 
+    static async getFacilityWithCourts(req: Request, res: Response, next: NextFunction) {
+        try {
+            const {id} = req.params;
+
+            const result = await FacilityService.getFacilityWithCourts(Number(id));
+
+            return AppResponse.success(res, result, "Lấy chi tiết cơ sở thành công", 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+    
+
     static async create(req: Request, res: Response, next: NextFunction) {
         try {
             const body = req.body as CreateFacilityInput;

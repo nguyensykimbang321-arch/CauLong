@@ -2,7 +2,7 @@ import axios from 'axios';
 // Chúng ta không import toast ở đây để giữ code sạch
 
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1', // Dùng biến môi trường của Vite
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },

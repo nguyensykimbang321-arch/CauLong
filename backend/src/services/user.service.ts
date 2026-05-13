@@ -10,7 +10,7 @@ export class UserService {
         });
     }
 
-    static async createGuestUser(phone: string) {
+    static async createGuestUser(phone: string, fullName: string) {
 
         const randomPassword = Math.random().toString(36).slice(-8);
         const salt = await bcrypt.genSalt(10);
@@ -20,6 +20,7 @@ export class UserService {
 
         return await models.User.create({
             email: dummyEmail,
+            full_name:fullName,
             phone: phone,
             password_hash: hashedPassword,
             role: 'customer'

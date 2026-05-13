@@ -5,7 +5,7 @@ import AppResponse from '../../utils/AppResponse.js';
 export class AdminAuthController {
     static async login(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await AuthService.login(req.body, ['admin', 'manager', 'receptionist']);
+            const result = await AuthService.login(req.body, ['admin', 'staff']);
             return AppResponse.success(res, result, 'Đăng nhập trang quản trị thành công', 200);
         } catch (error) {
             next(error);

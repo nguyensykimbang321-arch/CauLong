@@ -2,8 +2,16 @@ import * as api from '../services/api';
 // Giữ lại mock để dự phòng nếu API lỗi hoặc chưa có dữ liệu DB
 import mock from './mock.json';
 
+import storage from '../utils/storage';
+
 export async function getCurrentUser() {
-  // Tạm thời lấy user từ mock cho đến khi hoàn thiện logic Login hoàn chỉnh
+  try {
+    const savedUser = await storage.getItem('user');
+    if (savedUser) return JSON.parse(savedUser);
+  } catch (e) {
+    console.error("Lỗi lấy user từ storage:", e);
+  }
+  // Fallback sang mock nếu chưa đăng nhập (hoặc trả về null tùy logic App)
   return mock.users?.[0] ?? null;
 }
 
@@ -37,19 +45,18 @@ export async function getCourts({ facilityId, courtTypeId } = {}) {
 
 export async function getBookings(userId) {
   try {
-    // Lưu ý: userId thường được lấy từ token ở backend
     const bookings = await api.fetchMyBookings();
     
-    return bookings.map(b => {
+    return (bookings || []).map(b => {
       const slots = b.slots || [];
       const facility = b.facility;
       const firstSlot = slots[0];
       const lastSlot = slots[slots.length - 1];
       
       const court = firstSlot?.court;
-      const courtType = court?.type;
+      const courtType = court?.type || court?.court_type;
       
-      const sportLabel = courtType?.name === 'badminton' ? 'Cầu lông' : courtType?.name === 'tennis' ? 'Tennis' : 'Bóng bàn';
+      const sportLabel = courtType === 'badminton' ? 'Cầu lông' : courtType === 'tennis' ? 'Tennis' : 'Bóng bàn';
 
       return {
         ...b,
@@ -63,8 +70,12 @@ export async function getBookings(userId) {
       };
     });
   } catch (error) {
+    if (error.response?.status === 401) {
+       // Không log lỗi Error đỏ cho 401 vì người dùng chỉ là chưa đăng nhập
+       return []; 
+    }
     console.error("Lỗi lấy lịch sử đặt sân:", error);
-    return []; // Hoặc dùng mock nếu muốn
+    return [];
   }
 }
 
@@ -143,7 +154,16 @@ export async function getAvailability({ facilityId, courtId, date } = {}) {
 
 export async function getAvailabilitiesFor({ facilityId, courtTypeId, date } = {}) {
   try {
-    return await api.fetchAvailability(facilityId, date, courtTypeId);
+    // Backend yêu cầu court_type là string ('badminton', 'tennis', 'football')
+    // Ánh xạ từ ID (trong mock/frontend) sang string
+    const courtTypeMap = {
+        1: 'badminton',
+        2: 'tennis',
+        3: 'table_tennis'
+    };
+    const courtTypeName = courtTypeMap[courtTypeId] || 'badminton';
+
+    return await api.fetchAvailability(facilityId, date, courtTypeName);
   } catch (error) {
      console.error("Lỗi lấy lịch trống:", error);
      return { courts: [], slotsByCourtId: {} };
