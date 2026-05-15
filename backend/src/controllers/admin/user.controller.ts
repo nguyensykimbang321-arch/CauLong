@@ -1,8 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { UserService } from '../../services/user.service.js';
 import AppResponse from '../../utils/AppResponse.js';
-import ApiError from '../../utils/ErrorClass.js';
-
 export class AdminUserController{
     static async getAll(req: Request, res: Response, next: NextFunction){
         try{
