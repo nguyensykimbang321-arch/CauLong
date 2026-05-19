@@ -30,4 +30,30 @@ export class ClientOrderController {
       next(error);
     }
   }
+
+  static async getMyOrders(req: any, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new ApiError("Không tìm thấy thông tin người dùng", 401);
+
+      const orders = await OrderService.getMyOrders(userId);
+
+      return AppResponse.success(res, orders, "Lấy danh sách đơn hàng thành công");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async cancelOrder(req: any, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id || null;
+
+      const order = await OrderService.cancelOrder(Number(id), userId);
+
+      return AppResponse.success(res, order, "Hủy đơn hàng thành công");
+    } catch (error) {
+      next(error);
+    }
+  }
 }

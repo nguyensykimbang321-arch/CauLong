@@ -68,7 +68,7 @@ export default function CheckoutScreen({ navigation }) {
         });
       } else {
         clearCart();
-        navigation.navigate('Shop');
+        navigation.navigate('MyOrders');
         Alert.alert('Thành công', 'Đặt hàng thành công!');
       }
     } catch (error) {

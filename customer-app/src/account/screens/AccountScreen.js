@@ -15,6 +15,7 @@ export default function AccountScreen({ navigation }) {
 
   const items = [
     { id: 'bookings', label: 'Lịch đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('MyBookings') },
+    { id: 'orders', label: 'Đơn hàng của tôi', icon: 'receipt-outline', onPress: () => navigation.navigate('MyOrders') },
     { id: 'noti', label: 'Thông báo', icon: 'notifications-outline', onPress: () => navigation.navigate('Notifications') },
     { id: 'logout', label: 'Đăng xuất', icon: 'log-out-outline', onPress: handleLogout, danger: true },
   ];

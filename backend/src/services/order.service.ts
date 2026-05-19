@@ -56,4 +56,51 @@ export class OrderService {
             throw error;
         }
     }
+
+    static async cancelOrder(orderId: number, userId: number | null) {
+        const order = await models.Order.findOne({
+            where: {
+                id: orderId,
+                ...(userId ? { user_id: userId } : {}) // Nếu có userId thì phải khớp, nếu không (khách vãng lai) thì tạm chấp nhận id
+            }
+        });
+
+        if (!order) {
+            throw new ApiError("Không tìm thấy đơn hàng", 404);
+        }
+
+        if (order.status !== 'pending') {
+            throw new ApiError("Chỉ có thể hủy đơn hàng ở trạng thái chờ xử lý (pending)", 400);
+        }
+
+        order.status = 'cancelled';
+        await order.save();
+
+        return order;
+    }
+
+    static async getMyOrders(userId: number) {
+        return await models.Order.findAll({
+            where: { user_id: userId },
+            include: [
+                {
+                    model: models.OrderItem,
+                    as: 'items',
+                    include: [
+                        {
+                            model: models.ProductVariant,
+                            as: 'variant',
+                            include: [
+                                {
+                                    model: models.Product,
+                                    as: 'product'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            order: [['created_at', 'DESC']]
+        });
+    }
 }

@@ -1,5 +1,7 @@
-import express, { type Express } from 'express';
 import dotenv from 'dotenv';
+dotenv.config();
+
+import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -8,8 +10,6 @@ import { testConnection } from './src/config/database.js';
 import models from './src/models/index.js'
 import rootRouter from './src/routes/index.js';
 
-
-dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;

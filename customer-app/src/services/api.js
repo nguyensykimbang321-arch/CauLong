@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Thay đổi IP này thành IP máy tính của bạn nếu chạy trên thiết bị thật
 // Android Emulator thường dùng 10.0.2.2 để truy cập localhost máy host
-const baseURL = 'http://192.168.1.19:5000/api/v1'; 
+const baseURL = 'http://10.50.1.22:5000/api/v1'; 
 
 const api = axios.create({
     baseURL,
@@ -18,6 +18,7 @@ import storage from '../utils/storage';
 api.interceptors.request.use(async (config) => {
     try {
         const token = await storage.getItem('token');
+        console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url} | Token: ${token ? token.substring(0, 20) + '...' : 'KHÔNG CÓ'}`);
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -26,6 +27,17 @@ api.interceptors.request.use(async (config) => {
     }
     return config;
 });
+
+// Interceptor xử lý response lỗi
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            console.error(`[API 401] ${error.config?.method?.toUpperCase()} ${error.config?.url} | Message: ${error.response?.data?.message}`);
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const fetchFacilities = async () => {
     const response = await api.get('/app/facilities');
@@ -70,6 +82,16 @@ export const fetchMyBookings = async () => {
 
 export const createOrder = async (orderData) => {
     const response = await api.post('/app/orders', orderData);
+    return response.data.data;
+};
+
+export const fetchMyOrders = async () => {
+    const response = await api.get('/app/orders/my');
+    return response.data.data;
+};
+
+export const cancelOrder = async (orderId) => {
+    const response = await api.patch(`/app/orders/${orderId}/cancel`);
     return response.data.data;
 };
 

@@ -16,6 +16,8 @@ import ShopScreen from '../../shop/screens/ShopScreen';
 import ProductDetailScreen from '../../shop/screens/ProductDetailScreen';
 import CartScreen from '../../shop/screens/CartScreen';
 import CheckoutScreen from '../../shop/screens/CheckoutScreen';
+import MyOrdersScreen from '../../shop/screens/MyOrdersScreen';
+
 
 import AccountScreen from '../../account/screens/AccountScreen';
 import NotificationsScreen from '../../account/screens/NotificationsScreen';
@@ -68,6 +70,7 @@ function ShopStackScreen() {
       <ShopStack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <ShopStack.Screen name="Cart" component={CartScreen} />
       <ShopStack.Screen name="Checkout" component={CheckoutScreen} />
+      <ShopStack.Screen name="MyOrders" component={MyOrdersScreen} />
       <ShopStack.Screen name="PaymentWebView" component={PaymentWebView} />
     </ShopStack.Navigator>
   );
@@ -80,6 +83,7 @@ function AccountStackScreen() {
       <AccountStack.Screen name="Notifications" component={NotificationsScreen} />
       <AccountStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <AccountStack.Screen name="BookingDetail" component={BookingDetailScreen} />
+      <AccountStack.Screen name="MyOrders" component={MyOrdersScreen} />
     </AccountStack.Navigator>
   );
 }
