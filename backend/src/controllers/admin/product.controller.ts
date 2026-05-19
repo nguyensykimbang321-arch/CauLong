@@ -12,6 +12,20 @@ export class AdminProductController{
         }
     }
 
+    static async getAllForAdmin(req: Request, res: Response, next: NextFunction) {
+        try {
+            const products = await ProductService.getAllProductsForAdmin(req.query);
+
+            return res.status(200).json({
+                success: true,
+                message: 'Lấy danh sách sản phẩm và tồn kho admin thành công!',
+                data: products
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     static async getById(req: Request, res: Response, next: NextFunction) {
         try {
             const id = Number(req.params.id);

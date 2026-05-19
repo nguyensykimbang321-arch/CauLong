@@ -1,53 +1,56 @@
-// import { z } from 'zod';
+import { z } from 'zod';
 
-// // ===============================================================
-// // KHAI BÁO ENUM TRỰC TIẾP TẠI ĐÂY
-// // ===============================================================
-// export enum InventoryReason {
-//   SALE = 'sale',
-//   RETURN = 'return',
-//   ADJUSTMENT = 'adjustment',
-//   IMPORT = 'import'
-// }
+/**
+ * 1. Validate cho việc Điều chỉnh / Nhập kho lẻ
+ * (Mẫu bạn đã cung cấp)
+ */
+export const adjustInventorySchema = z.object({
+    body: z.object({
+        variant_id: z.number({ message: 'ID biến thể là bắt buộc' }),
+        facility_id: z.number({ message: 'ID cơ sở là bắt buộc' }),
+        qty_delta: z.number().refine(val => val !== 0, { message: 'Số lượng thay đổi phải khác 0' }),
+        reason: z.enum(['sale', 'return', 'adjustment', 'import'], {
+            message: 'Lý do không hợp lệ (import, sale, return, adjustment)'
+        }),
+        note: z.string().optional(),
+        ref_order_id: z.number().optional()
+    })
+});
 
-// // ... (Các schema khác như createProductSchema giữ nguyên)
+/**
+ * 2. Validate cho việc Chuyển kho giữa 2 cơ sở
+ */
+export const transferStockSchema = z.object({
+    body: z.object({
+        variant_id: z.number({ message: 'ID biến thể là bắt buộc' }),
+        from_facility_id: z.number({ message: 'ID cơ sở gửi là bắt buộc' }),
+        to_facility_id: z.number({ message: 'ID cơ sở nhận là bắt buộc' }),
+        quantity: z.number().positive({ message: 'Số lượng chuyển phải lớn hơn 0' }),
+        note: z.string().optional()
+    })
+});
 
-// // ===============================================================
-// // SCHEMA KIỂM TRA TỒN KHO TỰ ĐỘNG
-// // ===============================================================
-// export const autoUpdateInventorySchema = z.object({
-//     body: z.object({
-//         variant_id: z.number().positive('ID biến thể phải lớn hơn 0'),
-//         facility_id: z.number().positive('ID cơ sở phải lớn hơn 0'),
-        
-//         qty_delta: z.number({ message: 'Số lượng biến động là bắt buộc' }), 
-        
-//         // Zod sẽ dùng thẳng Enum được khai báo ở trên để kiểm tra
-//         reason: z.nativeEnum(InventoryReason, { 
-//              message: 'Lý do kho không hợp lệ (chỉ nhận: sale, return, adjustment, import)'
-//         }),
-        
-//         ref_order_id: z.number().positive().optional() 
-//     })
-// });
+/**
+ * 3. Validate cho việc Kiểm kê (Đồng bộ số lượng thực tế)
+ */
+export const syncStockSchema = z.object({
+    body: z.object({
+        variant_id: z.number({ message: 'ID biến thể là bắt buộc' }),
+        facility_id: z.number({ message: 'ID cơ sở là bắt buộc' }),
+        actual_quantity: z.number().min(0, { message: 'Số lượng thực tế không được âm' }),
+        note: z.string().optional()
+    })
+});
 
-// export const addInventorySchema = z.object({
-//     body: z.object({
-//         // Bắt buộc phải biết là nhập cho biến thể nào (ví dụ: Vợt 3U màu Đỏ)
-//         variant_id: z.number({ message: 'ID biến thể (variant_id) là bắt buộc' })
-//             .positive('ID biến thể phải lớn hơn 0'),
-            
-//         // Bắt buộc phải biết là cất vào cơ sở/kho nào
-//         facility_id: z.number({ message: 'ID cơ sở (facility_id) là bắt buộc' })
-//             .positive('ID cơ sở phải lớn hơn 0'),
-        
-//         // Số lượng nhập thêm vào bắt buộc phải là SỐ DƯƠNG (không ai đi nhập kho -5 sản phẩm cả)
-//         qty_delta: z.number({ message: 'Số lượng nhập là bắt buộc' })
-//             .positive('Số lượng nhập kho phải lớn hơn 0'), 
-        
-//         // Ghi chú (VD: "Nhập hàng lô tháng 10") - Có thể bỏ trống
-//         note: z.string().nullish()
-//     })
-// });
-
-// export type AutoUpdateInventoryInput = z.infer<typeof autoUpdateInventorySchema>['body'];
+/**
+ * 4. Validate query cho việc lấy Lịch sử biến động
+ */
+export const getInventoryLogsSchema = z.object({
+    query: z.object({
+        facility_id: z.string().optional(),
+        variant_id: z.string().optional(),
+        reason: z.string().optional(),
+        page: z.string().optional(),
+        limit: z.string().optional()
+    })
+});

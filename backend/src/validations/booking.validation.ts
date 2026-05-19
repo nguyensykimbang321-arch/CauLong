@@ -26,13 +26,26 @@ export const getDailyBookedSchema = z.object({
     })
 });
 
+export const previewPriceSchema = z.object({
+    body: z.object({
+        facility_id: z.number({ message: 'ID cơ sở là bắt buộc' }),
+        court_type: z.enum(['standard', 'vip'], { message: 'Loại sân không hợp lệ' }), // Chặn chỉ cho phép các loại sân có sẵn
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải là YYYY-MM-DD'),
+        start_time: z.string().regex(/^\d{2}:(00|30)$/, 'Giờ bắt đầu phải chẵn giờ hoặc rưỡi (VD: 17:00, 17:30)'),
+        end_time: z.string().regex(/^\d{2}:(00|30)$/, 'Giờ kết thúc phải chẵn giờ hoặc rưỡi (VD: 18:00, 18:30)')
+    })
+});
+
+export type PreviewPriceInput = z.infer<typeof previewPriceSchema>['body'];
+
 export const createBookingSchema = z.object({
     body: z.object({
         facility_id: z.number({ message: 'ID cơ sở là bắt buộc' }),
         court_id: z.number({ message: 'ID sân là bắt buộc' }),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải là YYYY-MM-DD'),
         start_time: z.string().regex(/^\d{2}:(00|30)$/, 'Giờ bắt đầu phải chẵn giờ hoặc rưỡi (VD: 17:00, 17:30)'),
-        end_time: z.string().regex(/^\d{2}:(00|30)$/, 'Giờ kết thúc phải chẵn giờ hoặc rưỡi (VD: 18:00, 18:30)')
+        end_time: z.string().regex(/^\d{2}:(00|30)$/, 'Giờ kết thúc phải chẵn giờ hoặc rưỡi (VD: 18:00, 18:30)'),
+        payment_method: z.enum(['cash', 'vnpay']).default('cash'),
     })
 });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>['body'];

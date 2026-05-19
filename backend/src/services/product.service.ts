@@ -35,6 +35,29 @@ export class ProductService {
         });
     }
 
+    static async getAllProductsForAdmin(queryParams?: any) {
+        try {
+            return await (models.Product as any).findAll({
+                include: [
+                    {
+                        model: models.ProductVariant,
+                        as: 'variants',
+                        include: [
+                            {
+                                model: models.InventoryLevel,
+                                as: 'inventory_levels',
+                                attributes: ['id', 'facility_id', 'available_quantity', 'reserved_quantity', 'low_stock_threshold']
+                            }
+                        ]
+                    }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+        } catch (error) {
+            throw error;
+        }
+    }
+
     static async getProductDetail(productId: number) {
         const product = await models.Product.findByPk(productId, {
         include: [
@@ -190,4 +213,6 @@ export class ProductService {
             };
         }
     }
+
+
 }

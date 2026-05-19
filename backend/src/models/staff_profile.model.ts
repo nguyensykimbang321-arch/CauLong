@@ -4,7 +4,7 @@ import sequelize from '../config/database.js';
 export interface StaffProfileAttributes {
   id: number;
   user_id: number;
-  facility_id: number | null; // null = all facilities (HQ)
+  facility_id: number | null;
   job_title: string | null;
   active: boolean;
   created_at?: Date;

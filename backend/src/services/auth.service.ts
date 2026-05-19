@@ -30,7 +30,16 @@ export class AuthService {
     static async login(data: any, allowedRoles: string[]) {
         const { email, password } = data;
 
-        const user = await models.User.findOne({ where: { email } });
+        const user = await models.User.findOne({ 
+            where: { email },
+            include: [
+                {
+                    model: models.StaffProfile,
+                    as: 'staff_profile',
+                    required: false 
+                }
+            ]
+         });
         if (!user) {
             throw new ApiError('Email hoặc mật khẩu không đúng', 401);
         }

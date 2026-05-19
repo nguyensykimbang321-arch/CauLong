@@ -10,6 +10,7 @@ router.use(verifyToken);
 
 router.get('/', AdminProductController.getAll);
 router.get('/:id', AdminProductController.getById);
+router.get('/', requireRoles(['admin']), AdminProductController.getAllForAdmin);
 router.post('/', requireRoles(['admin']), validate(createProductSchema), AdminProductController.create);
 router.put('/:id', requireRoles(['admin']), validate(updateProductSchema), AdminProductController.update);
 router.patch('/:id/toggle-delete', requireRoles(['admin']), AdminProductController.toggleDelete);

@@ -6,6 +6,7 @@ import sequelize from '../config/database.js';
 import ApiError from '../utils/ErrorClass.js';
 import { BOOKING_STATUS_TRANSITIONS, PAYMENT_STATUS_TRANSITIONS } from '../constants/booking.constant.js';
 import { PricingService } from './pricing.service.js';
+import { VNPayUtils } from '../utils/vnpay.js';
 
 export class BookingService {
     static async getAvailableCourts(startDateTime: Date, endDateTime: Date, courtType?: string) {
@@ -42,81 +43,131 @@ export class BookingService {
             }]
         });
 
-        const bookingTimeOnly = dayjs(startDateTime).format('HH:mm:ss');
-        const priceConfigs = await models.PriceConfig.findAll({
-            where: {
-                start_time: { [Op.lte]: bookingTimeOnly },
-                end_time: { [Op.gt]: bookingTimeOnly }
-            },
-            raw: true
-        });
         
-        const results = availableCourts.map(court => {
-            const priceInfo = priceConfigs.find(
-                p => p.facility_id === court.facility_id && p.court_type === court.court_type
-            );
+        // 3. Tính giá cho từng sân khả dụng
+        const results = await Promise.all(availableCourts.map(async (court) => {
+            try {
+                const totalPrice = await PricingService.calculateTotalPrice(
+                    court.facility_id,
+                    court.court_type,
+                    startDateTime,
+                    endDateTime
+                );
 
-            const courtJson = court.toJSON();
-            
-            return {
-                ...courtJson,
-                price_per_hour: priceInfo ? priceInfo.price_per_hour : null,
-                applied_price_id: priceInfo ? priceInfo.id : null
-            };
+                return {
+                    ...court.toJSON(),
+                    total_price: totalPrice,
+                    price_per_hour: totalPrice / (dayjs(endDateTime).diff(dayjs(startDateTime), 'minute') / 60)
+                };
+            } catch (error) {
+                // Nếu không có giá cho khung giờ này, coi như sân không khả dụng
+                return null;
+            }
+        }));
 
-        });
-
-        const validResults = results.filter(court => court.price_per_hour !== null);
+        const validResults = results.filter(court => court !== null);
 
         if (validResults.length === 0) {
-            throw new ApiError('Cơ sở không hoạt động trong khung giờ này hoặc chưa được cấu hình giá!', 400);
+            throw new ApiError('Không tìm thấy cấu hình giá cho khung giờ bạn chọn tại cơ sở này!', 400);
         }
 
         return validResults;
+    }
+
+    static async getDailyBookedSlots(facilityId: number, date: string, courtType: string) {
+        // 1. Lấy danh sách sân của cơ sở và loại sân này
+        const courts = await models.Court.findAll({
+            where: {
+                facility_id: facilityId,
+                court_type: courtType,
+                is_active: true
+            },
+            attributes: ['id', 'name', 'court_type', 'facility_id'],
+            raw: true
+        });
+
+        if (courts.length === 0) {
+            return { courts: [], slotsByCourtId: {} };
         }
-    static async getDailyBookedSlots(facilityId: number, date: string | Date, courtType: string) {
+
+        // 2. Lấy tất cả các slot đã đặt trong ngày đó cho các sân này
         const startOfDay = dayjs(date).startOf('day').toDate();
         const endOfDay = dayjs(date).endOf('day').toDate();
 
         const bookedSlots = await models.BookingSlot.findAll({
             where: {
+                court_id: { [Op.in]: courts.map(c => c.id) },
                 [Op.and]: [
                     { start_at: { [Op.gte]: startOfDay } },
                     { start_at: { [Op.lte]: endOfDay } }
                 ]
             },
-            include: [
-                {
-                    model: models.Booking,
-                    as: 'booking',
-                    where: {
-                        status: { [Op.ne]: 'cancelled' } 
-                    },
-                    attributes: []
-                },
-                {
-                    model: models.Court,
-                    as: 'court',    
-                    where: {
-                        facility_id: facilityId,
-                        court_type: courtType,
-                        is_active: true
-                    },
-                    attributes: ['name']
-                }
-            ],
-            attributes: ['court_id', 'start_at', 'end_at']
+            include: [{
+                model: models.Booking,
+                as: 'booking',
+                where: { status: { [Op.ne]: 'cancelled' } },
+                attributes: []
+            }],
+            attributes: ['court_id', 'start_at', 'end_at', 'booking_id', 'price_cents'],
+            raw: true
         });
 
-        return bookedSlots.map(slot => {
-            const slotJson = slot.toJSON() as any;
-            return {
-                court_id: slotJson.court_id,
-                court_name: slotJson.court?.name,
-                start_time: dayjs(slotJson.start_at).format('HH:mm'), 
-                end_time: dayjs(slotJson.end_at).format('HH:mm')
-            };
+        // 3. Lấy cấu hình giá để tính giá cho từng slot
+        const priceConfigs = await models.PriceConfig.findAll({
+            where: {
+                facility_id: facilityId,
+                court_type: courtType
+            },
+            raw: true
         });
+
+        // 4. Tạo Grid giờ (06:00 - 22:00, bước nhảy 1 tiếng)
+        const START_HOUR = 6;
+        const END_HOUR = 22;
+        const slotsByCourtId: Record<number, any[]> = {};
+
+        courts.forEach(court => {
+            const courtSlots = [];
+            for (let h = START_HOUR; h < END_HOUR; h++) {
+                const slotStart = dayjs(date).hour(h).minute(0).second(0);
+                const slotEnd = dayjs(date).hour(h + 1).minute(0).second(0);
+
+                const isBooked = bookedSlots.some(bs => {
+                    return bs.court_id === court.id &&
+                        dayjs(bs.start_at).isBefore(slotEnd) &&
+                        dayjs(bs.end_at).isAfter(slotStart);
+                });
+
+                // Tính giá cho khung giờ này
+                const { totalPrice } = PricingService.calculateFromConfigs(
+                    priceConfigs, 
+                    slotStart.toDate(), 
+                    slotEnd.toDate()
+                );
+
+                courtSlots.push({
+                    start: slotStart.format('HH:mm'),
+                    end: slotEnd.format('HH:mm'),
+                    available: !isBooked,
+                    price_cents: Math.ceil(totalPrice)
+                });
+            }
+            slotsByCourtId[court.id] = courtSlots;
+        });
+
+        const rawSlots = bookedSlots.map(slot => ({
+            booking_id: slot.booking_id, 
+            price_cents: slot.price_cents,
+            court_id: slot.court_id,
+            start_time: dayjs(slot.start_at).format('HH:mm'),
+            end_time: dayjs(slot.end_at).format('HH:mm')
+        }));
+
+        return {
+            courts,
+            slotsByCourtId,
+            rawBookedSlots: rawSlots
+        };
     }
 
     static async createBooking(userId:number, data: CreateBookingInput) {
@@ -204,7 +255,7 @@ export class BookingService {
                 user_id: userId,
                 facility_id: data.facility_id,
                 total_cents: calculatedPrice,
-                status: 'pending',
+                payment_method: data.payment_method || 'cash',
             }, { transaction: t });
 
             await models.BookingSlot.create({
@@ -260,7 +311,7 @@ export class BookingService {
                 {
                     model: models.User,
                     as: 'user',
-                    attributes: ['id', 'email', 'phone']
+                    attributes: ['id', 'email', 'phone', 'full_name']
                 },
                 {
                     model: models.Facility,
@@ -280,6 +331,43 @@ export class BookingService {
                 }
             ]
         });
+    }
+
+    static async getByBookingId(bookingId: number) {
+        // Sử dụng findByPk (Find By Primary Key) kết hợp Include (JOIN)
+        const booking = await models.Booking.findByPk(bookingId, {
+            include: [
+                {
+                    model: models.User,
+                    as: 'user', // 🔥 Lưu ý: Khớp với alias khai báo trong DB
+                    attributes: ['id', 'full_name', 'phone', 'email'] // Lấy đúng các trường Frontend cần
+                },
+                {
+                    model: models.Facility,
+                    as: 'facility',
+                    attributes: ['id', 'name']
+                },
+                {
+                    model: models.BookingSlot,
+                    as: 'slots',
+                    attributes: ['id', 'court_id', 'start_at', 'end_at', 'price_cents'],
+                    include: [
+                        {
+                            model: models.Court,
+                            as: 'court',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        // Xử lý lỗi nếu ID tào lao
+        if (!booking) {
+            throw new ApiError('Không tìm thấy thông tin đơn đặt sân này!', 404);
+        }
+
+        return booking;
     }
 
     static async updateBookingStatus(id: number, data: UpdateBookingStatusInput) {
@@ -305,5 +393,79 @@ export class BookingService {
         await booking.update(data as any);
 
         return booking;
+    }
+    static async validateBookingTimes(date: string, startTime: string, endTime: string) {
+        const startDateTime = dayjs(`${date} ${startTime}`, 'YYYY-MM-DD HH:mm');
+        const endDateTime = dayjs(`${date} ${endTime}`, 'YYYY-MM-DD HH:mm');
+
+        if (!startDateTime.isValid() || !endDateTime.isValid()) {
+            throw new ApiError('Thời gian không hợp lệ', 400);
+        }
+        if (startDateTime.isBefore(dayjs())) {
+            throw new ApiError('Không thể đặt sân ở thời điểm trong quá khứ', 400);
+        }
+        if (endDateTime.isBefore(startDateTime) || endDateTime.isSame(startDateTime)) {
+            throw new ApiError('Giờ kết thúc phải sau giờ bắt đầu', 400);
+        }
+
+        return { startDateTime, endDateTime };
+    }
+
+    static async createBookingByHotline(data: any) {
+        const { customer_phone, ...bookingData } = data;
+
+        // 1. Tìm hoặc tạo user qua SĐT
+        let user = await models.User.findOne({
+            where: { phone: customer_phone, role: 'customer' }
+        });
+
+        const isNewUser = !user;
+        if (!user) {
+            const randomPassword = Math.random().toString(36).slice(-8);
+            const salt = await (import('bcryptjs').then(m => m.default.genSalt(10)));
+            const hashedPassword = await (import('bcryptjs').then(m => m.default.hash(randomPassword, salt)));
+            const dummyEmail = `guest_${customer_phone}@thethaovip.local`;
+
+            user = await models.User.create({
+                email: dummyEmail,
+                phone: customer_phone,
+                password_hash: hashedPassword,
+                role: 'customer'
+            });
+        }
+
+        const result = await this.createBooking(user.id, bookingData);
+
+        return {
+            booking: result,
+            user,
+            message: isNewUser 
+                ? 'Đã tạo tài khoản mới và đặt sân hộ khách thành công' 
+                : 'Đã đặt sân hộ khách thành công'
+        };
+    }
+
+    static async generateVNPayUrl(bookingId: number, ipAddr: string) {
+        // 1. Tìm đơn hàng
+        const booking = await models.Booking.findByPk(bookingId);
+        
+        if (!booking) {
+            throw new ApiError('Không tìm thấy đơn đặt sân', 404);
+        }
+        
+        if (booking.payment_status === 'paid') {
+            throw new ApiError('Đơn này đã được thanh toán rồi!', 400);
+        }
+
+        // 2. Tạo link VNPay (Dùng tiện ích cũ của app Mobile)
+        const paymentUrl = VNPayUtils.createPaymentUrl({
+            amount: booking.total_cents,
+            // Thêm random string để chống trùng orderId của VNPay nếu khách quét mã nhiều lần
+            orderId: booking.id.toString() + '_' + Date.now().toString().slice(-6),
+            orderInfo: `Thanh toan don dat san ${booking.id}`,
+            ipAddr: ipAddr || '127.0.0.1'
+        });
+
+        return { paymentUrl };
     }
 }
