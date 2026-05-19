@@ -4,6 +4,7 @@ import LoginPage from '../features/auth/components/login';
 import BookingPage from '../features/booking/components/BookingPage'; // Trang Table cũ của em
 import BookingSchedulePage from '../features/booking/components/BookingSchedulePage';
 import { StaffPage } from '../features/staff/components/StaffPage';
+import { ProductTable } from '../features/product/components/ProductTable';
 
 // --- TẠM THỜI MOCK CÁC COMPONENT ĐỂ TEST UI ---
 const DashboardPage = () => <div className="p-4 font-semibold text-lg text-gray-700">Trang Tổng quan (Thống kê doanh thu)</div>;
@@ -70,11 +71,10 @@ export const router = createBrowserRouter([
       },
       {
         path: 'products',
-        element: <div className="p-4 font-semibold text-lg text-gray-700">Trang Hàng hóa & Kho (W2 code ở đây)</div>,
+        element: <ProductTable />,
       },
       {
         path: 'staff',
-        // 🏸 THAY THẾ "HÌNH NỘM" BẰNG COMPONENT THẬT CHÚNG TA VỪA CODE
         element: <StaffPage />, 
       },
     ],
