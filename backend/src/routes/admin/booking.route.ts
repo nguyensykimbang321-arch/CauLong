@@ -10,7 +10,6 @@ const router = Router();
 router.use(verifyToken);
 
 router.get('/', requireRoles(['admin', 'staff']), AdminBookingController.getAll);
-router.get('/:booking_id', requireRoles(['admin', 'staff']), AdminBookingController.getById);
 
 router.post(
     '/hotline',
@@ -20,6 +19,5 @@ router.post(
 );
 
 router.put('/:id/status', requireRoles(['admin', 'staff']), validate(updateBookingStatusSchema), AdminBookingController.updateStatus);
-router.get('/:booking_id/vnpay-url', requireRoles(['admin', 'staff']), AdminBookingController.getVNPayUrl);
 
 export default router;

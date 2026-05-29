@@ -6,10 +6,10 @@ import qs from 'qs';
  * Tiện ích hỗ trợ tích hợp cổng thanh toán VNPay
  */
 export class VNPayUtils {
-  private static tmnCode = process.env.VNP_TMNCODE || '';
-  private static hashSecret = process.env.VNP_HASHSECRET || '';
+  private static tmnCode = process.env.VNP_TMN_CODE || '';
+  private static hashSecret = process.env.VNP_HASH_SECRET || '';
   private static vnpUrl = process.env.VNP_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-  private static returnUrl = process.env.VNP_RETURNURL || '';
+  private static returnUrl = process.env.VNP_RETURN_URL || '';
 
   /**
    * Tạo URL thanh toán VNPay

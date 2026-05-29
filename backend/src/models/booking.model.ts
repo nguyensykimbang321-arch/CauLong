@@ -7,10 +7,6 @@ export interface BookingAttributes {
   facility_id: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   payment_status: 'unpaid' | 'partial' | 'paid' | 'refunded';
-  
-  // 🔥 THÊM MỚI: Hình thức thanh toán
-  payment_method: 'cash' | 'vnpay'; 
-  
   total_cents: number;
   note: string | null;
   promo_code_id: number | null;
@@ -22,7 +18,7 @@ export interface BookingAttributes {
   deleted_at?: Date;
 }
 
-export interface BookingCreationAttributes extends Optional<BookingAttributes, 'id' | 'status' | 'payment_status' | 'payment_method' | 'total_cents' | 'note' | 'promo_code_id' | 'checked_in_at' | 'cancelled_at' | 'cancel_reason'> {}
+export interface BookingCreationAttributes extends Optional<BookingAttributes, 'id' | 'status' | 'payment_status' | 'total_cents' | 'note' | 'promo_code_id' | 'checked_in_at' | 'cancelled_at' | 'cancel_reason'> {}
 
 class Booking extends Model<BookingAttributes, BookingCreationAttributes> implements BookingAttributes {
   declare id: number;
@@ -30,10 +26,6 @@ class Booking extends Model<BookingAttributes, BookingCreationAttributes> implem
   declare facility_id: number;
   declare status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   declare payment_status: 'unpaid' | 'partial' | 'paid' | 'refunded';
-  
-  // 🔥 THÊM MỚI
-  declare payment_method: 'cash' | 'vnpay';
-
   declare total_cents: number;
   declare note: string | null;
   declare promo_code_id: number | null;
@@ -59,11 +51,6 @@ Booking.init(
       type: DataTypes.ENUM('unpaid', 'partial', 'paid', 'refunded'),
       defaultValue: 'unpaid',
     },
-    // 🔥 THÊM MỚI VÀO INIT
-    payment_method: {
-      type: DataTypes.ENUM('cash', 'vnpay'),
-      defaultValue: 'cash', // Mặc định vãng lai/hotline là tiền mặt
-    },
     total_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
     note: { type: DataTypes.TEXT, allowNull: true },
     promo_code_id: { type: DataTypes.INTEGER, allowNull: true },
@@ -71,7 +58,8 @@ Booking.init(
     cancelled_at: { type: DataTypes.DATE, allowNull: true },
     cancel_reason: { type: DataTypes.STRING(255), allowNull: true },
   },
-  {
+
+ {
     sequelize,
     tableName: 'bookings',
     timestamps: true,
@@ -79,7 +67,6 @@ Booking.init(
     updatedAt: 'updated_at',
     paranoid: true,
     deletedAt: 'deleted_at',
-  }
-);
+});
 
 export default Booking;

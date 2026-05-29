@@ -1,14 +1,12 @@
 import User from './user.model.js';
 import Facility from './facility.model.js';
 import Court from './court.model.js';
-import CourtType from './court_type.model.js';
 import Booking from './booking.model.js';
 import BookingSlot from './booking_slot.model.js';
 import Product from './product.model.js';
 import ProductVariant from './product_variant.model.js';
 import Order from './order.model.js';
 import OrderItem from './order_item.model.js';
-import Warehouse from './warehouse.model.js';
 import InventoryLevel from './inventory_level.model.js';
 import PriceConfig from './price_config.model.js';
 
@@ -38,12 +36,9 @@ StaffProfile.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-// --- 2. Cơ sở, Sân & Kho ---
+// --- 2. Cơ sở, Sân & Giá ---
 Facility.hasMany(Court, { foreignKey: 'facility_id', as: 'courts' });
 Court.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
-
-Facility.hasMany(Warehouse, { foreignKey: 'facility_id', as: 'warehouses' });
-Warehouse.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 
 Facility.hasMany(PriceConfig, { foreignKey: 'facility_id', as: 'price_configs' });
 PriceConfig.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
@@ -104,8 +99,8 @@ InventoryLevel.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' }
 ProductVariant.hasMany(InventoryMovement, { foreignKey: 'variant_id', as: 'movements' });
 InventoryMovement.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'variant' });
 
-Warehouse.hasMany(InventoryMovement, { foreignKey: 'warehouse_id', as: 'movements' });
-InventoryMovement.belongsTo(Warehouse, { foreignKey: 'warehouse_id', as: 'warehouse' });
+Facility.hasMany(InventoryMovement, { foreignKey: 'facility_id', as: 'movements' });
+InventoryMovement.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 
 // ==========================================
 // XUẤT MÔ HÌNH (EXPORT)
@@ -114,14 +109,12 @@ const models = {
     User,
     Facility,
     Court,
-    CourtType,
     Booking,
     BookingSlot,
     Product,
     ProductVariant,
     Order,          
-    OrderItem,
-    Warehouse,
+    OrderItem,      
     InventoryLevel,
     PriceConfig,
     StaffProfile,

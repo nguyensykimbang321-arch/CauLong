@@ -5,7 +5,7 @@ export interface CourtAttributes {
     id: number;
     facility_id: number;
     name: string;
-    court_type: 'badminton' | 'tennis' | 'football' | 'table_tennis';
+    court_type: 'badminton' | 'tennis' | 'football';
     is_active: boolean;
     created_at?: Date;
     updated_at?: Date;
@@ -18,7 +18,7 @@ class Court extends Model<CourtAttributes, CourtCreationAttributes> implements C
     declare id: number;
     declare facility_id: number;
     declare name: string;
-    declare court_type: 'badminton' | 'tennis' | 'football' | 'table_tennis';
+    declare court_type: 'badminton' | 'tennis' | 'football';
     declare is_active: boolean;
 
     declare readonly created_at: Date;
@@ -42,7 +42,7 @@ Court.init(
             allowNull: false,
         },
         court_type: {
-            type: DataTypes.ENUM('badminton', 'tennis', 'football', 'table_tennis'),
+            type: DataTypes.ENUM('badminton', 'tennis', 'football'),
             allowNull: false,
         },
         is_active: {
