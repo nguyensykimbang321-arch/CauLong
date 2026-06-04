@@ -165,7 +165,7 @@ Hỗ trợ đặt nhiều slot (có thể khác sân nếu người dùng chấp
   "items": [
     { "variant_id": 101, "quantity": 1 }
   ],
-  "payment_method": "manual_transfer"
+  "payment_method": "cash"
 }
 ```
 

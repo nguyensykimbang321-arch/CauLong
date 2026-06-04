@@ -278,7 +278,13 @@ export class BookingService {
                 user_id: userId,
                 facility_id: data.facility_id,
                 total_cents: calculatedPrice,
-                payment_method: data.payment_method || 'cash',
+            }, { transaction: t });
+
+            await models.Payment.create({
+                provider: (data.payment_method as any) || 'cash',
+                amount_cents: calculatedPrice,
+                booking_id: newBooking.id,
+                status: 'pending'
             }, { transaction: t });
 
             await models.BookingSlot.create({
@@ -304,6 +310,7 @@ export class BookingService {
             where: { user_id: userId },
             include: [
                 { model: models.Facility, as: 'facility' },
+                { model: models.Payment, as: 'payments' },
                 { 
                     model: models.BookingSlot, 
                     as: 'slots',
@@ -351,6 +358,11 @@ export class BookingService {
                             attributes: ['name']
                         }
                     ]
+                },
+                {
+                    model: models.Payment,
+                    as: 'payments',
+                    attributes: ['provider', 'status', 'amount_cents']
                 }
             ]
         });
@@ -381,6 +393,11 @@ export class BookingService {
                             attributes: ['id', 'name']
                         }
                     ]
+                },
+                {
+                    model: models.Payment,
+                    as: 'payments',
+                    attributes: ['id', 'provider', 'status', 'amount_cents']
                 }
             ]
         });

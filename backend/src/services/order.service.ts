@@ -1,6 +1,7 @@
 import models from '../models/index.js';
 import ApiError from '../utils/ErrorClass.js';
 import sequelize from '../config/database.js';
+import dayjs from 'dayjs';
 
 export class OrderService {
     static async createOrder(userId: number | null, data: any) {
@@ -32,13 +33,19 @@ export class OrderService {
                 user_id: userId,
                 facility_id: targetFacilityId,
                 status: 'pending_payment',
-                payment_method,
                 subtotal_cents: subtotalCents,
                 total_cents: totalCents,
                 note: `Khách: ${customer_name || 'N/A'} - ${customer_phone || 'N/A'}. [${pickup_type === 'pickup_store' ? 'Đặt trước - Lấy tại quầy' : 'Mua ngay tại quầy'}]. ${note || ''}`,
                 pickup_type: pickup_type || 'immediate',
                 pickup_time: pickup_time ? new Date(pickup_time) : null,
-                reservation_expires_at: reservation_expires_at ? new Date(reservation_expires_at) : null
+                reservation_expires_at: pickup_time ? dayjs(pickup_time).add(24, 'hour').toDate() : (reservation_expires_at ? new Date(reservation_expires_at) : null)
+            }, { transaction: t });
+
+            await models.Payment.create({
+                provider: payment_method || 'cash',
+                amount_cents: totalCents,
+                order_id: order.id,
+                status: 'pending'
             }, { transaction: t });
 
             // 2. Tạo Chi tiết đơn hàng
@@ -86,6 +93,11 @@ export class OrderService {
         return await models.Order.findAll({
             where: { user_id: userId },
             include: [
+                {
+                    model: models.Payment,
+                    as: 'payments',
+                    attributes: ['provider', 'status', 'amount_cents']
+                },
                 {
                     model: models.OrderItem,
                     as: 'items',

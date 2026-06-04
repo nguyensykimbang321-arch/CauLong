@@ -3,7 +3,7 @@ import sequelize from '../config/database.js';
 
 export interface PaymentAttributes {
   id: number;
-  provider: 'manual_transfer' | 'sandbox' | 'momo' | 'vnpay';
+  provider: 'cash' | 'vnpay';
   status: 'pending' | 'paid' | 'failed' | 'refunded';
   amount_cents: number;
   booking_id: number | null;
@@ -19,7 +19,7 @@ export interface PaymentCreationAttributes extends Optional<PaymentAttributes, '
 
 class Payment extends Model<PaymentAttributes, PaymentCreationAttributes> implements PaymentAttributes {
   declare id: number;
-  declare provider: 'manual_transfer' | 'sandbox' | 'momo' | 'vnpay';
+  declare provider: 'cash' | 'vnpay';
   declare status: 'pending' | 'paid' | 'failed' | 'refunded';
   declare amount_cents: number;
   declare booking_id: number | null;
@@ -40,7 +40,7 @@ Payment.init(
       primaryKey: true,
     },
     provider: {
-      type: DataTypes.ENUM('manual_transfer', 'sandbox', 'momo', 'vnpay'),
+      type: DataTypes.ENUM('cash', 'vnpay'),
       allowNull: false,
     },
     status: {

@@ -158,7 +158,6 @@ Extracted at: 5/6/2026, 9:56:31 AM
 | user_id | int | YES | MUL |  |  |
 | facility_id | int | NO | MUL |  |  |
 | status | enum('pending_payment','pending_pickup','completed','cancelled','refunded','expired') | NO |  | pending_payment |  |
-| payment_method | varchar(50) | NO |  |  |  |
 | subtotal_cents | int | YES |  | 0 |  |
 | discount_cents | int | YES |  | 0 |  |
 | total_cents | int | YES |  | 0 |  |
@@ -175,7 +174,7 @@ Extracted at: 5/6/2026, 9:56:31 AM
 | Column | Type | Nullable | Key | Default | Extra |
 |--------|------|----------|-----|---------|-------|
 | id | int | NO | PRI |  | auto_increment |
-| provider | enum('manual_transfer','sandbox','momo','vnpay') | NO |  |  |  |
+| provider | enum('cash','vnpay') | NO |  |  |  |
 | status | enum('pending','paid','failed','refunded') | YES |  | pending |  |
 | amount_cents | int | NO |  |  |  |
 | booking_id | int | YES | MUL |  |  |

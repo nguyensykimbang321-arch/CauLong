@@ -17,8 +17,9 @@ export default function CheckoutScreen({ navigation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cod'); 
+  const [paymentMethod, setPaymentMethod] = useState('cash'); 
   const [facilityId, setFacilityId] = useState(null);
+  const [pickupTime, setPickupTime] = useState(new Date(Date.now() + 3600000).toISOString()); // Default 1h sau
 
   useEffect(() => {
     async function loadInitial() {
@@ -53,6 +54,8 @@ export default function CheckoutScreen({ navigation }) {
         customer_phone: phone,
         payment_method: paymentMethod,
         facility_id: facilityId,
+        pickup_type: 'pickup_store',
+        pickup_time: pickupTime,
         items: state.cartItems.map(it => ({
           product_variant_id: it.variant_id,
           quantity: it.quantity,
@@ -100,6 +103,7 @@ export default function CheckoutScreen({ navigation }) {
       <View style={styles.card}>
         <Field label="Họ tên" value={name} onChangeText={setName} />
         <Field label="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        <Field label="Hẹn giờ lấy hàng (YYYY-MM-DD HH:mm)" value={pickupTime.slice(0, 16).replace('T', ' ')} onChangeText={(text) => setPickupTime(text)} />
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Tổng đơn hàng</Text>
@@ -111,8 +115,8 @@ export default function CheckoutScreen({ navigation }) {
           <View style={styles.paymentOptions}>
             <PaymentOption 
               label="Tiền mặt (COD)" 
-              selected={paymentMethod === 'cod'} 
-              onPress={() => setPaymentMethod('cod')} 
+              selected={paymentMethod === 'cash'} 
+              onPress={() => setPaymentMethod('cash')} 
               icon="cash-outline"
             />
             <PaymentOption 

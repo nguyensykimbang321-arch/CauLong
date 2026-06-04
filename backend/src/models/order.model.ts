@@ -6,7 +6,6 @@ export interface OrderAttributes {
   user_id: number | null;
   facility_id: number;
   status: 'pending_payment' | 'pending_pickup' | 'completed' | 'cancelled' | 'refunded' | 'expired';
-  payment_method: string;
   subtotal_cents: number;
   discount_cents: number;
   total_cents: number;
@@ -26,7 +25,6 @@ class Order extends Model<OrderAttributes, OrderCreationAttributes> implements O
   declare user_id: number | null;
   declare facility_id: number;
   declare status: 'pending_payment' | 'pending_pickup' | 'completed' | 'cancelled' | 'refunded' | 'expired';
-  declare payment_method: string;
   declare subtotal_cents: number;
   declare discount_cents: number;
   declare total_cents: number;
@@ -48,7 +46,6 @@ Order.init({
     type: DataTypes.ENUM('pending_payment', 'pending_pickup', 'completed', 'cancelled', 'refunded', 'expired'),
     defaultValue: 'pending_payment',
   },
-  payment_method: { type: DataTypes.STRING(50), allowNull: false },
   subtotal_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
   discount_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
   total_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
