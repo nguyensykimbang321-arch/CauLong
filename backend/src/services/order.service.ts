@@ -297,7 +297,7 @@ export class OrderService {
             await models.Payment.create(
                 {
                     order_id: order.id,
-                    provider: 'sandbox',
+                    provider: 'cash',
                     status: 'paid',
                     amount_cents: order.total_cents,
                     paid_at: new Date()
