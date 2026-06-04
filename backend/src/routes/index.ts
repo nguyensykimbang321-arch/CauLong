@@ -17,6 +17,7 @@ import adminInventoryRouter from './admin/inventory.route.js';
 import priceConfigRouter from './admin/price_config.route.js';
 import clientPaymentRouter from './client/payment.route.js';
 import adminUserRouter from './admin/user.route.js';
+import adminOrderRouter from './admin/order.routes.js';
 import uploadRouter from './upload.routes.js'
 
 
@@ -50,6 +51,7 @@ rootRouter.use('/admin/price-configs', priceConfigRouter);
 rootRouter.use('/admin/users', adminUserRouter);
 rootRouter.use('/admin/products', adminProductRouter);
 rootRouter.use('/admin/inventory', adminInventoryRouter);
+rootRouter.use('/admin/orders', adminOrderRouter);
 rootRouter.use('/upload', uploadRouter);
 
 export default rootRouter;

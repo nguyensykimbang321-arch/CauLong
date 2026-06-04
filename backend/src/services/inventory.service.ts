@@ -2,11 +2,7 @@ import { Op } from 'sequelize';
 import models from '../models/index.js';
 import sequelize from '../config/database.js';
 import ApiError from '../utils/ErrorClass.js';
-
 export class InventoryService {
-    /**
-     * Cập nhật tồn kho (Dùng cho cả Nhập kho thủ công và Điều chỉnh)
-     */
     static async adjustInventory(data: {
         variant_id: number;
         facility_id: number;
@@ -17,8 +13,9 @@ export class InventoryService {
     },
         options: { transaction?: any } = {}
     ) {
-        const transaction = await sequelize.transaction();
+        const transaction = options.transaction || await sequelize.transaction();
 
+        const isOuterTransaction = !!options.transaction;
         try {
             // 1. Cập nhật hoặc Tạo mới bản ghi trong inventory_levels (Sử dụng Upsert logic)
             // Dựa trên UNIQUE (variant_id, facility_id) [cite: 1375, 1382]
@@ -55,17 +52,18 @@ export class InventoryService {
                 created_at: new Date()
             }, { transaction });
 
-            await transaction.commit();
+            if (!isOuterTransaction) {
+                await transaction.commit();
+            }
             return inventory;
         } catch (error) {
-            await transaction.rollback();
+            if (!isOuterTransaction) {
+                await transaction.rollback();
+            }
             throw error;
         }
     }
 
-    /**
-     * Lấy danh sách tồn kho theo cơ sở
-     */
     static async getLevelsByFacility(facilityId: number) {
         return await (models.InventoryLevel as any).findAll({
             where: {

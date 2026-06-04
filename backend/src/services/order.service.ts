@@ -1,6 +1,7 @@
 import models from '../models/index.js';
 import ApiError from '../utils/ErrorClass.js';
 import sequelize from '../config/database.js';
+import { InventoryService } from './inventory.service.js';
 
 export class OrderService {
     static async createOrder(userId: number | null, data: any) {
@@ -104,6 +105,243 @@ export class OrderService {
                 }
             ],
             order: [['created_at', 'DESC']]
+        });
+    }
+
+    static async getAll() {
+        return models.Order.findAll({
+        include: [
+            {
+            model: models.OrderItem,
+            as: "items",
+            include: [
+                {
+                model: models.ProductVariant,
+                as: "variant",
+                include: [
+                    {
+                    model: models.Product,
+                    as: "product"
+                    }
+                ]
+                }
+            ]
+            }
+        ],
+        order: [["created_at", "DESC"]]
+        });
+    }
+
+    static async getById(orderId: number) {
+        const order = await models.Order.findByPk(orderId, {
+            include: [
+                {
+                    model: models.OrderItem,
+                    as: 'items',
+                    include: [
+                        {
+                            model: models.ProductVariant,
+                            as: 'variant',
+                            include: [
+                                {
+                                    model: models.Product,
+                                    as: 'product'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!order) {
+            throw new ApiError(
+                'Không tìm thấy đơn hàng',
+                404
+            );
+        }
+    return order;
+    }
+
+    static async completeOrder(orderId: number) {
+        const t = await sequelize.transaction();
+        try {
+            const order = await models.Order.findByPk(
+                orderId,
+                {
+                    include: [
+                        {
+                            model: models.OrderItem,
+                            as: 'items'
+                        }
+                    ],
+                    transaction: t
+                }
+            );
+
+            if (!order) {
+                throw new ApiError('Không tìm thấy đơn hàng', 404);
+            }
+
+            const payment =
+                await models.Payment.findOne({
+                    where: {
+                        order_id: order.id,
+                        status: 'paid'
+                    },
+                    transaction: t
+                });
+
+            if (!payment) {
+                throw new ApiError(
+                    'Đơn hàng chưa thanh toán',
+                    400
+                );
+            }
+
+            if (order.status === 'completed') {
+                throw new ApiError('Đơn hàng đã hoàn tất', 400);
+            }
+
+            const items = (order as any).items;
+            for (const item of items) {
+                await InventoryService.adjustInventory(
+                    {
+                        variant_id: item.variant_id,
+                        facility_id: order.facility_id,
+                        qty_delta: -item.quantity,
+                        reason: 'sale',
+                        ref_order_id: order.id,
+                        note: `Hoàn tất đơn hàng #${order.id}`
+                    },
+                    {
+                        transaction: t
+                    }
+                );
+            }
+
+            order.status = 'completed';
+            await order.save({transaction: t});
+            await t.commit();
+            return order;
+        } catch (error) {
+            await t.rollback();
+            throw error;
+        }
+    }
+
+    static async confirmOrder(orderId: number) {
+        const order = await models.Order.findByPk(orderId);
+        if (!order) {
+            throw new ApiError('Không tìm thấy đơn hàng', 404);
+        }
+
+        if (
+            order.status !== 'pending_payment'
+        ) {
+            throw new ApiError(
+                'Trạng thái đơn không hợp lệ',
+                400
+            );
+        }
+
+        order.status = 'pending_pickup';
+        await order.save();
+        return order;
+    }
+
+    static async payCash(orderId: number) {
+        const t = await sequelize.transaction();
+
+        try {
+            const order = await models.Order.findByPk(
+                orderId,
+                { transaction: t }
+            );
+
+            if (!order) {
+                throw new ApiError(
+                    'Không tìm thấy đơn hàng',
+                    404
+                );
+            }
+
+            const existedPayment =
+                await models.Payment.findOne({
+                    where: {
+                        order_id: order.id,
+                        status: 'paid'
+                    },
+                    transaction: t
+                });
+
+            if (existedPayment) {
+                throw new ApiError(
+                    'Đơn hàng đã thanh toán',
+                    400
+                );
+            }
+
+            await models.Payment.create(
+                {
+                    order_id: order.id,
+                    provider: 'sandbox',
+                    status: 'paid',
+                    amount_cents: order.total_cents,
+                    paid_at: new Date()
+                },
+                {
+                    transaction: t
+                }
+            );
+
+            await t.commit();
+
+            return {
+                message:
+                    'Thanh toán tiền mặt thành công'
+            };
+        } catch (error) {
+            await t.rollback();
+            throw error;
+        }
+    }
+
+    static async getPendingPickupOrders() {
+        return models.Order.findAll({
+            where: {
+                status: 'pending_pickup'
+            },
+
+            include: [
+                {
+                    model: models.OrderItem,
+                    as: 'items'
+                }
+            ],
+
+            order: [
+                ['pickup_time', 'ASC']
+            ]
+        });
+    }
+
+    static async getPendingPaymentOrders() {
+        return models.Order.findAll({
+            where: {
+                status: 'pending_payment'
+            },
+
+            include: [
+                {
+                    model: models.OrderItem,
+                    as: 'items'
+                }
+            ],
+
+            order: [
+                ['created_at', 'DESC']
+            ]
         });
     }
 }
