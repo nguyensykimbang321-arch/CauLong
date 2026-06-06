@@ -15,8 +15,7 @@ export class OrderService {
 
         try {
             // Tính toán tổng tiền
-            const subtotalCents = items.reduce((sum: number, it: any) => sum + (it.price_cents * it.quantity), 0);
-            const totalCents = subtotalCents; // Tạm thời chưa có discount
+            const totalCents = items.reduce((sum: number, it: any) => sum + (it.price_cents * it.quantity), 0);
 
             // Xác định facility_id hợp lệ
             let targetFacilityId = facility_id;
@@ -33,7 +32,6 @@ export class OrderService {
                 user_id: userId,
                 facility_id: targetFacilityId,
                 status: 'pending_payment',
-                subtotal_cents: subtotalCents,
                 total_cents: totalCents,
                 note: `Khách: ${customer_name || 'N/A'} - ${customer_phone || 'N/A'}. [${pickup_type === 'pickup_store' ? 'Đặt trước - Lấy tại quầy' : 'Mua ngay tại quầy'}]. ${note || ''}`,
                 pickup_type: pickup_type || 'immediate',
@@ -53,8 +51,7 @@ export class OrderService {
                 order_id: order.id,
                 variant_id: it.product_variant_id,
                 quantity: it.quantity,
-                unit_price_cents: it.price_cents,
-                discount_cents: 0
+                unit_price_cents: it.price_cents
             }));
             
             await models.OrderItem.bulkCreate(orderItems, { transaction: t });
