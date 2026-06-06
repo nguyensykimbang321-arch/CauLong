@@ -8,14 +8,14 @@ import Product from './product.model.js';
 import ProductVariant from './product_variant.model.js';
 import Order from './order.model.js';
 import OrderItem from './order_item.model.js';
-import Warehouse from './warehouse.model.js';
+
 import InventoryLevel from './inventory_level.model.js';
 import PriceConfig from './price_config.model.js';
 
 import StaffProfile from './staff_profile.model.js';
 import CartItem from './cart_item.model.js';
 import InventoryMovement from './inventory_movement.model.js';
-import PromoCode from './promo_code.model.js';
+
 import Payment from './payment.model.js';
 import Notification from './notification.model.js';
 import AuditLog from './audit_log.model.js';
@@ -42,8 +42,7 @@ Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Facility.hasMany(Court, { foreignKey: 'facility_id', as: 'courts' });
 Court.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 
-Facility.hasMany(Warehouse, { foreignKey: 'facility_id', as: 'warehouses' });
-Warehouse.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
+
 
 Facility.hasMany(PriceConfig, { foreignKey: 'facility_id', as: 'price_configs' });
 PriceConfig.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
@@ -61,8 +60,7 @@ BookingSlot.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 Court.hasMany(BookingSlot, { foreignKey: 'court_id', as: 'slots' });
 BookingSlot.belongsTo(Court, { foreignKey: 'court_id', as: 'court' });
 
-Booking.belongsTo(PromoCode, { foreignKey: 'promo_code_id', as: 'promo_code' });
-PromoCode.hasMany(Booking, { foreignKey: 'promo_code_id', as: 'bookings' });
+
 
 // --- 4. Sản phẩm & Giỏ hàng (Products & Cart) ---
 Product.hasMany(ProductVariant, { foreignKey: 'product_id', as: 'variants' });
@@ -104,8 +102,10 @@ InventoryLevel.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' }
 ProductVariant.hasMany(InventoryMovement, { foreignKey: 'variant_id', as: 'movements' });
 InventoryMovement.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'variant' });
 
-Warehouse.hasMany(InventoryMovement, { foreignKey: 'warehouse_id', as: 'movements' });
-InventoryMovement.belongsTo(Warehouse, { foreignKey: 'warehouse_id', as: 'warehouse' });
+Facility.hasMany(InventoryMovement, { foreignKey: 'facility_id', as: 'movements' });
+InventoryMovement.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
+
+
 
 // 🔴 1. HOOK XÓA MỀM (CASCADE SOFT DELETE)
 // Thêm ": Facility" vào đây 👇
@@ -115,7 +115,7 @@ Facility.addHook('afterDestroy', async (facility: Facility, options) => {
     try {
         await Promise.all([
             Court.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction }),
-            Warehouse.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+
             PriceConfig.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction }),
             InventoryLevel.destroy({ where: { facility_id: facility.id }, transaction: currentTransaction })
         ]);
@@ -133,7 +133,7 @@ Facility.addHook('afterRestore', async (facility: Facility, options) => {
     try {
         await Promise.all([
             Court.restore({ where: { facility_id: facility.id }, transaction: currentTransaction }),
-            Warehouse.restore({ where: { facility_id: facility.id }, transaction: currentTransaction }),
+
             PriceConfig.restore({ where: { facility_id: facility.id }, transaction: currentTransaction }),
             InventoryLevel.restore({ where: { facility_id: facility.id }, transaction: currentTransaction })
         ]);
@@ -157,14 +157,14 @@ const models = {
     ProductVariant,
     Order,          
     OrderItem,
-    Warehouse,
+
     InventoryLevel,
     PriceConfig,
     StaffProfile,
     RefreshToken,
     CartItem,
     InventoryMovement,
-    PromoCode,
+
     Payment,
     Notification,
     AuditLog

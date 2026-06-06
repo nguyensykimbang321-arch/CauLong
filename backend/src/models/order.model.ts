@@ -6,8 +6,6 @@ export interface OrderAttributes {
   user_id: number | null;
   facility_id: number;
   status: 'pending_payment' | 'pending_pickup' | 'completed' | 'cancelled' | 'refunded' | 'expired';
-  subtotal_cents: number;
-  discount_cents: number;
   total_cents: number;
   note: string | null;
   pickup_type: 'immediate' | 'pickup_store';
@@ -18,15 +16,13 @@ export interface OrderAttributes {
   deleted_at?: Date;
 }
 
-export interface OrderCreationAttributes extends Optional<OrderAttributes, 'id' | 'status' | 'user_id' | 'total_cents' | 'subtotal_cents' | 'discount_cents' | 'note' | 'pickup_type' | 'pickup_time' | 'reservation_expires_at'> {}
+export interface OrderCreationAttributes extends Optional<OrderAttributes, 'id' | 'status' | 'user_id' | 'total_cents' | 'note' | 'pickup_type' | 'pickup_time' | 'reservation_expires_at'> {}
 
 class Order extends Model<OrderAttributes, OrderCreationAttributes> implements OrderAttributes {
   declare id: number;
   declare user_id: number | null;
   declare facility_id: number;
   declare status: 'pending_payment' | 'pending_pickup' | 'completed' | 'cancelled' | 'refunded' | 'expired';
-  declare subtotal_cents: number;
-  declare discount_cents: number;
   declare total_cents: number;
   declare note: string | null;
   declare pickup_type: 'immediate' | 'pickup_store';
@@ -46,8 +42,7 @@ Order.init({
     type: DataTypes.ENUM('pending_payment', 'pending_pickup', 'completed', 'cancelled', 'refunded', 'expired'),
     defaultValue: 'pending_payment',
   },
-  subtotal_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
-  discount_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
+
   total_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
   note: { type: DataTypes.TEXT, allowNull: true },
   pickup_type: {
