@@ -126,4 +126,27 @@ export class AdminOrderController {
             next(err);
         }
     }
+
+    static async createPosOrder(
+        req: any,
+        res: Response,
+        next: NextFunction
+    ) {
+        try {
+            const result =
+                await OrderService.createPosOrder(
+                    req.user.id,
+                    req.body
+                );
+
+            return AppResponse.success(
+                res,
+                result,
+                'Tạo đơn hàng thành công',
+                201
+            );
+        } catch (err) {
+            next(err);
+        }
+    }
 }

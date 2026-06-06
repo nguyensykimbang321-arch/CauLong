@@ -3,6 +3,7 @@ import ApiError from '../utils/ErrorClass.js';
 import sequelize from '../config/database.js';
 import { InventoryService } from './inventory.service.js';
 import dayjs from 'dayjs';
+import { VNPayUtils } from '../utils/vnpay.js';
 
 export class OrderService {
     static async createOrder(userId: number | null, data: any) {
@@ -307,6 +308,37 @@ export class OrderService {
                 }
             );
 
+            const orderItems =
+                await models.OrderItem.findAll({
+                    where: {
+                        order_id: order.id
+                    },
+                    transaction: t
+                });
+
+            for (const item of orderItems) {
+                await InventoryService.adjustInventory(
+                    {
+                        variant_id: item.variant_id,
+                        facility_id: order.facility_id,
+                        qty_delta: -item.quantity,
+                        reason: 'sale',
+                        ref_order_id: order.id
+                    },
+                    {
+                        transaction: t
+                    }
+                );
+            }
+
+            await order.update(
+            {
+                status: 'pending_pickup'
+            },
+            {
+                transaction: t
+            });
+
             await t.commit();
 
             return {
@@ -355,5 +387,189 @@ export class OrderService {
                 ['created_at', 'DESC']
             ]
         });
+    }
+
+    static async createPosOrder(
+        staffId: number,
+        data: {
+            facility_id: number;
+            payment_method: 'cash' | 'vnpay';
+            note?: string;
+            items: {
+                variant_id: number;
+                quantity: number;
+            }[];
+        }
+    ) {
+        const {
+            facility_id,
+            payment_method,
+            note,
+            items
+        } = data;
+
+        if (!items?.length) {
+            throw new ApiError(
+                'Giỏ hàng trống',
+                400
+            );
+        }
+
+        const t =
+            await sequelize.transaction();
+
+        try {
+            const variants =
+                await models.ProductVariant.findAll({
+                    where: {
+                        id: items.map(
+                            i => i.variant_id
+                        )
+                    }
+                });
+
+            const variantMap =
+                new Map(
+                    variants.map(v => [
+                        v.id,
+                        v
+                    ])
+                );
+
+            let totalCents = 0;
+
+            for (const item of items) {
+                const variant =
+                    variantMap.get(
+                        item.variant_id
+                    );
+
+                if (!variant) {
+                    throw new ApiError(
+                        `Variant ${item.variant_id} không tồn tại`,
+                        404
+                    );
+                }
+
+                totalCents +=
+                    variant.price_cents *
+                    item.quantity;
+            }
+
+            const order =
+                await models.Order.create(
+                    {
+                        user_id: null,
+
+                        facility_id,
+
+                        status:
+                            payment_method ===
+                            'cash'
+                                ? 'completed'
+                                : 'pending_payment',
+
+                        subtotal_cents:
+                            totalCents,
+
+                        discount_cents: 0,
+
+                        total_cents:
+                            totalCents,
+
+                        note:
+                            note ?? null,
+
+                        pickup_type:
+                            'immediate'
+                    },
+                    {
+                        transaction: t
+                    }
+                );
+
+            await models.OrderItem.bulkCreate(
+                items.map(item => ({
+                    order_id:
+                        order.id,
+
+                    variant_id:
+                        item.variant_id,
+
+                    quantity:
+                        item.quantity,
+
+                    unit_price_cents:
+                        variantMap.get(
+                            item.variant_id
+                        )!.price_cents,
+
+                    discount_cents: 0
+                })),
+                {
+                    transaction: t
+                }
+            );
+
+            await models.Payment.create(
+                {
+                    provider:
+                        payment_method,
+
+                    amount_cents:
+                        totalCents,
+
+                    order_id:
+                        order.id,
+
+                    status:
+                        payment_method ===
+                        'cash'
+                            ? 'paid'
+                            : 'pending',
+
+                    paid_at:
+                        payment_method ===
+                        'cash'
+                            ? new Date()
+                            : null
+                },
+                {
+                    transaction: t
+                }
+            );
+
+            let paymentUrl: string | null = null;
+            if (
+                payment_method ===
+                'vnpay'
+            ) {
+                paymentUrl =
+                    VNPayUtils.createPaymentUrl({
+                        amount:
+                            totalCents,
+
+                        orderId:
+                            `ORDER_${order.id}`,
+
+                        orderInfo:
+                            `Thanh toan don hang POS #${order.id}`,
+
+                        ipAddr:
+                            '127.0.0.1'
+                    });
+            }
+
+            await t.commit();
+
+            return {
+                order,
+                payment_url:
+                    paymentUrl
+            };
+        } catch (error) {
+            await t.rollback();
+            throw error;
+        }
     }
 }

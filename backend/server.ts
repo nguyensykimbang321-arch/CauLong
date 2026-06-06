@@ -7,11 +7,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import errorHandlingMiddleware from './src/middlewares/errorHandler.middleware.js';
 import { testConnection } from './src/config/database.js';
-import models from './src/models/index.js'
 import rootRouter from './src/routes/index.js';
+import http from 'http';
+import { initSocket } from './src/config/socket.js';
 
 
 const app: Express = express();
+const server = http.createServer(app);
+initSocket(server);
 const PORT = process.env.PORT || 3000;
 
 // ==========================================
@@ -47,8 +50,8 @@ const startServer = async () => {
     await testConnection();
 
     // Lắng nghe port
-    app.listen(PORT, () => {
-        console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+    server.listen(PORT, () => {
+        console.log(`🚀 Server (kèm Socket.io) đang chạy tại http://localhost:${PORT}`);
     });
 };
 

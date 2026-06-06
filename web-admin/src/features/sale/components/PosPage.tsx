@@ -15,6 +15,10 @@ const PosPage = () => {
       (state) => state.setFacilityId
     );
 
+  const addToCart = usePosStore(
+    (state) => state.addToCart
+  );
+
   const [facilities, setFacilities] =
     useState<Facility[]>([]);
 
@@ -52,12 +56,14 @@ const PosPage = () => {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadFacilities();
   }, [loadFacilities]);
 
   useEffect(() => {
     if (!facilityId) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProducts(facilityId);
   }, [facilityId, loadProducts]);
 
@@ -75,7 +81,40 @@ const PosPage = () => {
       p.variant.product.name
         .toLowerCase()
         .includes(keyword.toLowerCase())
-    );
+  );
+
+  const handleSelectProduct = (
+  product: PosProduct
+) => {
+  addToCart({
+    variantId:
+      product.variant.id,
+
+    productId:
+      product.variant.product.id,
+
+    productName:
+      product.variant.product.name,
+
+    variantName:
+      Object.entries(
+        product.variant.attributes
+      )
+        .map(
+          ([key, value]) =>
+            `${key}: ${value}`
+        )
+        .join(" | "),
+
+    quantity: 1,
+
+    price:
+      product.variant.price_cents,
+
+    stock:
+      product.quantity_on_hand,
+  });
+};
 
   return (
     <Row gutter={16}>
@@ -112,6 +151,9 @@ const PosPage = () => {
         <ProductGrid
           products={
             filteredProducts
+          }
+          onSelectProduct={
+            handleSelectProduct
           }
         />
       </Col>

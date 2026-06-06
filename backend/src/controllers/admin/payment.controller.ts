@@ -3,20 +3,40 @@ import type { Request, Response, NextFunction } from "express";
 
 
 export class PaymentController {
-
+    
     // API Hứng Webhook từ VNPay
-    static async vnpayIpn(req: Request, res: Response, next: NextFunction) {
-        try {
-            const vnpayQuery = req.query; 
+    static async vnpayIpn(
+        req: Request,
+        res: Response
+    ) {
+        const txnRef =
+            String(
+                req.query.vnp_TxnRef || ''
+            );
 
-            const result = await PaymentService.processVNPayIPN(vnpayQuery);
+        if (
+            txnRef.startsWith(
+                'ORDER_'
+            )
+        ) {
+            const result =
+                await PaymentService.processPosOrderVNPayIPN(
+                    req.query
+                );
 
-            return res.status(200).json(result);
-
-        } catch (error) {
-            // Nếu lỗi nội bộ server, báo lỗi 99 cho VNPay
-            return res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
+            return res
+                .status(200)
+                .json(result);
         }
+
+        const result =
+            await PaymentService.processVNPayIPN(
+                req.query
+            );
+
+        return res
+            .status(200)
+            .json(result);
     }
 
     static async vnpayReturn(req: Request, res: Response, next: NextFunction) {
@@ -29,5 +49,19 @@ export class PaymentController {
         } catch (error) {
             next(error);
         }
+    }
+
+    static async posOrderVNPayIpn(
+        req: Request,
+        res: Response
+    ) {
+        const result =
+            await PaymentService.processPosOrderVNPayIPN(
+                req.query
+            );
+
+        return res.status(200).json(
+            result
+        );
     }
 }

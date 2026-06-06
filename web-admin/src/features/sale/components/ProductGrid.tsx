@@ -1,70 +1,36 @@
-import { Card, Row, Col } from "antd";
+import ProductCard from "./ProductCard";
 import type { PosProduct } from "../types/sale.types";
-import { usePosStore } from "../store/sale.store";
 
-interface Props {
+interface ProductGridProps {
   products: PosProduct[];
+  onSelectProduct: (
+    product: PosProduct
+  ) => void;
 }
 
-const ProductGrid = ({
+export default function ProductGrid({
   products,
-}: Props) => {
-  const addToCart =
-    usePosStore(
-      (state) => state.addToCart
-    );
-
+  onSelectProduct,
+}: ProductGridProps) {
   return (
-    <Row gutter={[16, 16]}>
+    <div
+      className="
+        grid
+        grid-cols-2
+        md:grid-cols-3
+        lg:grid-cols-4
+        gap-4
+      "
+    >
       {products.map((product) => (
-        <Col
+        <ProductCard
           key={product.variant.id}
-          span={6}
-        >
-          <Card
-            hoverable
-            onClick={() =>
-              addToCart({
-                variantId:
-                  product.variant.id,
-
-                productId:
-                  product.variant.product.id,
-
-                name: product.variant.product.name,
-
-                sku: product.variant.sku,
-
-                price: product.variant.price_cents,
-
-                stock: product.quantity_on_hand,
-
-                quantity: 1,
-              })
-            }
-          >
-            <img
-              src={product.variant.product.thumbnail_url || undefined}
-              alt={product.variant.product.name}
-              width="100%"
-            />
-
-            <h4>{product.variant.product.name}</h4>
-
-            <p>
-              {product.variant.price_cents.toLocaleString()}
-              đ
-            </p>
-
-            <p>
-              Tồn kho:
-              {product.quantity_on_hand}
-            </p>
-          </Card>
-        </Col>
+          product={product}
+          onClick={() =>
+            onSelectProduct(product)
+          }
+        />
       ))}
-    </Row>
+    </div>
   );
-};
-
-export default ProductGrid;
+}

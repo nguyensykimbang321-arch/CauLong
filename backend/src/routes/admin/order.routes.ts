@@ -18,6 +18,16 @@ router.get(
 );
 
 router.get(
+  '/pending-payment',
+  AdminOrderController.getPendingPaymentOrders
+);
+
+router.post(
+  '/pos',
+  AdminOrderController.createPosOrder
+);
+
+router.get(
   '/:id',
   AdminOrderController.getById
 );
@@ -30,11 +40,6 @@ router.patch(
 router.patch(
   '/:id/complete',
   AdminOrderController.completeOrder
-);
-
-router.get(
-  '/pending-payment',
-  AdminOrderController.getPendingPaymentOrders
 );
 
 router.patch(

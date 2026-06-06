@@ -1,11 +1,16 @@
 import {
   Button,
   Divider,
+  Empty,
   message,
+  Radio,
+  Modal,
 } from "antd";
 
 import { usePosStore } from "../store/sale.store";
 import { PosService } from "../services/sale.api";
+import { useState } from "react";
+import { QRCode } from "react-qr-code";
 
 const CartSidebar = () => {
   const {
@@ -16,47 +21,50 @@ const CartSidebar = () => {
     selectedFacilityId,
   } = usePosStore();
 
+  const [qrVisible, setQrVisible] = useState(false);
+
+  const [paymentUrl, setPaymentUrl] = useState("");
+
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "vnpay">("cash");
+
   const total = cart.reduce(
     (sum, item) =>
       sum +
-      item.price *
-        item.quantity,
+      item.price * item.quantity,
     0
   );
 
   const handleCheckout =
-    async () => {
-      try {
-        if (
-          !selectedFacilityId
-        ) {
-          message.error(
-            "Vui lòng chọn cơ sở"
-          );
-          return;
-        }
+  async () => {
+    try {
+      if (!selectedFacilityId) {
+        message.error(
+          "Vui lòng chọn cơ sở"
+        );
+        return;
+      }
 
-        if (
-          cart.length === 0
-        ) {
-          message.error(
-            "Giỏ hàng đang trống"
-          );
-          return;
-        }
+      if (cart.length === 0) {
+        message.error(
+          "Giỏ hàng đang trống"
+        );
+        return;
+      }
 
-        await PosService.createOrder(
+      const res =
+        await PosService.createPosOrder(
           {
-            facilityId:
+            facility_id:
               selectedFacilityId,
 
-            paymentMethod:
-              "cash",
+            payment_method:
+              paymentMethod,
 
             items: cart.map(
               (item) => ({
-                variantId:
+                variant_id:
                   item.variantId,
+
                 quantity:
                   item.quantity,
               })
@@ -64,93 +72,184 @@ const CartSidebar = () => {
           }
         );
 
+      if (
+        paymentMethod ===
+        "cash"
+      ) {
         clearCart();
 
         message.success(
-          "Tạo đơn hàng thành công"
+          "Thanh toán thành công"
         );
-      } catch (error) {
-        console.error(error);
 
-        message.error(
-          "Thanh toán thất bại"
+        return;
+      }
+
+      const paymentUrl =
+        res.data.payment_url;
+
+      if (paymentUrl) {
+        setPaymentUrl(paymentUrl);
+
+        setQrVisible(true);
+
+        message.info(
+          "Vui lòng quét QR để thanh toán"
         );
       }
-    };
+    } catch (error) {
+      console.error(error);
+
+      message.error(
+        "Thanh toán thất bại"
+      );
+    }
+  };
+
+  console.log(paymentUrl);
 
   return (
     <>
       <h3>Giỏ hàng</h3>
 
-      {cart.map((item) => (
-        <div
-          key={
-            item.variantId
-          }
-          style={{
-            marginBottom: 12,
-          }}
-        >
-          <div>
-            {item.name}
-          </div>
-
-          <div>
-            <Button
-              onClick={() =>
-                updateQuantity(
-                  item.variantId,
-                  Math.max(
-                    1,
-                    item.quantity -
-                      1
-                  )
-                )
-              }
-            >
-              -
-            </Button>
-
-            <span
+      {cart.length === 0 ? (
+        <Empty
+          description="Chưa có sản phẩm"
+        />
+      ) : (
+        cart.map((item) => (
+          <div
+            key={
+              item.variantId
+            }
+            style={{
+              marginBottom: 12,
+              padding: 8,
+              border:
+                "1px solid #eee",
+              borderRadius: 8,
+            }}
+          >
+            <div
               style={{
-                margin:
-                  "0 10px",
+                fontWeight: 600,
               }}
             >
               {
-                item.quantity
+                item.productName
               }
-            </span>
+            </div>
 
-            <Button
-              onClick={() =>
-                updateQuantity(
-                  item.variantId,
-                  item.quantity +
-                    1
-                )
-              }
+            <div
+              style={{
+                color: "#888",
+                fontSize: 12,
+              }}
             >
-              +
-            </Button>
-          </div>
+              {
+                item.variantName
+              }
+            </div>
 
-          <Button
-            danger
-            onClick={() =>
-              removeItem(
-                item.variantId
-              )
-            }
-          >
-            Xóa
-          </Button>
-        </div>
-      ))}
+            <div>
+              {item.price.toLocaleString()}
+              đ
+            </div>
+
+            <div
+              style={{
+                marginTop: 8,
+              }}
+            >
+              <Button
+                onClick={() => {
+                  if (item.quantity === 1) {
+                    removeItem(item.variantId);
+                    return;
+                  }
+
+                  updateQuantity(
+                    item.variantId,
+                    item.quantity - 1
+                  );
+                }}
+              >
+                -
+              </Button>
+
+              <span
+                style={{
+                  margin:
+                    "0 10px",
+                }}
+              >
+                {
+                  item.quantity
+                }
+              </span>
+
+              <Button
+                onClick={() => {
+                  if (
+                    item.quantity >= item.stock
+                  ) {
+                    message.warning(
+                      "Đã đạt số lượng tồn kho"
+                    );
+                    return;
+                  }
+
+                  updateQuantity(
+                    item.variantId,
+                    item.quantity + 1
+                  );
+                }}
+              >
+                +
+              </Button>
+
+              <Button
+                danger
+                style={{
+                  marginLeft: 10,
+                }}
+                onClick={() =>
+                  removeItem(
+                    item.variantId
+                  )
+                }
+              >
+                Xóa
+              </Button>
+            </div>
+          </div>
+        ))
+      )}
+
+      <Divider />
+
+      <Radio.Group
+        value={paymentMethod}
+        onChange={(e) =>
+          setPaymentMethod(
+            e.target.value
+          )
+        }
+      >
+        <Radio value="cash">
+          Tiền mặt
+        </Radio>
+
+        <Radio value="vnpay">
+          VNPay
+        </Radio>
+      </Radio.Group>
 
       <Divider />
 
       <h2>
+        Tổng tiền:
+        {" "}
         {total.toLocaleString()}
         đ
       </h2>
@@ -158,12 +257,48 @@ const CartSidebar = () => {
       <Button
         block
         type="primary"
+        size="large"
+        disabled={
+          cart.length === 0
+        }
         onClick={
           handleCheckout
         }
       >
         Thanh toán
       </Button>
+
+      <Modal
+        open={qrVisible}
+        footer={null}
+        onCancel={() =>
+          setQrVisible(false)
+        }
+        centered
+      >
+        <div
+          style={{
+            textAlign: "center",
+          }}
+        >
+          <h3>
+            Quét mã VNPay để thanh toán
+          </h3>
+
+          <QRCode
+            value={paymentUrl}
+            size={250}
+          />
+
+          <p
+            style={{
+              marginTop: 16,
+            }}
+          >
+            Dùng điện thoại quét mã QR
+          </p>
+        </div>
+      </Modal>
     </>
   );
 };

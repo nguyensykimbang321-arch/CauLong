@@ -22,21 +22,13 @@ export interface PosProduct {
 }
 
 export interface CartItem {
-  variantId: number;
-
-  productId: number;
-
-  name: string;
-
-  sku: string;
-
-  price: number;
-
-  stock: number;
-
-  quantity: number;
-
-  attributes?: Record<string, string>;
+    variantId: number;
+    productId: number;
+    productName: string;
+    variantName: string;
+    quantity: number;
+    price: number;
+    stock: number;
 }
 
 export interface Facility {
@@ -56,4 +48,24 @@ export interface CreateOrderPayload {
     variantId: number;
     quantity: number;
   }[];
+}
+
+export interface OrderItem {
+  id: number;
+  variant_id: number;
+  quantity: number;
+  unit_price_cents: number;
+  discount_cents: number;
+}
+
+export interface Order {
+  id: number;
+  user_id: number | null;
+  facility_id: number;
+  status: 'pending_payment' | 'pending_pickup' | 'completed' | 'cancelled' | 'refunded' | 'expired';
+  total_cents: number;
+  pickup_type: 'immediate' | 'pickup_store';
+  pickup_time: string | null;
+  created_at: string;
+  items?: OrderItem[]; // Trả về khi xem chi tiết
 }

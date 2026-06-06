@@ -33,9 +33,38 @@ export const usePosStore =
     setFacilityId: (facilityId) => set({ selectedFacilityId: facilityId,}),
 
     addToCart: (item) =>
-      set((state) => ({
-        cart: [...state.cart, item],
-      })),
+      set((state) => {
+      const existing =
+        state.cart.find(
+          (cartItem) =>
+            cartItem.variantId ===
+            item.variantId
+        );
+
+      if (existing) {
+        return {
+          cart: state.cart.map(
+            (cartItem) =>
+              cartItem.variantId ===
+              item.variantId
+                ? {
+                    ...cartItem,
+                    quantity:
+                      cartItem.quantity +
+                      1,
+                  }
+                : cartItem
+          ),
+        };
+      }
+
+      return {
+        cart: [
+          ...state.cart,
+          item,
+        ],
+      };
+    }),
 
     updateQuantity: (
       variantId,

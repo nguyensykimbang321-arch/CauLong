@@ -3,6 +3,7 @@ import models from "../../models/index.js";
 import AppResponse from "../../utils/AppResponse.js";
 import ApiError from "../../utils/ErrorClass.js";
 import { VNPayUtils } from "../../utils/vnpay.js";
+import { getIO } from '../../config/socket.js';
 
 import { OrderService } from "../../services/order.service.js";
 
@@ -24,6 +25,12 @@ export class ClientOrderController {
           ipAddr: req.ip || '127.0.0.1'
         });
       }
+
+      getIO().to('staff_room').emit('order', {
+        message: 'Có đơn hàng mới từ App!',
+        orderId: order.id,
+        status: order.status
+      });
 
       return AppResponse.success(res, { order, payment_url: paymentUrl }, "Tạo đơn hàng thành công", 201);
     } catch (error) {

@@ -9,6 +9,7 @@ import PosPage from '../features/sale/components/PosPage';
 import FacilityPage from '../features/facility/components/FacilityPage';
 import CourtPage from '../features/court/components/CourtPage';
 import PriceConfigPage from '../features/priceConfig/components/PriceConfigPage';
+import OrderPage from '../features/sale/components/OrderPage';
 
 // --- TẠM THỜI MOCK CÁC COMPONENT ĐỂ TEST UI ---
 const DashboardPage = () => <div className="p-4 font-semibold text-lg text-gray-700">Trang Tổng quan (Thống kê doanh thu)</div>;
@@ -66,8 +67,21 @@ export const router = createBrowserRouter([
       },
 
       {
-        path: 'pos',
-        element: <PosPage />,
+        path: 'employee',
+        children: [
+          {
+            index: true,
+            element: <Navigate to="pos" replace />
+          },
+          {
+            path: 'pos',
+            element: <PosPage />,
+          },
+          {
+            path: 'orders',
+            element: <OrderPage />,
+          }
+        ]
       },
 
       // 3. CÁC MODULE ĐỘC LẬP

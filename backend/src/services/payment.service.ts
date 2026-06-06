@@ -1,5 +1,7 @@
 import models from '../models/index.js';
-import { VNPayUtils } from '../utils/vnpay.js'; 
+import { VNPayUtils } from '../utils/vnpay.js';
+import sequelize from '../config/database.js';
+import { InventoryService } from './inventory.service.js';
 
 export class PaymentService {
     static async processVNPayIPN(vnpayQuery: any) {
@@ -107,6 +109,217 @@ export class PaymentService {
                     </body>
                 </html>
             `;
+        }
+    }
+
+    static async processPosOrderVNPayIPN(
+        vnpayQuery: any
+    ) {
+        const isValidSignature =
+            VNPayUtils.verifyIpnSignature(
+                vnpayQuery
+            );
+
+        if (!isValidSignature) {
+            return {
+                RspCode: '97',
+                Message: 'Checksum failed'
+            };
+        }
+
+        const vnp_TxnRef =
+            vnpayQuery.vnp_TxnRef;
+
+        const vnp_ResponseCode =
+            vnpayQuery.vnp_ResponseCode;
+
+        const vnp_Amount =
+            Number(
+                vnpayQuery.vnp_Amount
+            ) / 100;
+
+        const t =
+            await models.Order.sequelize!.transaction();
+
+        try {
+
+            /**
+             * ORDER_15
+             * => 15
+             */
+            const orderId =
+                Number(
+                    vnp_TxnRef.replace(
+                        'ORDER_',
+                        ''
+                    )
+                );
+
+            const order =
+                await models.Order.findByPk(
+                    orderId,
+                    {
+                        transaction: t
+                    }
+                );
+
+            if (!order) {
+                await t.rollback();
+
+                return {
+                    RspCode: '01',
+                    Message:
+                        'Order not found'
+                };
+            }
+
+            const payment =
+                await models.Payment.findOne(
+                    {
+                        where: {
+                            order_id:
+                                order.id
+                        },
+                        transaction: t
+                    }
+                );
+
+            if (!payment) {
+                await t.rollback();
+
+                return {
+                    RspCode: '01',
+                    Message:
+                        'Payment not found'
+                };
+            }
+
+            if (
+                payment.status ===
+                'paid'
+            ) {
+                await t.rollback();
+
+                return {
+                    RspCode: '02',
+                    Message:
+                        'Order already confirmed'
+                };
+            }
+
+            if (
+                payment.amount_cents !==
+                vnp_Amount
+            ) {
+                await t.rollback();
+
+                return {
+                    RspCode: '04',
+                    Message:
+                        'Invalid amount'
+                };
+            }
+
+            if (
+                vnp_ResponseCode === '00'
+            ) {
+                const orderItems =
+                    await models.OrderItem.findAll({
+                        where: {
+                            order_id: order.id
+                        },
+                        transaction: t
+                    });
+
+                for (const item of orderItems) {
+                    await InventoryService.adjustInventory(
+                        {
+                            variant_id: item.variant_id,
+                            facility_id: order.facility_id,
+                            qty_delta: -item.quantity,
+                            reason: 'sale',
+                            ref_order_id: order.id
+                        },
+                        {
+                            transaction: t
+                        }
+                    );
+                }
+                
+                await order.update(
+                    {
+                        status:
+                            'completed'
+                    },
+                    {
+                        transaction: t
+                    }
+                );
+
+                await payment.update(
+                    {
+                        status:
+                            'paid',
+
+                        provider_ref:
+                            vnpayQuery.vnp_TransactionNo,
+
+                        paid_at:
+                            new Date()
+                    },
+                    {
+                        transaction: t
+                    }
+                );
+
+            } else {
+
+                await payment.update(
+                    {
+                        status:
+                            'failed',
+
+                        provider_ref:
+                            vnpayQuery.vnp_TransactionNo ||
+                            null
+                    },
+                    {
+                        transaction: t
+                    }
+                );
+
+                /**
+                 * Có thể giữ nguyên
+                 * pending_payment
+                 *
+                 * hoặc hủy đơn:
+                 *
+                 * status: 'cancelled'
+                 */
+            }
+
+            await t.commit();
+
+            return {
+                RspCode: '00',
+                Message:
+                    'Confirm Success'
+            };
+
+        } catch (error) {
+
+            await t.rollback();
+
+            console.error(
+                'POS VNPay IPN Error:',
+                error
+            );
+
+            return {
+                RspCode: '99',
+                Message:
+                    'Unknown error'
+            };
         }
     }
 }
