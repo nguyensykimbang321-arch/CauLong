@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
@@ -6,28 +6,37 @@ import { getBookings, getCurrentUser } from '../../data/mockStore';
 import BookingCard from '../../shared/components/BookingCard';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function MyBookingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [tab, setTab] = useState('upcoming'); // upcoming | past | cancelled
 
-  useEffect(() => {
-    async function loadBookings() {
-        try {
-            const user = await getCurrentUser();
-            if (user) {
-                const res = await getBookings(user.id);
-                setBookings(res);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
+  const loadBookings = async (showLoading = false) => {
+    try {
+      if (showLoading) setLoading(true);
+      const user = await getCurrentUser();
+      if (user) {
+          const res = await getBookings(user.id);
+          setBookings(res);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (showLoading) setLoading(false);
     }
-    loadBookings();
+  };
+
+  useEffect(() => {
+    loadBookings(true);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings(false);
+    }, [])
+  );
 
   const data = useMemo(() => {
     const now = new Date();

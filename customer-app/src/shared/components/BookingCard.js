@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import Badge from './Badge';
-import { formatDatetime, formatPrice, getBookingStatusMeta } from '../../utils/formatters';
+import { formatDatetime, formatPrice, getUnifiedBookingStatus } from '../../utils/formatters';
 
 export default function BookingCard({ booking, onPress }) {
-  const statusMeta = getBookingStatusMeta(booking?.status);
+  const statusMeta = getUnifiedBookingStatus(booking);
 
   // Mapping bộ môn sang tiếng Việt
   const sportNames = {

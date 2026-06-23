@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
@@ -9,6 +9,7 @@ import ProductCard from '../../shared/components/ProductCard';
 import Button from '../../shared/components/Button';
 import PressableCard from '../../shared/components/PressableCard';
 import { useAppStore } from '../../data/AppStore';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen({ navigation }) {
   const { selectedFacility, setFacility, user: storeUser } = useAppStore();
@@ -17,39 +18,46 @@ export default function HomeScreen({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [products, setProducts] = useState([]);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [user, facilities] = await Promise.all([
-          getCurrentUser(),
-          getFacilities()
-        ]);
-        
-        setCurrentUser(user);
-        
-        // Nếu chưa chọn cơ sở, mặc định chọn cái đầu tiên
-        if (!selectedFacility && facilities.length > 0) {
-           setFacility(facilities[0]);
-        }
-
-        // Tải sản phẩm theo cơ sở đã chọn
-        const targetFacilityId = selectedFacility?.id || facilities[0]?.id;
-        const allProducts = await getProducts(targetFacilityId);
-        setProducts(allProducts);
-
-        if (user) {
-          const userBookings = await getBookings(user.id);
-          setBookings(userBookings);
-        }
-      } catch (error) {
-        console.error("Lỗi tải dữ liệu Home:", error);
-      } finally {
-        setLoading(false);
+  const loadData = async (showLoading = false) => {
+    try {
+      if (showLoading) setLoading(true);
+      const [user, facilities] = await Promise.all([
+        getCurrentUser(),
+        getFacilities()
+      ]);
+      
+      setCurrentUser(user);
+      
+      // Nếu chưa chọn cơ sở, mặc định chọn cái đầu tiên
+      if (!selectedFacility && facilities.length > 0) {
+         setFacility(facilities[0]);
       }
+
+      // Tải sản phẩm theo cơ sở đã chọn
+      const targetFacilityId = selectedFacility?.id || facilities[0]?.id;
+      const allProducts = await getProducts(targetFacilityId);
+      setProducts(allProducts);
+
+      if (user) {
+        const userBookings = await getBookings(user.id);
+        setBookings(userBookings);
+      }
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu Home:", error);
+    } finally {
+      if (showLoading) setLoading(false);
     }
-    loadData();
+  };
+
+  useEffect(() => {
+    loadData(true);
   }, [selectedFacility?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData(false);
+    }, [selectedFacility?.id])
+  );
 
   const quickActions = [
     { id: 'book', label: 'Đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('BookingTab') },

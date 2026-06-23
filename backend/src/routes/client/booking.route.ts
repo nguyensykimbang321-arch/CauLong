@@ -20,4 +20,6 @@ router.post(
     ClientBookingController.createBooking
 );
 
+router.patch('/:id/cancel', verifyToken, ClientBookingController.cancelBooking);
+
 export default router;

@@ -513,4 +513,48 @@ export class BookingService {
 
         return { paymentUrl };
     }
+
+    static async cancelBooking(bookingId: number, userId: number | null) {
+        const booking = await models.Booking.findOne({
+            where: {
+                id: bookingId,
+                ...(userId ? { user_id: userId } : {})
+            }
+        });
+
+        if (!booking) {
+            throw new ApiError('Không tìm thấy đơn đặt sân', 404);
+        }
+
+        if (booking.status !== 'pending' && booking.status !== 'confirmed') {
+            throw new ApiError('Chỉ có thể hủy đơn đặt sân ở trạng thái chờ xử lý hoặc đã xác nhận', 400);
+        }
+
+        await booking.update({
+            status: 'cancelled',
+            cancel_reason: 'Khách tự hủy trên App',
+            cancelled_at: new Date()
+        });
+
+        // Tìm lại đơn với đầy đủ liên kết để trả về frontend vẽ lại giao diện
+        const updatedBooking = await models.Booking.findOne({
+            where: { id: bookingId },
+            include: [
+                { model: models.Facility, as: 'facility' },
+                { model: models.Payment, as: 'payments' },
+                { 
+                    model: models.BookingSlot, 
+                    as: 'slots',
+                    include: [
+                        { 
+                            model: models.Court, 
+                            as: 'court'
+                        }
+                    ]
+                }
+            ]
+        });
+
+        return updatedBooking || booking;
+    }
 }

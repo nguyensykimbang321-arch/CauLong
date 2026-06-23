@@ -21,10 +21,11 @@ export class PaymentController {
 
     static async vnpayReturn(req: Request, res: Response, next: NextFunction) {
         try {
-            // Gọi Service để lấy chuỗi HTML
+            // Cập nhật trạng thái thanh toán trong DB (vì VNPay sandbox không gọi được IPN về IP local)
+            await PaymentService.processVNPayIPN(req.query);
+
+            // Trả HTML kết quả về cho trình duyệt/WebView
             const htmlContent = PaymentService.getVNPayReturnHtml(req.query);
-            
-            // Trả thẳng HTML về cho trình duyệt
             return res.send(htmlContent);
         } catch (error) {
             next(error);

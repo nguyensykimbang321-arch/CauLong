@@ -1,5 +1,6 @@
 import models from '../models/index.js';
-import { VNPayUtils } from '../utils/vnpay.js'; 
+import { VNPayUtils } from '../utils/vnpay.js';
+import { Op } from 'sequelize'; 
 
 export class PaymentService {
     static async processVNPayIPN(vnpayQuery: any) {
@@ -9,20 +10,82 @@ export class PaymentService {
             return { RspCode: '97', Message: 'Checksum failed' };
         }
 
-        const vnp_TxnRef = vnpayQuery.vnp_TxnRef; 
+        const vnp_TxnRef = vnpayQuery.vnp_TxnRef as string; 
         const vnp_ResponseCode = vnpayQuery.vnp_ResponseCode;
         const vnp_Amount = Number(vnpayQuery.vnp_Amount) / 100; // VNPay gửi về nhân 100, phải chia ra
-        
-        // Tách lấy bookingId từ orderId (bookingId_timestamp)
+
+        // Phân biệt Order (ORDER_{id}_{timestamp}) vs Booking ({id}_{timestamp})
+        const isOrderPayment = vnp_TxnRef.startsWith('ORDER_');
+
+        if (isOrderPayment) {
+            return this.processOrderIPN(vnp_TxnRef, vnp_ResponseCode, vnp_Amount, vnpayQuery);
+        } else {
+            return this.processBookingIPN(vnp_TxnRef, vnp_ResponseCode, vnp_Amount, vnpayQuery);
+        }
+    }
+
+    /**
+     * Xử lý IPN cho đơn hàng (Shop Order)
+     */
+    private static async processOrderIPN(vnp_TxnRef: string, vnp_ResponseCode: string, vnp_Amount: number, vnpayQuery: any) {
+        // Tách: ORDER_{orderId}_{timestamp} → lấy orderId ở vị trí [1]
+        const orderId = vnp_TxnRef.split('_')[1];
+
+        const t = await models.Order.sequelize!.transaction();
+        try {
+            const order = await (models.Order as any).findByPk(orderId, { transaction: t });
+
+            if (!order) {
+                await t.rollback();
+                return { RspCode: '01', Message: 'Order not found' };
+            }
+            if (order.status === 'pending_pickup' || order.status === 'completed') {
+                await t.rollback();
+                return { RspCode: '02', Message: 'Order already confirmed' };
+            }
+            if (order.total_cents !== vnp_Amount) {
+                await t.rollback();
+                return { RspCode: '04', Message: 'Invalid amount' };
+            }
+
+            if (vnp_ResponseCode === '00') {
+                // --- THANH TOÁN THÀNH CÔNG ---
+                await order.update({ status: 'pending_pickup' }, { transaction: t });
+
+                await (models.Payment as any).update(
+                    { status: 'paid', provider_ref: vnpayQuery.vnp_TransactionNo, paid_at: new Date() },
+                    { where: { order_id: order.id, provider: 'vnpay', status: 'pending' }, transaction: t }
+                );
+            } else {
+                // --- THANH TOÁN THẤT BẠI ---
+                await order.update({ status: 'cancelled' }, { transaction: t });
+
+                await (models.Payment as any).update(
+                    { status: 'failed', provider_ref: vnpayQuery.vnp_TransactionNo || null },
+                    { where: { order_id: order.id, provider: 'vnpay', status: 'pending' }, transaction: t }
+                );
+            }
+
+            await t.commit();
+            return { RspCode: '00', Message: 'Confirm Success' };
+        } catch (error) {
+            await t.rollback();
+            console.error("Lỗi xử lý IPN Order:", error);
+            return { RspCode: '99', Message: 'Unknown error' };
+        }
+    }
+
+    /**
+     * Xử lý IPN cho đặt sân (Booking)
+     */
+    private static async processBookingIPN(vnp_TxnRef: string, vnp_ResponseCode: string, vnp_Amount: number, vnpayQuery: any) {
+        // Tách: {bookingId}_{timestamp}
         const bookingId = vnp_TxnRef.split('_')[0];
 
-        // 2. Bắt đầu Transaction
         const t = await models.Booking.sequelize!.transaction();
-
         try {
             const booking = await (models.Booking as any).findByPk(bookingId, { transaction: t });
             
-            // Xử lý các ngoại lệ theo chuẩn VNPay
             if (!booking) {
                 await t.rollback();
                 return { RspCode: '01', Message: 'Order not found' };
@@ -31,13 +94,11 @@ export class PaymentService {
                 await t.rollback();
                 return { RspCode: '02', Message: 'Order already confirmed' };
             }
-            // KIỂM TRA BẢO MẬT: Bắt buộc giá tiền VNPay trả về phải khớp với DB
             if (booking.total_cents !== vnp_Amount) {
                 await t.rollback();
                 return { RspCode: '04', Message: 'Invalid amount' };
             }
 
-            // 3. Cập nhật dữ liệu
             if (vnp_ResponseCode === '00') {
                 // --- THÀNH CÔNG ---
                 await booking.update({
@@ -51,9 +112,8 @@ export class PaymentService {
                     status: 'paid',
                     amount_cents: booking.total_cents,
                     provider_ref: vnpayQuery.vnp_TransactionNo,
-                    paid_at: new Date() // Lưu thêm ngày giờ thanh toán
+                    paid_at: new Date()
                 }, { transaction: t });
-
             } else {
                 // --- THẤT BẠI ---
                 await booking.update({
@@ -70,13 +130,11 @@ export class PaymentService {
                 }, { transaction: t });
             }
 
-            // Chốt giao dịch
             await t.commit();
             return { RspCode: '00', Message: 'Confirm Success' };
-
         } catch (error) {
             await t.rollback();
-            console.error("Lỗi xử lý IPN:", error);
+            console.error("Lỗi xử lý IPN Booking:", error);
             return { RspCode: '99', Message: 'Unknown error' };
         }
     }
@@ -107,6 +165,64 @@ export class PaymentService {
                     </body>
                 </html>
             `;
+        }
+    }
+
+    /**
+     * Tự động quét và hủy các đặt sân/đơn hàng VNPay quá hạn 30 phút chưa thanh toán
+     */
+    static async checkExpiredPayments() {
+        const timeLimit = new Date(Date.now() - 30 * 60 * 1000); // 30 phút trước
+
+        try {
+            // Tìm tất cả Payment vnpay đang pending và quá 30 phút
+            const pendingPayments = await (models.Payment as any).findAll({
+                where: {
+                    provider: 'vnpay',
+                    status: 'pending',
+                    created_at: {
+                        [Op.lte]: timeLimit
+                    }
+                }
+            });
+
+            if (pendingPayments.length === 0) return;
+
+            console.log(`[Cron Payment] Tìm thấy ${pendingPayments.length} giao dịch VNPay quá hạn 30 phút.`);
+
+            for (const payment of pendingPayments) {
+                const t = await models.Payment.sequelize!.transaction();
+                try {
+                    if (payment.booking_id) {
+                        const booking = await (models.Booking as any).findByPk(payment.booking_id, { transaction: t });
+                        if (booking && booking.status === 'pending' && booking.payment_status === 'unpaid') {
+                            await booking.update({
+                                status: 'cancelled',
+                                cancel_reason: 'Hết hạn thanh toán VNPay (30 phút)',
+                                cancelled_at: new Date()
+                            }, { transaction: t });
+                            console.log(`[Cron Payment] Đã hủy Booking #${booking.id} do hết hạn thanh toán.`);
+                        }
+                    } else if (payment.order_id) {
+                        const order = await (models.Order as any).findByPk(payment.order_id, { transaction: t });
+                        if (order && order.status === 'pending_payment') {
+                            await order.update({
+                                status: 'expired'
+                            }, { transaction: t });
+                            console.log(`[Cron Payment] Đã chuyển Order #${order.id} sang expired do hết hạn thanh toán.`);
+                        }
+                    }
+
+                    // Cập nhật payment sang failed
+                    await payment.update({ status: 'failed' }, { transaction: t });
+                    await t.commit();
+                } catch (err) {
+                    await t.rollback();
+                    console.error(`[Cron Payment] Lỗi xử lý giao dịch quá hạn ID ${payment.id}:`, err);
+                }
+            }
+        } catch (error) {
+            console.error("[Cron Payment] Lỗi quét giao dịch VNPay hết hạn:", error);
         }
     }
 }

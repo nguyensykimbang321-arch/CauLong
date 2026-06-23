@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
@@ -26,6 +26,7 @@ export default function BookingConfirmScreen({ route, navigation }) {
   const [sport, setSport] = useState(null);
   const [courts, setCourts] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' hoặc 'vnpay' khớp với backend enum
+  const isSubmittingRef = useRef(false);
   useEffect(() => {
     async function loadData() {
       try {
@@ -75,6 +76,8 @@ export default function BookingConfirmScreen({ route, navigation }) {
   }, [startTime, endTime]);
 
   const handleConfirm = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     try {
         setSubmitting(true);
         
@@ -97,17 +100,20 @@ export default function BookingConfirmScreen({ route, navigation }) {
         if (paymentMethod === 'vnpay' && response?.paymentUrl) {
            navigation.navigate('PaymentWebView', { 
              url: response.paymentUrl,
-             onPaymentSuccess: (url) => {
-               navigation.navigate('MyBookings');
-               Alert.alert('Thành công', 'Thanh toán đặt sân thành công qua VNPay!');
-             },
-             onPaymentCancel: (url) => {
-               Alert.alert('Thông báo', 'Giao dịch đặt sân đã bị hủy.');
-             }
+             type: 'booking'
            });
         } else {
            Alert.alert('Thành công', 'Đặt sân thành công!', [
-               { text: 'OK', onPress: () => navigation.navigate('MyBookings') }
+               { 
+                 text: 'OK', 
+                 onPress: () => navigation.reset({
+                   index: 1,
+                   routes: [
+                     { name: 'Booking' },
+                     { name: 'MyBookings' }
+                   ]
+                 })
+               }
            ]);
         }
     } catch (error) {
@@ -116,6 +122,7 @@ export default function BookingConfirmScreen({ route, navigation }) {
         Alert.alert('Lỗi', msg);
     } finally {
         setSubmitting(false);
+        isSubmittingRef.current = false;
     }
   };
 
@@ -171,11 +178,19 @@ export default function BookingConfirmScreen({ route, navigation }) {
           />
         </View>
 
+        <View style={styles.policyCard}>
+          <Ionicons name="warning-outline" size={16} color="#B45309" />
+          <Text style={styles.policyText}>
+            <Text style={{ fontWeight: 'bold' }}>Chính sách hoàn tiền:</Text> Hủy đặt sân trong vòng 24h so với giờ chơi sẽ <Text style={{ color: '#B45309', fontWeight: 'bold' }}>không được hoàn tiền</Text> (Ví dụ: đặt sân lúc 16:00 mà hủy lúc 12:00 cùng ngày sẽ không được hoàn trả chi phí).
+          </Text>
+        </View>
+
         <View style={styles.actions}>
           <Button 
             title={paymentMethod === 'vnpay' ? "Thanh toán VNPay" : "Xác nhận đặt sân"} 
             onPress={handleConfirm}
             loading={submitting}
+            disabled={submitting}
             fullWidth={true} 
           />
           <View style={{ height: spacing.sm }} />
@@ -260,5 +275,22 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   warnText: { fontSize: fontSize.sm, color: '#9A3412', fontWeight: fontWeight.semiBold, lineHeight: 18 },
+  policyCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  policyText: {
+    fontSize: fontSize.xs + 1,
+    color: '#78350F',
+    flex: 1,
+    lineHeight: 18,
+  },
 });
 

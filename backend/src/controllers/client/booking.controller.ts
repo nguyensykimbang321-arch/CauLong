@@ -121,4 +121,18 @@ export class ClientBookingController {
             next(error);
         }
     }
+
+    static async cancelBooking(req: any, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params;
+            const userId = req.user?.id;
+            if(!userId) throw new ApiError('Không tìm thấy thông tin người dùng', 401);
+
+            const booking = await BookingService.cancelBooking(Number(id), userId);
+
+            return AppResponse.success(res, booking, "Hủy đặt sân thành công", 200);
+        } catch (error) {
+            next(error);
+        }
+    }
 }

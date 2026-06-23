@@ -10,7 +10,6 @@ export default function AccountScreen({ navigation }) {
 
   const handleLogout = () => {
     logout();
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const items = [

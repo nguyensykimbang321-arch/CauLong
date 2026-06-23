@@ -9,6 +9,7 @@ import errorHandlingMiddleware from './src/middlewares/errorHandler.middleware.j
 import { testConnection } from './src/config/database.js';
 import models from './src/models/index.js'
 import rootRouter from './src/routes/index.js';
+import { PaymentService } from './src/services/payment.service.js';
 
 
 const app: Express = express();
@@ -50,6 +51,15 @@ const startServer = async () => {
     app.listen(PORT, () => {
         console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
     });
+
+    // Tự động quét và xử lý đặt sân / đơn hàng VNPay quá hạn 30 phút (chạy mỗi 1 phút)
+    setInterval(async () => {
+        try {
+            await PaymentService.checkExpiredPayments();
+        } catch (e) {
+            console.error("Lỗi chạy quét giao dịch hết hạn:", e);
+        }
+    }, 60000);
 };
 
 startServer();

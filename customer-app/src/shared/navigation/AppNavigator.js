@@ -60,7 +60,18 @@ function BookingStackScreen() {
       <BookingStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <BookingStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <BookingStack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
-      <BookingStack.Screen name="PaymentWebView" component={PaymentWebView} />
+      <BookingStack.Screen 
+        name="PaymentWebView" 
+        component={PaymentWebView} 
+        options={{ 
+          headerShown: true, 
+          title: 'Thanh toán VNPay',
+          headerBackTitleVisible: false,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: fontWeight.bold }
+        }} 
+      />
     </BookingStack.Navigator>
   );
 }
@@ -73,7 +84,18 @@ function ShopStackScreen() {
       <ShopStack.Screen name="Cart" component={CartScreen} />
       <ShopStack.Screen name="Checkout" component={CheckoutScreen} />
       <ShopStack.Screen name="MyOrders" component={MyOrdersScreen} />
-      <ShopStack.Screen name="PaymentWebView" component={PaymentWebView} />
+      <ShopStack.Screen 
+        name="PaymentWebView" 
+        component={PaymentWebView} 
+        options={{ 
+          headerShown: true, 
+          title: 'Thanh toán VNPay',
+          headerBackTitleVisible: false,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: fontWeight.bold }
+        }} 
+      />
     </ShopStack.Navigator>
   );
 }
@@ -137,6 +159,12 @@ export default function AppNavigator() {
           name={tab.name}
           component={tab.component}
           options={{ tabBarLabel: tab.label }}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              // Reset stack về màn hình gốc khi bấm tab
+              navigation.navigate(tab.name, { screen: tab.name.replace('Tab', '') === 'Home' ? 'Home' : tab.name.replace('Tab', '') });
+            },
+          })}
         />
       ))}
     </Tab.Navigator>
