@@ -3,6 +3,19 @@ import { Tabs, Table, Button, Tag, Space, message, Modal, Radio } from 'antd';
 import { QRCode } from "react-qr-code";
 import type { Order } from '../types/sale.types';
 import { PosService } from '../services/sale.api';
+import { socket } from '../../../config/socket';
+
+const getStatusText = (status?: string) => {
+  switch (status) {
+    case 'completed': return 'Hoàn thành';
+    case 'pending_payment': return 'Chờ thanh toán';
+    case 'pending_pickup': return 'Chờ lấy hàng';
+    case 'cancelled': return 'Đã hủy';
+    case 'expired': return 'Hết hạn';
+    case 'refunded': return 'Hoàn tiền';
+    default: return status || 'Không xác định';
+  }
+};
 
 const OrderManagementPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending_pickup');
@@ -60,6 +73,21 @@ const OrderManagementPage: React.FC = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrders();
+  }, [activeTab]);
+
+  // Lắng nghe Socket để realtime tải lại danh sách
+  useEffect(() => {
+    const handleOrderUpdate = () => {
+      fetchOrders();
+    };
+
+    socket.on('order', handleOrderUpdate); // Nhận đơn mới từ app
+    socket.on('order_changed', handleOrderUpdate); // Đơn bị cập nhật trạng thái
+
+    return () => {
+      socket.off('order', handleOrderUpdate);
+      socket.off('order_changed', handleOrderUpdate);
+    };
   }, [activeTab]);
 
   const handleViewDetail = async (order: Order) => {
@@ -156,7 +184,7 @@ const OrderManagementPage: React.FC = () => {
       message.error("Vui lòng nhập lý do hoàn tiền!");
       return;
     }
-    
+
     setIsRefundLoading(true);
     try {
       await PosService.refundOrder(refundOrderTarget, refundReason.trim());
@@ -183,16 +211,14 @@ const OrderManagementPage: React.FC = () => {
       key: 'status',
       render: (status: string) => {
         let color = 'blue';
-        let text = status;
 
-        if (status === 'completed') { color = 'green'; text = 'Hoàn thành'; }
-        else if (status === 'pending_payment') { color = 'orange'; text = 'Chờ thanh toán'; }
-        else if (status === 'pending_pickup') { color = 'blue'; text = 'Chờ lấy hàng'; }
-        else if (status === 'cancelled') { color = 'red'; text = 'Đã hủy'; }
-        else if (status === 'expired') { color = 'red'; text = 'Đã hủy (Hết hạn)'; }
-        else if (status === 'refunded') { color = 'purple'; text = 'Hoàn tiền'; }
+        if (status === 'completed') color = 'green';
+        else if (status === 'pending_payment') color = 'orange';
+        else if (status === 'pending_pickup') color = 'blue';
+        else if (status === 'cancelled' || status === 'expired') color = 'red';
+        else if (status === 'refunded') color = 'purple';
 
-        return <Tag color={color}>{text}</Tag>;
+        return <Tag color={color}>{getStatusText(status)}</Tag>;
       }
     },
     {
@@ -274,7 +300,7 @@ const OrderManagementPage: React.FC = () => {
       >
         {detailLoading ? <p>Đang tải dữ liệu...</p> : (
           <div>
-            <p><strong>Trạng thái:</strong> {orderDetails?.status}</p>
+            <p><strong>Trạng thái:</strong> {getStatusText(orderDetails?.status)}</p>
             <p><strong>Thời gian đặt:</strong> {orderDetails?.created_at ? new Date(orderDetails.created_at).toLocaleString('vi-VN') : 'Không xác định'}</p>
             <p><strong>Kiểu nhận:</strong> {orderDetails?.pickup_type === 'immediate' ? 'Nhận tại chỗ' : (orderDetails?.pickup_type === 'pickup_store' ? 'Lấy tại quầy' : orderDetails?.pickup_type)}</p>
             <p><strong>Thời gian nhận hàng:</strong> {orderDetails?.pickup_time ? new Date(orderDetails.pickup_time).toLocaleString('vi-VN') : 'Không có'}</p>

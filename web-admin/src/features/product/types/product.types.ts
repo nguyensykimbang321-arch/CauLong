@@ -139,7 +139,6 @@ export interface FormData {
   | 'shoes'
   | 'apparel'
   | 'accessory'
-  | 'soft_drink';
   description: string;
   thumbnail_url: string;
 

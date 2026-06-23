@@ -5,6 +5,7 @@ import { InventoryService } from './inventory.service.js';
 import dayjs from 'dayjs';
 import { VNPayUtils } from '../utils/vnpay.js';
 import { Op } from 'sequelize';
+import { getIO } from '../config/socket.js';
 
 export class OrderService {
     static async createOrder(userId: number | null, data: any) {
@@ -85,6 +86,7 @@ export class OrderService {
 
         order.status = 'cancelled';
         await order.save();
+        getIO().to('staff_room').emit('order_changed', { orderId: order.id });
 
         return order;
     }
@@ -147,7 +149,7 @@ export class OrderService {
 
     static async cancelExpiredOrders() {
         const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // Quá 24 giờ
-        
+
         const [updatedCount] = await models.Order.update(
             { status: 'expired' },
             {
@@ -159,9 +161,10 @@ export class OrderService {
                 }
             }
         );
-        
+
         if (updatedCount > 0) {
             console.log(`[CRON] Đã hủy ${updatedCount} đơn hàng quá 24 giờ chưa thanh toán`);
+            getIO().to('staff_room').emit('order_changed', { updatedCount });
         }
         return updatedCount;
     }
@@ -223,6 +226,7 @@ export class OrderService {
         await order.update({
             status: 'completed'
         });
+        getIO().to('staff_room').emit('order_changed', { orderId: order.id });
 
         return {
             message:
@@ -271,6 +275,7 @@ export class OrderService {
             }
 
             await t.commit();
+            getIO().to('staff_room').emit('order_changed', { orderId: order.id });
             return { message: 'Hoàn tiền thành công' };
         } catch (error) {
             await t.rollback();
@@ -295,12 +300,13 @@ export class OrderService {
 
         order.status = 'pending_pickup';
         await order.save();
+        getIO().to('staff_room').emit('order_changed', { orderId: order.id });
         return order;
     }
 
     static async getVNPayUrl(orderId: number, ipAddr: string = '127.0.0.1') {
         const order = await this.getById(orderId);
-        
+
         if (order.status !== 'pending_payment') {
             throw new ApiError('Chỉ có thể tạo thanh toán cho đơn đang chờ thanh toán', 400);
         }
@@ -400,6 +406,7 @@ export class OrderService {
                 });
 
             await t.commit();
+            getIO().to('staff_room').emit('order_changed', { orderId: order.id });
 
             return {
                 message:
