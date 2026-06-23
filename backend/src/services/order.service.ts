@@ -136,6 +136,11 @@ export class OrderService {
 
             include: [
                 {
+                    model: models.Facility,
+                    as: 'facility',
+                    attributes: ['id', 'name']
+                },
+                {
                     model: models.OrderItem,
                     as: 'items'
                 }
@@ -422,6 +427,11 @@ export class OrderService {
 
             include: [
                 {
+                    model: models.Facility,
+                    as: 'facility',
+                    attributes: ['id', 'name']
+                },
+                {
                     model: models.OrderItem,
                     as: 'items'
                 }
@@ -440,6 +450,11 @@ export class OrderService {
             },
 
             include: [
+                {
+                    model: models.Facility,
+                    as: 'facility',
+                    attributes: ['id', 'name']
+                },
                 {
                     model: models.OrderItem,
                     as: 'items'

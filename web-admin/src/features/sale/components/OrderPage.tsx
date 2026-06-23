@@ -202,9 +202,53 @@ const OrderManagementPage: React.FC = () => {
 
 
 
+  // Tính toán sắp xếp: nhóm theo cơ sở trước, sau đó mới đến thời gian tạo
+  const sortedOrders = React.useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const facilityA = a.facility?.name || 'ZZZ';
+      const facilityB = b.facility?.name || 'ZZZ';
+      if (facilityA === facilityB) {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      return facilityA.localeCompare(facilityB);
+    });
+  }, [orders]);
+
+  // Tính toán rowSpan cho cột Cơ sở để gộp các ô trùng nhau
+  const rowSpans = React.useMemo(() => {
+    const spans: number[] = new Array(sortedOrders.length).fill(0);
+    let i = 0;
+    while (i < sortedOrders.length) {
+      let span = 1;
+      const currentFacilityId = sortedOrders[i].facility?.id;
+      for (let j = i + 1; j < sortedOrders.length; j++) {
+        if (sortedOrders[j].facility?.id === currentFacilityId) {
+          span++;
+        } else {
+          break;
+        }
+      }
+      spans[i] = span;
+      i += span;
+    }
+    return spans;
+  }, [sortedOrders]);
+
   // Cấu hình các cột của Bảng (Table)
   const columns = [
     { title: 'Mã ĐH', dataIndex: 'id', key: 'id', render: (id: number) => `#${id}` },
+    {
+      title: 'Cơ sở',
+      dataIndex: 'facility',
+      key: 'facility',
+      onCell: (_: any, index?: number) => {
+        if (index === undefined) return {};
+        return {
+          rowSpan: rowSpans[index] || 0,
+        };
+      },
+      render: (facility: any) => <span className="font-semibold text-blue-800">{facility?.name || 'Không xác định'}</span>,
+    },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
@@ -284,7 +328,7 @@ const OrderManagementPage: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={orders}
+        dataSource={sortedOrders}
         rowKey="id"
         loading={loading}
       />

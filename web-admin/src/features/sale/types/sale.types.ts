@@ -68,4 +68,8 @@ export interface Order {
   pickup_time: string | null;
   created_at: string;
   items?: OrderItem[]; // Trả về khi xem chi tiết
+  facility?: {
+    id: number;
+    name: string;
+  };
 }
