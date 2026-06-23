@@ -257,29 +257,14 @@ export class PaymentService {
                 /**
                  * Trừ kho
                  */
-                for (const item of orderItems) {
-                    await InventoryService.adjustInventory(
-                        {
-                            variant_id:
-                                item.variant_id,
-
-                            facility_id:
-                                order.facility_id,
-
-                            qty_delta:
-                                -item.quantity,
-
-                            reason:
-                                'sale',
-
-                            ref_order_id:
-                                order.id
-                        },
-                        {
-                            transaction: t
-                        }
-                    );
-                }
+                const adjustments = orderItems.map(item => ({
+                    variant_id: item.variant_id,
+                    facility_id: order.facility_id,
+                    qty_delta: -item.quantity,
+                    reason: 'sale' as const,
+                    ref_order_id: order.id
+                }));
+                await InventoryService.bulkAdjustInventory(adjustments, { transaction: t });
 
                 /**
                  * Cập nhật Payment

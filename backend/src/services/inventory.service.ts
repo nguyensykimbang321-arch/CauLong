@@ -68,6 +68,85 @@ export class InventoryService {
         }
     }
 
+    static async bulkAdjustInventory(
+        adjustments: {
+            variant_id: number;
+            facility_id: number;
+            qty_delta: number;
+            reason: 'sale' | 'return' | 'adjustment' | 'import';
+            note?: string;
+            ref_order_id?: number;
+        }[],
+        options: { transaction?: any } = {}
+    ) {
+        const firstAdj = adjustments[0];
+        if (!firstAdj) return [];
+
+        const transaction = options.transaction || await sequelize.transaction();
+        const isOuterTransaction = !!options.transaction;
+
+        try {
+            const facilityId = firstAdj.facility_id; // Assume all adjustments in a bulk are for the same facility (which is true for an order)
+            const variantIds = adjustments.map(a => a.variant_id);
+
+            // Fetch all required inventory levels with LOCK
+            const inventories = await models.InventoryLevel.findAll({
+                where: { facility_id: facilityId, variant_id: variantIds },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            const inventoryMap = new Map(inventories.map(i => [i.variant_id, i]));
+            const updates = [];
+            const movements = [];
+
+            for (const adj of adjustments) {
+                let inventory = inventoryMap.get(adj.variant_id);
+                if (!inventory) {
+                    // Create if not exists (rare in POS since we check stock first)
+                    inventory = await models.InventoryLevel.create({
+                        variant_id: adj.variant_id,
+                        facility_id: adj.facility_id,
+                        quantity_on_hand: 0
+                    }, { transaction });
+                }
+
+                const newQuantity = inventory.quantity_on_hand + adj.qty_delta;
+                if (newQuantity < 0) {
+                    throw new ApiError('Số lượng tồn kho không đủ để thực hiện thao tác này', 400);
+                }
+
+                updates.push(inventory.update({ quantity_on_hand: newQuantity }, { transaction }));
+
+                movements.push({
+                    variant_id: adj.variant_id,
+                    facility_id: adj.facility_id,
+                    qty_delta: adj.qty_delta,
+                    reason: adj.reason,
+                    ref_order_id: adj.ref_order_id || null,
+                    note: adj.note || '',
+                    created_at: new Date()
+                });
+            }
+
+            // Execute all updates concurrently
+            await Promise.all(updates);
+
+            // Bulk create movements
+            await (models.InventoryMovement as any).bulkCreate(movements, { transaction });
+
+            if (!isOuterTransaction) {
+                await transaction.commit();
+            }
+            return inventories;
+        } catch (error) {
+            if (!isOuterTransaction) {
+                await transaction.rollback();
+            }
+            throw error;
+        }
+    }
+
     static async getLevelsByFacility(facilityId: number) {
         return await (models.InventoryLevel as any).findAll({
             where: {

@@ -264,14 +264,15 @@ export class OrderService {
                 where: { order_id: order.id },
                 transaction: t
             });
-            for (const item of orderItems) {
-                await InventoryService.adjustInventory({
-                    variant_id: item.variant_id,
-                    facility_id: order.facility_id,
-                    qty_delta: item.quantity,
-                    reason: 'adjustment',
-                    ref_order_id: order.id
-                }, { transaction: t });
+            const adjustments = orderItems.map(item => ({
+                variant_id: item.variant_id,
+                facility_id: order.facility_id,
+                qty_delta: item.quantity,
+                reason: 'adjustment' as const,
+                ref_order_id: order.id
+            }));
+            if (adjustments.length > 0) {
+                await InventoryService.bulkAdjustInventory(adjustments, { transaction: t });
             }
 
             await t.commit();
@@ -374,20 +375,15 @@ export class OrderService {
                     transaction: t
                 });
 
-            for (const item of orderItems) {
-                await InventoryService.adjustInventory(
-                    {
-                        variant_id: item.variant_id,
-                        facility_id: order.facility_id,
-                        qty_delta: -item.quantity,
-                        reason: 'sale',
-                        ref_order_id: order.id
-                    },
-                    {
-                        transaction: t
-                    }
-                );
-            }
+            // Use bulk adjustment to avoid N+1 and potential deadlocks on the same transaction
+            const adjustments = orderItems.map(item => ({
+                variant_id: item.variant_id,
+                facility_id: order.facility_id,
+                qty_delta: -item.quantity,
+                reason: 'sale' as const,
+                ref_order_id: order.id
+            }));
+            await InventoryService.bulkAdjustInventory(adjustments, { transaction: t });
 
             const updateData: any = {
                 status: 'pending_pickup'
@@ -500,6 +496,16 @@ export class OrderService {
                 variants.map(v => [v.id, v])
             );
 
+            // Fetch all inventory levels in one query to avoid N+1 problem
+            const inventories = await models.InventoryLevel.findAll({
+                where: {
+                    variant_id: items.map(i => i.variant_id),
+                    facility_id
+                },
+                transaction: t
+            });
+            const inventoryMap = new Map(inventories.map(i => [i.variant_id, i]));
+
             let totalCents = 0;
 
             // Kiểm tra tồn kho + tính tiền
@@ -516,12 +522,9 @@ export class OrderService {
                     );
                 }
 
-                const enoughStock =
-                    await InventoryService.checkStock(
-                        item.variant_id,
-                        facility_id,
-                        item.quantity
-                    );
+                // Check stock synchronously using the pre-fetched map
+                const inventory = inventoryMap.get(item.variant_id);
+                const enoughStock = inventory && inventory.quantity_on_hand >= item.quantity;
 
                 if (!enoughStock) {
                     throw new ApiError(
