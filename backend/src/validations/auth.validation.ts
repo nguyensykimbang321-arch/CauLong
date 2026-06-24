@@ -14,3 +14,16 @@ export const loginSchema = z.object({
         password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
     }),
 });
+
+export const forgotPasswordSchema = z.object({
+    body: z.object({
+        email: z.string().email('Email không hợp lệ')
+    })
+});
+
+export const changePasswordSchema = z.object({
+    body: z.object({
+        old_password: z.string().min(1, 'Vui lòng nhập mật khẩu cũ'),
+        new_password: z.string().min(6, 'Mật khẩu mới phải có ít nhất 6 ký tự')
+    })
+});

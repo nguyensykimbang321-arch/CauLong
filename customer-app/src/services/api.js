@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Thay đổi IP này thành IP máy tính của bạn nếu chạy trên thiết bị thật
 // Android Emulator thường dùng 10.0.2.2 để truy cập localhost máy host
-const baseURL = 'http://192.168.1.185:5000/api/v1';
+const baseURL = 'http://192.168.1.99:5000/api/v1';
 
 const api = axios.create({
     baseURL,
@@ -55,7 +55,7 @@ export const fetchCourtTypes = async (facilityId) => {
 };
 
 export const fetchAvailability = async (facility_id, date, court_type) => {
-    const response = await api.get('/app/bookings/daily-booked-slots', {
+    const response = await api.get('/app/bookings/booked-slots', {
         params: {
             facility_id,
             date,
@@ -66,7 +66,7 @@ export const fetchAvailability = async (facility_id, date, court_type) => {
 };
 
 export const fetchCheckAvailability = async ({ facility_id, date, start_time, end_time, court_type }) => {
-    const response = await api.get('/app/bookings/check-availability', {
+    const response = await api.get('/app/bookings/availability', {
         params: {
             facility_id,
             date,
@@ -101,7 +101,7 @@ export const createBooking = async (bookingData) => {
 };
 
 export const fetchMyBookings = async () => {
-    const response = await api.get('/app/bookings/my');
+    const response = await api.get('/app/bookings');
     return response.data.data;
 };
 
@@ -111,17 +111,27 @@ export const createOrder = async (orderData) => {
 };
 
 export const fetchMyOrders = async () => {
-    const response = await api.get('/app/orders/my');
+    const response = await api.get('/app/orders');
     return response.data.data;
 };
 
 export const cancelOrder = async (orderId) => {
-    const response = await api.patch(`/app/orders/${orderId}/cancel`);
+    const response = await api.patch(`/app/orders/${orderId}`, { status: 'cancelled' });
     return response.data.data;
 };
 
 export const cancelBooking = async (bookingId) => {
-    const response = await api.patch(`/app/bookings/${bookingId}/cancel`);
+    const response = await api.patch(`/app/bookings/${bookingId}`, { status: 'cancelled' });
+    return response.data.data;
+};
+
+export const forgotPassword = async (email) => {
+    const response = await api.post('/app/auth/forgot-password', { email });
+    return response.data.data;
+};
+
+export const changePassword = async (passwordData) => {
+    const response = await api.post('/app/auth/change-password', passwordData);
     return response.data.data;
 };
 

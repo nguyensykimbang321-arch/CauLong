@@ -26,6 +26,8 @@ import PaymentWebView from '../components/PaymentWebView';
 import { useAppStore } from '../../data/AppStore';
 import LoginScreen from '../../account/screens/LoginScreen';
 import RegisterScreen from '../../account/screens/RegisterScreen';
+import ForgotPasswordScreen from '../../account/screens/ForgotPasswordScreen';
+import ChangePasswordScreen from '../../account/screens/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createStackNavigator();
@@ -39,6 +41,7 @@ function AuthStackScreen() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -108,6 +111,7 @@ function AccountStackScreen() {
       <AccountStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <AccountStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <AccountStack.Screen name="MyOrders" component={MyOrdersScreen} />
+      <AccountStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </AccountStack.Navigator>
   );
 }

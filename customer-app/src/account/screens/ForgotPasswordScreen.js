@@ -2,30 +2,43 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
-import { login } from '../../services/api';
-import { useAppStore } from '../../data/AppStore';
+import { forgotPassword } from '../../services/api';
 
-export default function LoginScreen({ navigation }) {
-  const { setUser } = useAppStore();
-  const [email, setEmail] = useState('khachhang@gmail.com');
-  const [password, setPassword] = useState('123456');
+export default function ForgotPasswordScreen({ navigation }) {
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email và mật khẩu');
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Lỗi', 'Định dạng email không hợp lệ');
       return;
     }
 
     setLoading(true);
     try {
-      const data = await login(email, password);
-      // data thường chứa { user, token }
-      setUser(data.user, data.token);
-      // navigation.replace('HomeTab'); // Nếu lồng vào Stack thì dùng replace hoặc reset
+      const response = await forgotPassword(email.trim());
+      Alert.alert(
+        'Thành công',
+        response?.message || 'Mật khẩu tạm thời đã được gửi vào email của bạn. Vui lòng kiểm tra hộp thư.',
+        [
+          {
+            text: 'Quay lại đăng nhập',
+            onPress: () => navigation.navigate('Login'),
+          },
+        ]
+      );
     } catch (error) {
-      console.error('Lỗi đăng nhập:', error);
-      Alert.alert('Lỗi', error.response?.data?.message || 'Email hoặc mật khẩu không đúng');
+      console.error('Lỗi quên mật khẩu:', error);
+      Alert.alert(
+        'Lỗi',
+        error.response?.data?.message || 'Email không tồn tại trên hệ thống hoặc có lỗi xảy ra. Vui lòng thử lại.'
+      );
     } finally {
       setLoading(false);
     }
@@ -35,13 +48,15 @@ export default function LoginScreen({ navigation }) {
     <Screen>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Chào mừng trở lại! 👋</Text>
-          <Text style={styles.subtitle}>Đăng nhập để tiếp tục đặt sân và mua sắm</Text>
+          <Text style={styles.title}>Quên mật khẩu? 🔒</Text>
+          <Text style={styles.subtitle}>
+            Nhập email tài khoản của bạn để nhận mật khẩu tạm thời mới
+          </Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>Email tài khoản</Text>
             <TextInput
               style={styles.input}
               placeholder="example@gmail.com"
@@ -49,41 +64,27 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mật khẩu</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.loginBtn, loading && styles.disabledBtn]} 
-            onPress={handleLogin}
+          <TouchableOpacity
+            style={[styles.submitBtn, loading && styles.disabledBtn]}
+            onPress={handleForgotPassword}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.loginBtnText}>Đăng nhập</Text>
+              <Text style={styles.submitBtnText}>Gửi yêu cầu</Text>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={styles.forgotText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.registerText}>Đăng ký ngay</Text>
+          <Text style={styles.footerText}>Nhớ mật khẩu? </Text>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.loginText}>Đăng nhập ngay</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.textMuted,
     marginTop: spacing.xs,
+    lineHeight: 22,
   },
   form: {
     gap: spacing.lg,
@@ -130,7 +132,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     fontSize: fontSize.md,
   },
-  loginBtn: {
+  submitBtn: {
     backgroundColor: colors.primary,
     padding: spacing.md,
     borderRadius: borderRadius.md,
@@ -141,18 +143,10 @@ const styles = StyleSheet.create({
   disabledBtn: {
     opacity: 0.7,
   },
-  loginBtnText: {
+  submitBtnText: {
     color: '#fff',
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-  },
-  forgotBtn: {
-    alignItems: 'center',
-  },
-  forgotText: {
-    color: colors.primary,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
   },
   footer: {
     flexDirection: 'row',
@@ -164,7 +158,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.md,
   },
-  registerText: {
+  loginText: {
     color: colors.primary,
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,

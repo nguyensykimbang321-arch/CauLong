@@ -51,10 +51,15 @@ export class ClientOrderController {
     }
   }
 
-  static async cancelOrder(req: any, res: Response, next: NextFunction) {
+  static async updateOrder(req: any, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const userId = req.user?.id || null;
+      const { status } = req.body;
+
+      if (status !== 'cancelled') {
+        throw new ApiError("Hành động cập nhật không hợp lệ", 400);
+      }
 
       const order = await OrderService.cancelOrder(Number(id), userId);
 

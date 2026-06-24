@@ -16,6 +16,7 @@ export default function AccountScreen({ navigation }) {
     { id: 'bookings', label: 'Lịch đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('MyBookings') },
     { id: 'orders', label: 'Đơn hàng của tôi', icon: 'receipt-outline', onPress: () => navigation.navigate('MyOrders') },
     { id: 'noti', label: 'Thông báo', icon: 'notifications-outline', onPress: () => navigation.navigate('Notifications') },
+    { id: 'change-password', label: 'Đổi mật khẩu', icon: 'key-outline', onPress: () => navigation.navigate('ChangePassword') },
     { id: 'logout', label: 'Đăng xuất', icon: 'log-out-outline', onPress: handleLogout, danger: true },
   ];
 
