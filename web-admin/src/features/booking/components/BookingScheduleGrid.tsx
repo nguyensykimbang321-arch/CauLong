@@ -6,21 +6,30 @@ interface BookingScheduleGridProps {
   courts: any[]; 
   rawBookedSlots: any[]; 
   onSlotClick: (court: any, slotData: any) => void;
+  openTime?: string;
+  closeTime?: string;
 }
 
-const START_HOUR = 6;
-const END_HOUR = 23;
-const TOTAL_HOURS = END_HOUR - START_HOUR;
-const TOTAL_MINUTES = TOTAL_HOURS * 60;
+const BookingScheduleGrid: React.FC<BookingScheduleGridProps> = ({ 
+  loading, 
+  courts, 
+  rawBookedSlots, 
+  onSlotClick,
+  openTime = '06:00:00',
+  closeTime = '22:00:00'
+}) => {
+  const START_HOUR = openTime ? parseInt(openTime.split(':')[0]) : 6;
+  const END_HOUR = closeTime ? parseInt(closeTime.split(':')[0]) : 22;
+  const TOTAL_HOURS = END_HOUR - START_HOUR;
+  const TOTAL_MINUTES = TOTAL_HOURS * 60;
 
-const timeToRelativeMinutes = (timeStr: string) => {
-  if (!timeStr) return 0;
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  if (hours < START_HOUR) return 0; 
-  return (hours - START_HOUR) * 60 + minutes;
-};
-
-const BookingScheduleGrid: React.FC<BookingScheduleGridProps> = ({ loading, courts, rawBookedSlots, onSlotClick }) => {
+  const timeToRelativeMinutes = (timeStr: string) => {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(':').map(Number);
+    if (h < START_HOUR) return 0; 
+    if (h > END_HOUR || (h === END_HOUR && m > 0)) return TOTAL_MINUTES;
+    return (h - START_HOUR) * 60 + m;
+  };
   
   if (loading) return <div className="p-10 text-center"><Spin size="large" /></div>;
   if (!courts || courts.length === 0) return <div className="p-10 text-center text-gray-500">Không có dữ liệu sân.</div>;

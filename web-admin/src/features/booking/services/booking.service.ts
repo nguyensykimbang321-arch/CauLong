@@ -27,6 +27,18 @@ export const BookingService = {
     });
   },
 
+  searchCustomerByPhone: async (phone: string) => {
+    return await axiosClient.get<any, ApiResponse<{
+      id: number;
+      full_name: string | null;
+      phone: string | null;
+      membership_type: 'standard' | 'student' | 'vip';
+      loyalty_points: number;
+    }>>('/admin/users/search-phone', {
+      params: { phone }
+    });
+  },
+
   getBookingDetail: async (id: number) => {
     return await axiosClient.get<any, ApiResponse<Booking>>(`/admin/bookings/${id}`);
   },

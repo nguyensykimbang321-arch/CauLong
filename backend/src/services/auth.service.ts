@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import models from '../models/index.js';
 import ApiError from '../utils/ErrorClass.js';
-import jwt, { type SignOptions } from 'jsonwebtoken';
 import { sendTemporaryPasswordEmail } from '../utils/email.js';
-
+import { TokenUtil } from '../utils/token.util.js';
+import dayjs from 'dayjs';
 
 export class AuthService {
     static async register(data: any) {
@@ -25,20 +25,7 @@ export class AuthService {
             role: 'customer' 
         });
 
-        // Tạo Token ngay sau khi đăng ký thành công
-        const payload = { id: newUser.id, role: newUser.role };
-        const secret = process.env.JWT_SECRET;
-        const expiresInEnv = process.env.JWT_EXPIRES_IN;
-
-        if (!secret || !expiresInEnv) {
-            throw new ApiError('Lỗi cấu hình hệ thống: Thiếu JWT_SECRET hoặc JWT_EXPIRES_IN', 500);
-        }
-
-        const signOptions: SignOptions = {
-            expiresIn: expiresInEnv as NonNullable<SignOptions['expiresIn']>
-        }; 
-
-        const token = jwt.sign(payload, secret, signOptions);
+        const token = TokenUtil.generateAccessToken(newUser.id, newUser.role);
         const { password_hash, ...userWithoutPassword } = newUser.toJSON();
 
         return { user: userWithoutPassword, token };
@@ -74,23 +61,69 @@ export class AuthService {
             throw new ApiError('Tài khoản không có quyền truy cập hệ thống này', 403);
         }
 
-        const payload = { id: user.id, role: user.role };
-        const secret = process.env.JWT_SECRET;
-        const expiresInEnv = process.env.JWT_EXPIRES_IN;
+        const accessToken = TokenUtil.generateAccessToken(user.id, user.role);
+        const plainRefreshToken = TokenUtil.generateRefreshToken();
+        const tokenHash = TokenUtil.hashToken(plainRefreshToken);
 
-        if (!secret || !expiresInEnv) {
-            throw new ApiError('Lỗi cấu hình hệ thống: Thiếu JWT_SECRET hoặc JWT_EXPIRES_IN', 500);
-        }
-
-        const signOptions: SignOptions = {
-            expiresIn: expiresInEnv as NonNullable<SignOptions['expiresIn']>
-        }; 
-
-        const token = jwt.sign(payload, secret, signOptions);
+        await models.RefreshToken.create({
+            user_id: user.id,
+            token_hash: tokenHash,
+            expires_at: dayjs().add(7, 'day').toDate(),
+            revoked: false
+        });
 
         const { password_hash, ...userWithoutPassword } = user.toJSON();
 
-        return { user: userWithoutPassword, token };
+        return { user: userWithoutPassword, accessToken, refreshToken: plainRefreshToken };
+    }
+
+    static async refreshAccessToken(clientRefreshToken: string) {
+        if (!clientRefreshToken) {
+            throw new ApiError('Vui lòng đăng nhập', 401);
+        }
+
+        const tokenHash = TokenUtil.hashToken(clientRefreshToken);
+
+        const tokenRecord = await models.RefreshToken.findOne({
+            where: { token_hash: tokenHash }
+        });
+
+        if (!tokenRecord) {
+            throw new ApiError('Refresh Token không hợp lệ', 401);
+        }
+        if (tokenRecord.revoked) {
+            throw new ApiError('Phiên đăng nhập đã bị thu hồi. Vui lòng đăng nhập lại!', 401);
+        }
+        if (dayjs().isAfter(dayjs(tokenRecord.expires_at))) {
+            throw new ApiError('Phiên đăng nhập đã hết hạn', 401);
+        }
+
+        const user = await models.User.findByPk(tokenRecord.user_id);
+        if (!user || !user.is_active) {
+            throw new ApiError('Tài khoản không tồn tại hoặc bị khóa', 401);
+        }
+
+        const newAccessToken = TokenUtil.generateAccessToken(user.id, user.role);
+        const newPlainRefreshToken = TokenUtil.generateRefreshToken();
+        const newTokenHash = TokenUtil.hashToken(newPlainRefreshToken);
+
+        // Rotation: delete the old one
+        await tokenRecord.destroy(); 
+
+        await models.RefreshToken.create({
+            user_id: user.id,
+            token_hash: newTokenHash,
+            expires_at: dayjs().add(7, 'day').toDate(),
+            revoked: false
+        });
+
+        return { newAccessToken, newRefreshToken: newPlainRefreshToken };
+    }
+
+    static async logout(clientRefreshToken: string) {
+        if (!clientRefreshToken) return;
+        const tokenHash = TokenUtil.hashToken(clientRefreshToken);
+        await models.RefreshToken.destroy({ where: { token_hash: tokenHash } });
     }
 
     static async forgotPassword(email: string): Promise<{ message: string }> {

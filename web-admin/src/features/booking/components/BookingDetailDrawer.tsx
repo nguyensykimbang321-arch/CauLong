@@ -97,6 +97,15 @@ const BookingDetailDrawer: React.FC<BookingDetailDrawerProps> = ({ open, onClose
                   {internalBooking.payment_status.toUpperCase()}
                 </Tag>
               </Descriptions.Item>
+              <Descriptions.Item label="Phương thức TT">
+                {internalBooking.payment_method ? (
+                  <Tag color={internalBooking.payment_method === 'vnpay' ? 'blue' : 'green'}>
+                    {internalBooking.payment_method === 'vnpay' ? 'VNPay' : 'Tiền mặt'}
+                  </Tag>
+                ) : (
+                  '-'
+                )}
+              </Descriptions.Item>
               <Descriptions.Item label="Tổng tiền">
                 <span className="text-lg font-bold text-red-500">
                   {internalBooking.total_cents.toLocaleString('vi-VN')} VNĐ

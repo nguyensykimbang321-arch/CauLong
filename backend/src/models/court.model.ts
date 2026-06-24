@@ -1,24 +1,26 @@
-import { Model, DataTypes, type Optional,  } from 'sequelize';
+import { Model, DataTypes, type Optional } from 'sequelize';
 import sequelize from '../config/database.js';
+
+export type CourtType = 'badminton' | 'tennis' | 'football' | 'table_tennis';
 
 export interface CourtAttributes {
     id: number;
     facility_id: number;
     name: string;
-    court_type: number;
+    court_type: CourtType;
     is_active: boolean;
     created_at?: Date;
     updated_at?: Date;
     deleted_at?: Date;
 }
 
-export interface CourtCreationAttributes extends Optional<CourtAttributes, 'id' | 'is_active'> {}
+export interface CourtCreationAttributes extends Optional<CourtAttributes, 'id' | 'is_active'> { }
 
 class Court extends Model<CourtAttributes, CourtCreationAttributes> implements CourtAttributes {
     declare id: number;
     declare facility_id: number;
     declare name: string;
-    declare court_type: number;
+    declare court_type: CourtType;
     declare is_active: boolean;
 
     declare readonly created_at: Date;
@@ -42,9 +44,8 @@ Court.init(
             allowNull: false,
         },
         court_type: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(50),
             allowNull: false,
-            references: { model: 'court_types', key: 'id' },
         },
         is_active: {
             type: DataTypes.BOOLEAN,

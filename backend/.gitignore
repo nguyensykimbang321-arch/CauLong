@@ -2,6 +2,8 @@
 # 1. THƯ VIỆN BÊN THỨ 3 (TUYỆT ĐỐI KHÔNG PUSH)
 # ==========================================
 node_modules/
+backend/dist/
+web-admin/dist/
 
 # ==========================================
 # 2. BIẾN MÔI TRƯỜNG & BẢO MẬT (RẤT QUAN TRỌNG)

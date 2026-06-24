@@ -32,6 +32,7 @@ export class CourtService {
         });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     static async getCourtById(id: number) {
         const court = await models.Court.findOne({
             where: {id: id, is_active: true },
@@ -72,7 +73,7 @@ export class CourtService {
         const courtTypeId = await CourtTypeService.resolveToId(data.court_type);
 
         if(existingCourt){
-            if(existingCourt.is_active){
+            if(!existingCourt.is_active){
                 await existingCourt.update({
                     name: data.name,
                     facility_id: data.facility_id,
@@ -124,7 +125,7 @@ export class CourtService {
     }
 
     static async deleteCourt(id: number) {
-         const court = await this.getCourtById(id);    
+         const court = await this.getCourtByIdByAdmin(id);    
 
         await court.destroy(); 
         

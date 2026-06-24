@@ -6,7 +6,7 @@ export const checkAvailabilitySchema = z.object({
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có định dạng YYYY-MM-DD'),
         start_time: z.string().regex(/^\d{2}:\d{2}$/, 'Giờ bắt đầu phải có định dạng HH:mm'),
         end_time: z.string().regex(/^\d{2}:\d{2}$/, 'Giờ kết thúc phải có định dạng HH:mm'),
-        court_type: z.coerce.number().positive('court_type phải là ID loại sân hợp lệ').optional()
+        court_type: z.enum(['badminton', 'tennis', 'football', 'table_tennis']).optional(),
     })
 });
 export type CheckAvailabilityQuery = z.infer<typeof checkAvailabilitySchema>['query'];
@@ -55,7 +55,7 @@ export const createBookingByHotlineSchema = z.object({
     body: z.object({
         customer_phone: z.string({ message: 'Số điện thoại là bắt buộc' }).min(10, 'SĐT không hợp lệ'),
         customer_name: z.string().optional(),
-
+        membership_type: z.enum(['standard', 'student', 'vip']).optional().default('standard'),
         facility_id: z.number({ message: 'ID cơ sở là bắt buộc' }),
         court_id: z.number({ message: 'ID sân là bắt buộc' }),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải là YYYY-MM-DD'),
@@ -69,6 +69,7 @@ export const updateBookingStatusSchema = z.object({
     body: z.object({
         status: z.enum(['pending', 'confirmed', 'cancelled', 'completed', 'no_show']).optional(),
         payment_status: z.enum(['unpaid', 'partial', 'paid', 'refunded']).optional(),
+        payment_method: z.enum(['cash', 'vnpay']).optional(),
     })
 });
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>['body'];

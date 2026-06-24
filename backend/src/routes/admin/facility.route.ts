@@ -7,15 +7,15 @@ import { createFacilitySchema, updateFacilitySchema } from '../../validations/fa
 
 const router = Router();
 
-router.use(verifyToken, requireRoles(['admin', 'staff']));
+router.use(verifyToken);
 
-router.get('/', FacilityController.getAll);
-router.get('/trash', FacilityController.getTrash); 
-router.post('/:id/restore', FacilityController.restore);
-router.get('/:id', FacilityController.getById);
-router.get('/:id/courts', FacilityController.getFacilityWithCourts);
-router.post('/', validate(createFacilitySchema), FacilityController.create);
-router.put('/:id', validate(updateFacilitySchema), FacilityController.update);
-router.delete('/:id', FacilityController.delete);
+router.get('/', requireRoles(['admin', 'staff']), FacilityController.getAll);
+router.get('/trash', requireRoles(['admin', 'staff']), FacilityController.getTrash); 
+router.post('/:id/restore', requireRoles(['admin']), FacilityController.restore);
+router.get('/:id', requireRoles(['admin', 'staff']), FacilityController.getById);
+router.get('/:id/courts', requireRoles(['admin', 'staff']), FacilityController.getFacilityWithCourts);
+router.post('/', requireRoles(['admin']), validate(createFacilitySchema), FacilityController.create);
+router.put('/:id', requireRoles(['admin']), validate(updateFacilitySchema), FacilityController.update);
+router.delete('/:id', requireRoles(['admin']), FacilityController.delete);
 
 export default router;

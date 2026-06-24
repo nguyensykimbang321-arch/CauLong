@@ -159,7 +159,7 @@ const FacilityPage = () => {
                 // 🔥 NẾU Ở DANH SÁCH BÌNH THƯỜNG -> HIỆN SỬA & XÓA
                 return (
                     <Space size="middle">
-                        <Button type="text" className="text-green-500" onClick={() => { /* ... code cũ */ }}>
+                        <Button type="text" className="text-green-500" onClick={() => { setEditingFacility(record); setOpenModal(true); }}>
                             Sửa
                         </Button>
 
