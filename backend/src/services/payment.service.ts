@@ -96,6 +96,21 @@ export class PaymentService {
                 await t.rollback();
                 return { RspCode: '02', Message: 'Order already confirmed' };
             }
+
+            // Chống trùng lặp giao dịch trên bảng payments (Idempotency)
+            const existingVNPayPayment = await models.Payment.findOne({
+                where: {
+                    booking_id: booking.id,
+                    provider: 'vnpay',
+                    status: 'paid'
+                },
+                transaction: t
+            });
+            if (existingVNPayPayment) {
+                await t.rollback();
+                return { RspCode: '02', Message: 'Order already confirmed' };
+            }
+
             if (booking.total_cents !== vnp_Amount) {
                 await t.rollback();
                 return { RspCode: '04', Message: 'Invalid amount' };
@@ -105,6 +120,7 @@ export class PaymentService {
                 // --- THÀNH CÔNG ---
                 await booking.update({
                     payment_status: 'paid',
+                    payment_method: 'vnpay',
                     status: 'confirmed'
                 }, { transaction: t });
 

@@ -69,6 +69,7 @@ export const updateBookingStatusSchema = z.object({
     body: z.object({
         status: z.enum(['pending', 'confirmed', 'cancelled', 'completed', 'no_show']).optional(),
         payment_status: z.enum(['unpaid', 'partial', 'paid', 'refunded']).optional(),
+        payment_method: z.enum(['cash', 'vnpay']).optional(),
     })
 });
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>['body'];

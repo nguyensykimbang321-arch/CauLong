@@ -411,28 +411,57 @@ export class BookingService {
     }
 
     static async updateBookingStatus(id: number, data: UpdateBookingStatusInput) {
-        const booking = await models.Booking.findByPk(id);
-        if (!booking) throw new ApiError('Không tìm thấy lịch đặt này', 404);
+        const t = await sequelize.transaction();
+        try {
+            const booking = await models.Booking.findByPk(id, { transaction: t });
+            if (!booking) throw new ApiError('Không tìm thấy lịch đặt này', 404);
 
-        if (data.status && data.status != booking.status) {
-            const validNextStates = BOOKING_STATUS_TRANSITIONS[booking.status] || [];
+            if (data.status && data.status != booking.status) {
+                const validNextStates = BOOKING_STATUS_TRANSITIONS[booking.status] || [];
 
-            if (!validNextStates.includes(data.status)) {
-                throw new ApiError(`Không thể chuyển trạng thái từ '${booking.status}' sang '${data.status}'`, 400);
+                if (!validNextStates.includes(data.status)) {
+                    throw new ApiError(`Không thể chuyển trạng thái từ '${booking.status}' sang '${data.status}'`, 400);
+                }
             }
-        }
 
-        if (data.payment_status && data.payment_status !== booking.payment_status) {
-            const validNextPaymentStates = PAYMENT_STATUS_TRANSITIONS[booking.payment_status] || [];
+            if (data.payment_status && data.payment_status !== booking.payment_status) {
+                const validNextPaymentStates = PAYMENT_STATUS_TRANSITIONS[booking.payment_status] || [];
 
-            if (!validNextPaymentStates.includes(data.payment_status)) {
-                throw new ApiError(`Không thể chuyển trạng thái thanh toán từ '${booking.payment_status}' sang '${data.payment_status}'`, 400);
+                if (!validNextPaymentStates.includes(data.payment_status)) {
+                    throw new ApiError(`Không thể chuyển trạng thái thanh toán từ '${booking.payment_status}' sang '${data.payment_status}'`, 400);
+                }
             }
+
+            await booking.update(data as any, { transaction: t });
+
+            // Đồng bộ dữ liệu thanh toán tiền mặt (cash)
+            if (booking.payment_status === 'paid' && booking.payment_method === 'cash') {
+                const existingCashPayment = await models.Payment.findOne({
+                    where: {
+                        booking_id: booking.id,
+                        provider: 'cash',
+                        status: 'paid'
+                    },
+                    transaction: t
+                });
+
+                if (!existingCashPayment) {
+                    await models.Payment.create({
+                        booking_id: booking.id,
+                        provider: 'cash',
+                        status: 'paid',
+                        amount_cents: booking.total_cents,
+                        paid_at: new Date()
+                    }, { transaction: t });
+                }
+            }
+
+            await t.commit();
+            return booking;
+        } catch (error) {
+            await t.rollback();
+            throw error;
         }
-
-        await booking.update(data as any);
-
-        return booking;
     }
     static async validateBookingTimes(date: string, startTime: string, endTime: string) {
         const startDateTime = dayjs(`${date} ${startTime}`, 'YYYY-MM-DD HH:mm');
