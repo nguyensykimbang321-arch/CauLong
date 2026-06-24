@@ -85,3 +85,8 @@ export interface DailySlotGridResponse {
   }[]>;
   rawBookedSlots: BookedSlotDTO[];
 }
+
+export interface FacilityLite {
+  id: number;
+  name: string;
+}

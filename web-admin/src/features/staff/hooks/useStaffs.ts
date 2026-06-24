@@ -3,13 +3,7 @@ import { StaffService } from '../services/staff.service';
 import { message } from 'antd';
 import type { AxiosError } from 'axios';
 import type { ApiErrorResponse } from '../../../types/api.type';
-import type { Staff } from '../types/staff.types';
-
-export interface GetStaffsParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-}
+import type { Staff, GetStaffsParams } from '../types/staff.types';
 
 export const useStaffs = (initialParams?: GetStaffsParams) => {
   const [staffs, setStaffs] = useState<Staff[]>([]);
