@@ -24,6 +24,7 @@ export interface Booking {
   total_cents: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   payment_status: 'paid' | 'unpaid';
+  payment_method?: 'cash' | 'vnpay';
   created_at: string;
   
   user?: BookingUser;

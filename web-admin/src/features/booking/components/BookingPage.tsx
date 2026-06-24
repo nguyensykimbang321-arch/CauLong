@@ -90,6 +90,16 @@ const BookingPage: React.FC = () => {
       },
     },
     {
+      title: 'Phương thức',
+      dataIndex: 'payment_method',
+      key: 'payment_method',
+      render: (method?: 'cash' | 'vnpay') => {
+        if (!method) return '-';
+        const isVNPay = method === 'vnpay';
+        return <Tag color={isVNPay ? 'blue' : 'green'}>{isVNPay ? 'VNPay' : 'Tiền mặt'}</Tag>;
+      },
+    },
+    {
       title: 'Hành động',
       key: 'action',
       render: (_: any, record: Booking) => (
