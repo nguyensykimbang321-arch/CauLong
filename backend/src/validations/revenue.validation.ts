@@ -46,6 +46,7 @@ export const getRevenueTransactionsSchema = z.object({
       .positive('ID cơ sở phải lớn hơn 0')
       .optional(),
     provider: z.enum(['cash', 'vnpay', 'all']).default('all'),
+    source: z.enum(['booking', 'order', 'all']).default('all'),
     page: z.coerce.number()
       .int('Trang phải là số nguyên')
       .min(1, 'Trang phải lớn hơn hoặc bằng 1')

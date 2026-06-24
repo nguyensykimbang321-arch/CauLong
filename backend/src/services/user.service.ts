@@ -2,15 +2,17 @@ import bcrypt from 'bcryptjs';
 import models from '../models/index.js';
 import ApiError from '../utils/ErrorClass.js';
 import sequelize from '../config/database.js';
+import type { Transaction } from 'sequelize';
 
 export class UserService {
     static async getUserByPhone(phone: string) {
         return await models.User.findOne({
-            where: { phone, role: 'customer' }
+            where: { phone, role: 'customer' },
+            attributes: { exclude: ['password_hash'] }
         });
     }
 
-    static async createGuestUser(phone: string, fullName: string) {
+    static async createGuestUser(phone: string, fullName: string, membershipType: 'standard' | 'student' | 'vip' = 'standard') {
 
         const randomPassword = Math.random().toString(36).slice(-8);
         const salt = await bcrypt.genSalt(10);
@@ -20,11 +22,38 @@ export class UserService {
 
         return await models.User.create({
             email: dummyEmail,
-            full_name:fullName,
+            full_name: fullName,
             phone: phone,
             password_hash: hashedPassword,
-            role: 'customer'
+            role: 'customer',
+            membership_type: membershipType,
+            loyalty_points: 0
         });
+    }
+
+    static async addPointsAndUpgrade(userId: number, amountPaid: number, transaction?: Transaction) {
+        const findOptions = transaction
+            ? { transaction, lock: transaction.LOCK.UPDATE }
+            : {};
+        const user = await models.User.findByPk(userId, findOptions);
+
+        if (!user) return;
+
+        const pointsEarned = Math.floor(amountPaid / 10000);
+        
+        if (pointsEarned > 0) {
+            user.loyalty_points += pointsEarned;
+
+            const VIP_THRESHOLD = 1000;
+            
+            if (user.loyalty_points >= VIP_THRESHOLD && user.membership_type !== 'vip') {
+                user.membership_type = 'vip';
+                console.log(`[Hệ thống] Khách hàng ${user.full_name} đã được thăng hạng VIP!`);
+            }
+
+            const saveOptions = transaction ? { transaction } : {};
+            await user.save(saveOptions);
+        }
     }
 
     static async createStaff(staffData: any) {

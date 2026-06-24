@@ -3,6 +3,7 @@ import { VNPayUtils } from '../utils/vnpay.js';
 import sequelize from '../config/database.js';
 import { InventoryService } from './inventory.service.js';
 import { Op } from 'sequelize';
+import { UserService } from './user.service.js';
 
 export class PaymentService {
     static async processVNPayIPN(vnpayQuery: any) {
@@ -132,6 +133,10 @@ export class PaymentService {
                     provider_ref: vnpayQuery.vnp_TransactionNo,
                     paid_at: new Date()
                 }, { transaction: t });
+
+                if (booking.user_id) {
+                    await UserService.addPointsAndUpgrade(booking.user_id, booking.total_cents, t);
+                }
             } else {
                 // --- THẤT BẠI ---
                 await booking.update({

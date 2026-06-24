@@ -34,9 +34,12 @@ export interface Booking {
   slots?: BookingSlot[];
 }
 
+export type MembershipType = 'standard' | 'student' | 'vip';
+
 export interface CreateBookingPayload {
   customer_phone: string;
   customer_name?: string;
+  membership_type?: MembershipType;
   facility_id: number;
   court_id: number;
   date: string;
@@ -63,6 +66,7 @@ export interface CourtLite {
 export interface BookingFormValues {
   phone: string;
   full_name?: string;
+  membership_type?: MembershipType;
   facility_id: number;
   court_type: string;
   court_id: number;

@@ -7,6 +7,7 @@ import ApiError from '../utils/ErrorClass.js';
 import { BOOKING_STATUS_TRANSITIONS, PAYMENT_STATUS_TRANSITIONS } from '../constants/booking.constant.js';
 import { PricingService } from './pricing.service.js';
 import { VNPayUtils } from '../utils/vnpay.js';
+import { UserService } from './user.service.js';
 
 export class BookingService {
     static async getAvailableCourts(facilityId: number, startDateTime: Date, endDateTime: Date, courtType?: string) {
@@ -454,6 +455,10 @@ export class BookingService {
                         amount_cents: booking.total_cents,
                         paid_at: new Date()
                     }, { transaction: t });
+
+                    if (booking.user_id) {
+                        await UserService.addPointsAndUpgrade(booking.user_id, booking.total_cents, t);
+                    }
                 }
             }
 
@@ -487,7 +492,7 @@ export class BookingService {
     }
 
     static async createBookingByHotline(data: any) {
-        const { customer_phone, ...bookingData } = data;
+        const { customer_phone, customer_name, membership_type, ...bookingData } = data;
 
         // 1. Tìm hoặc tạo user qua SĐT
         let user = await models.User.findOne({
@@ -496,20 +501,17 @@ export class BookingService {
 
         const isNewUser = !user;
         if (!user) {
-            const randomPassword = Math.random().toString(36).slice(-8);
-            const salt = await (import('bcryptjs').then(m => m.default.genSalt(10)));
-            const hashedPassword = await (import('bcryptjs').then(m => m.default.hash(randomPassword, salt)));
-            const dummyEmail = `guest_${customer_phone}@thethaovip.local`;
-
-            user = await models.User.create({
-                email: dummyEmail,
-                phone: customer_phone,
-                password_hash: hashedPassword,
-                role: 'customer'
-            });
+            const nameToSave = customer_name || 'Khách vãng lai';
+            user = await UserService.createGuestUser(customer_phone, nameToSave, membership_type);
         }
 
-        const result = await this.createBooking(user.id, bookingData);
+        const payloadToService = {
+            ...bookingData,
+            status: 'confirmed' as const,
+            payment_method: 'cash' as const,
+        };
+
+        const result = await this.createBooking(user.id, payloadToService);
 
         return {
             booking: result,

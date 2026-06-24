@@ -88,6 +88,7 @@ export class RevenueController {
       const to = typeof query.to === 'string' ? query.to : undefined;
       const facility_id = typeof query.facility_id === 'string' ? Number(query.facility_id) : undefined;
       const provider = typeof query.provider === 'string' ? (query.provider as 'cash' | 'vnpay' | 'all') : undefined;
+      const source = typeof query.source === 'string' ? (query.source as 'booking' | 'order' | 'all') : undefined;
       const page = typeof query.page === 'string' ? Number(query.page) : undefined;
       const limit = typeof query.limit === 'string' ? Number(query.limit) : undefined;
       const sortBy = typeof query.sortBy === 'string' ? (query.sortBy as 'paidAt' | 'amount') : undefined;
@@ -98,12 +99,14 @@ export class RevenueController {
         to?: string;
         facility_id?: number;
         provider: 'cash' | 'vnpay' | 'all';
+        source: 'booking' | 'order' | 'all';
         page: number;
         limit: number;
         sortBy: 'paidAt' | 'amount';
         sortOrder: 'asc' | 'desc';
       } = {
         provider: provider ?? 'all',
+        source: source ?? 'all',
         page: page ?? 1,
         limit: limit ?? 20,
         sortBy: sortBy ?? 'paidAt',

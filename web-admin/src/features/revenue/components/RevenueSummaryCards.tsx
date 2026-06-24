@@ -4,7 +4,11 @@ import {
   DollarOutlined,
   CalendarOutlined,
   CreditCardOutlined,
-  AccountBookOutlined
+  AccountBookOutlined,
+  ShopOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
+  TagOutlined,
 } from '@ant-design/icons';
 import type { RevenueSummary } from '../types/revenue.types';
 
@@ -23,6 +27,10 @@ export const RevenueSummaryCards: React.FC<RevenueSummaryCardsProps> = ({ data, 
 
   const totalRevenue = data?.total_amount_cents ?? 0;
   const totalTransactions = data?.total_transactions ?? 0;
+  const bookingRevenue = data?.booking_amount_cents ?? 0;
+  const orderRevenue = data?.order_amount_cents ?? 0;
+  const bookingTransactions = data?.booking_transactions ?? 0;
+  const orderTransactions = data?.order_transactions ?? 0;
   const cashRevenue = data?.cash_amount_cents ?? 0;
   const vnpayRevenue = data?.vnpay_amount_cents ?? 0;
 
@@ -34,10 +42,34 @@ export const RevenueSummaryCards: React.FC<RevenueSummaryCardsProps> = ({ data, 
       bgColor: 'bg-blue-50',
     },
     {
-      title: 'Tổng số giao dịch',
-      value: (totalTransactions).toLocaleString('vi-VN') + ' GD',
+      title: 'Doanh thu đặt sân',
+      value: formatMoney(bookingRevenue),
       icon: <CalendarOutlined className="text-2xl text-green-600" />,
       bgColor: 'bg-green-50',
+    },
+    {
+      title: 'Doanh thu bán hàng/POS',
+      value: formatMoney(orderRevenue),
+      icon: <ShopOutlined className="text-2xl text-orange-600" />,
+      bgColor: 'bg-orange-50',
+    },
+    {
+      title: 'Tổng số giao dịch',
+      value: totalTransactions.toLocaleString('vi-VN') + ' GD',
+      icon: <CheckCircleOutlined className="text-2xl text-purple-600" />,
+      bgColor: 'bg-purple-50',
+    },
+    {
+      title: 'Số booking đã thanh toán',
+      value: bookingTransactions.toLocaleString('vi-VN') + ' GD',
+      icon: <TagOutlined className="text-2xl text-emerald-600" />,
+      bgColor: 'bg-emerald-50',
+    },
+    {
+      title: 'Số order đã thanh toán',
+      value: orderTransactions.toLocaleString('vi-VN') + ' GD',
+      icon: <UserOutlined className="text-2xl text-teal-600" />,
+      bgColor: 'bg-teal-50',
     },
     {
       title: 'Doanh thu tiền mặt',

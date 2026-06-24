@@ -33,14 +33,25 @@ export const RevenueTable: React.FC<RevenueTableProps> = ({
       dataIndex: 'payment_id',
       key: 'payment_id',
       width: 100,
-      render: (id: number) => <span className="font-semibold text-gray-700">#{id}</span>,
+      render: (id: number) => <span className="font-semibold text-gray-700 font-mono">#{id}</span>,
     },
     {
-      title: 'Mã Booking',
-      dataIndex: 'booking_id',
-      key: 'booking_id',
-      width: 130,
-      render: (id: number) => <span className="font-semibold text-blue-600">#{id}</span>,
+      title: 'Nguồn & Mã quy chiếu',
+      dataIndex: 'source',
+      key: 'source',
+      width: 180,
+      render: (source: 'booking' | 'order', record: RevenueTransactionItem) => {
+        const isBooking = source === 'booking';
+        const refId = record.booking_id || record.order_id || '';
+        return (
+          <div className="flex flex-col gap-1">
+            <Tag color={isBooking ? 'blue' : 'orange'} className="w-fit m-0">
+              {isBooking ? 'Đặt sân' : 'Bán lẻ / POS'}
+            </Tag>
+            <span className="text-xs text-gray-400 font-mono">ID: #{refId}</span>
+          </div>
+        );
+      },
     },
     {
       title: 'Số tiền',
@@ -71,7 +82,7 @@ export const RevenueTable: React.FC<RevenueTableProps> = ({
       title: 'Cơ sở',
       dataIndex: 'facility_name',
       key: 'facility_name',
-      render: (name: string | null) => name || <span className="text-gray-400 italic">N/A</span>,
+      render: (name: string | null) => name || <span className="text-gray-400 italic">Toàn hệ thống</span>,
     },
     {
       title: 'Thời gian',

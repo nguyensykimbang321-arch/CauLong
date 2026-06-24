@@ -55,7 +55,7 @@ export const createBookingByHotlineSchema = z.object({
     body: z.object({
         customer_phone: z.string({ message: 'Số điện thoại là bắt buộc' }).min(10, 'SĐT không hợp lệ'),
         customer_name: z.string().optional(),
-        
+        membership_type: z.enum(['standard', 'student', 'vip']).optional().default('standard'),
         facility_id: z.number({ message: 'ID cơ sở là bắt buộc' }),
         court_id: z.number({ message: 'ID sân là bắt buộc' }),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải là YYYY-MM-DD'),

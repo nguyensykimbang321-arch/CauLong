@@ -15,7 +15,8 @@ export class PriceConfigService {
         const cached = await getCache<PriceConfigAttributes[]>(cacheKey);
         if (cached) {
             return cached.map(item => models.PriceConfig.build(item, {
-                isNewRecord: false
+                isNewRecord: false,
+                include: [{ model: models.Facility, as: 'facility' }]
             }));
         }
 

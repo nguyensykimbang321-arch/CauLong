@@ -3,7 +3,7 @@ import { DatePicker, Select, Card, Button } from 'antd';
 import dayjs from 'dayjs';
 import { FacilityService } from '../../facility/services/facility.service';
 import type { Facility } from '../../facility/types/facility.type';
-import type { RevenueGroupBy, RevenueProvider } from '../types/revenue.types';
+import type { RevenueGroupBy, RevenueProvider, RevenueSource } from '../types/revenue.types';
 
 const { RangePicker } = DatePicker;
 
@@ -12,10 +12,12 @@ interface RevenueFilterBarProps {
   to: string;
   groupBy: RevenueGroupBy;
   provider: RevenueProvider | 'all';
+  source: RevenueSource | 'all';
   facilityId: number | undefined;
   onDateRangeChange: (dates: [string, string]) => void;
   onGroupByChange: (group: RevenueGroupBy) => void;
   onProviderChange: (prov: RevenueProvider | 'all') => void;
+  onSourceChange: (src: RevenueSource | 'all') => void;
   onFacilityChange: (id: number | undefined) => void;
   onRefresh: () => void;
   loading: boolean;
@@ -26,10 +28,12 @@ export const RevenueFilterBar: React.FC<RevenueFilterBarProps> = ({
   to,
   groupBy,
   provider,
+  source,
   facilityId,
   onDateRangeChange,
   onGroupByChange,
   onProviderChange,
+  onSourceChange,
   onFacilityChange,
   onRefresh,
   loading,
@@ -119,6 +123,20 @@ export const RevenueFilterBar: React.FC<RevenueFilterBarProps> = ({
                 { value: 'all', label: 'Tất cả PTTT' },
                 { value: 'cash', label: 'Tiền mặt' },
                 { value: 'vnpay', label: 'VNPay' },
+              ]}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 font-medium">Nguồn:</span>
+            <Select
+              value={source}
+              onChange={onSourceChange}
+              className="w-36"
+              options={[
+                { value: 'all', label: 'Tất cả nguồn' },
+                { value: 'booking', label: 'Đặt sân' },
+                { value: 'order', label: 'Bán hàng/POS' },
               ]}
             />
           </div>

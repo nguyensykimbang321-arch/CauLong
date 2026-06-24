@@ -41,31 +41,12 @@ export class AdminBookingController {
         try {
             const body = req.body as CreateBookingByHotlineInput;
             
-            const {customer_phone, customer_name, ...bookingData } = body;
+            const result = await BookingService.createBookingByHotline(body);
 
-            // 1. Tìm user qua SĐT
-            let user = await UserService.getUserByPhone(customer_phone);
-            if (!user) {
-                user = await UserService.createGuestUser(customer_phone, customer_name as string);
-            }
-
-            // 2. Chốt cứng trạng thái cho Lễ tân
-            const payloadToService = {
-                ...bookingData,
-                status: 'confirmed' as const,
-                payment_method: 'cash' as const,
-            };
-
-            // 3. Gọi Core Service
-            const result = await BookingService.createBooking(user.id, payloadToService);
-
-            // 4. Trả về thông báo thông minh
             return AppResponse.success(
                 res, 
-                result, 
-                user.created_at.getTime() === user.updated_at.getTime() 
-                    ? 'Đã tạo tài khoản mới và đặt sân hộ khách thành công' 
-                    : 'Đã đặt sân hộ khách thành công', 
+                result.booking, 
+                result.message, 
                 201
             );
         } catch (error) {

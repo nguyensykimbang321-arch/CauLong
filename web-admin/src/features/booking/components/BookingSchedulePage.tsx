@@ -86,6 +86,7 @@ const BookingSchedulePage: React.FC = () => {
          facility_id: selectedFacilityId,
          court_type: selectedCourtType,
          court_id: court.id,
+         play_date: selectedDate.format('YYYY-MM-DD'),
          start_time: slot.start
       });
       setIsModalOpen(true);

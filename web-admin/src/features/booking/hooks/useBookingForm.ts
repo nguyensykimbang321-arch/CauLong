@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Form, message } from 'antd';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -19,6 +19,7 @@ interface UseBookingFormProps {
     facility_id?: number;
     court_type?: string;
     court_id?: number;
+    play_date?: dayjs.Dayjs | string;
     start_time?: string;
   } | null;
 }
@@ -28,12 +29,22 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
   
   const [loading, setLoading] = useState(false);
   const [searchingPhone, setSearchingPhone] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState(false);
+  const [foundCustomer, setFoundCustomer] = useState<{
+    id: number;
+    full_name: string | null;
+    phone: string | null;
+    membership_type: 'standard' | 'student' | 'vip';
+    loyalty_points: number;
+  } | null>(null);
   
   const [bookedSlots, setBookedSlots] = useState<BookedSlotDTO[]>([]);
   const [facilities, setFacilities] = useState<FacilityLite[]>([]);
   const [facilityCourts, setFacilityCourts] = useState<CourtLite[]>([]);
   const [availableCourtTypes, setAvailableCourtTypes] = useState<string[]>([]);
   const [courts, setCourts] = useState<CourtLite[]>([]);
+
+  const isInitialMountRef = useRef(false);
 
   const { user } = useAuthStore();
   const staffFacilityId = (user as any)?.staff_profile?.facility_id;
@@ -46,28 +57,44 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
   useEffect(() => {
     if (open) {
       form.resetFields();
+      setIsExistingUser(false);
+      setFoundCustomer(null);
+      isInitialMountRef.current = true;
+
       FacilityService.getAllFacilities()
         .then(res => setFacilities(res.data))
         .catch(err => console.error("Lỗi lấy cơ sở:", err));
 
       if (initialData) {
+         const playDateVal = initialData.play_date ? dayjs(initialData.play_date) : undefined;
+         const startTimeVal = initialData.start_time ? dayjs(initialData.start_time, 'HH:mm') : undefined;
+         const endTimeVal = startTimeVal ? startTimeVal.add(1, 'hour') : undefined;
+
          form.setFieldsValue({
             facility_id: initialData.facility_id,
             court_type: initialData.court_type,
             court_id: initialData.court_id,
-            // Chuyển chuỗi "08:00" thành Dayjs object cho TimePicker
-            start_time: initialData.start_time ? dayjs(initialData.start_time, 'HH:mm') : undefined
+            play_date: playDateVal,
+            start_time: startTimeVal,
+            end_time: endTimeVal
          });
       } else if (staffFacilityId) {
-        // Nếu không có initialData (bấm nút Tạo đơn ngoài list), thì vẫn set mặc định như cũ
         form.setFieldValue('facility_id', staffFacilityId);
       }
+
+      setTimeout(() => {
+        isInitialMountRef.current = false;
+      }, 0);
     }
   }, [open, staffFacilityId, form, initialData]);
 
   useEffect(() => {
     if (selectedFacilityId) {
-      form.setFieldsValue({ court_type: undefined, court_id: undefined } as any); 
+      if (isInitialMountRef.current && initialData && initialData.facility_id === selectedFacilityId) {
+        // Skip reset on initial load if matches initialData
+      } else {
+        form.setFieldsValue({ court_type: undefined, court_id: undefined } as any); 
+      }
       
       FacilityService.getCourtsByFacility(selectedFacilityId)
         .then(res => {
@@ -77,7 +104,11 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
           const uniqueTypes = Array.from(new Set(courtsData.map((c: any) => c.court_type))) as string[];
           setAvailableCourtTypes(uniqueTypes);
 
-          if (uniqueTypes.length === 1) {
+          if (isInitialMountRef.current && initialData && initialData.facility_id === selectedFacilityId) {
+            if (initialData.court_type && uniqueTypes.includes(initialData.court_type)) {
+              form.setFieldValue('court_type', initialData.court_type);
+            }
+          } else if (uniqueTypes.length === 1) {
             form.setFieldValue('court_type', uniqueTypes[0]);
           }
         })
@@ -87,17 +118,23 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
       setAvailableCourtTypes([]);
       setCourts([]);
     }
-  }, [selectedFacilityId, form]);
+  }, [selectedFacilityId, form, initialData]);
 
   useEffect(() => {
     if (selectedCourtType && facilityCourts.length > 0) {
-      form.setFieldValue('court_id', undefined);
+      if (isInitialMountRef.current && initialData && initialData.court_type === selectedCourtType && initialData.facility_id === selectedFacilityId) {
+        if (initialData.court_id) {
+          form.setFieldValue('court_id', initialData.court_id);
+        }
+      } else {
+        form.setFieldValue('court_id', undefined);
+      }
       const filteredCourts = facilityCourts.filter(c => c.court_type === selectedCourtType);
       setCourts(filteredCourts);
     } else {
       setCourts([]);
     }
-  }, [selectedCourtType, facilityCourts, form]);
+  }, [selectedCourtType, facilityCourts, form, initialData, selectedFacilityId]);
 
   useEffect(() => {
     if (selectedDate && selectedFacilityId && selectedCourtType && open) {
@@ -130,14 +167,31 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
 
     try {
       setSearchingPhone(true);
-      const res = await BookingService.getUserByPhone(phone);
-      if (res.data && res.data.full_name) {
-        form.setFieldValue('full_name', res.data.full_name);
-        message.success(`Đã tự động điền thông tin khách: ${res.data.full_name}`);
+      const res = await BookingService.searchCustomerByPhone(phone);
+      if (res.data && res.data.phone) {
+        const user = res.data;
+        form.setFieldsValue({
+          full_name: user.full_name || '',
+          membership_type: user.membership_type || 'standard'
+        });
+        setIsExistingUser(true);
+        setFoundCustomer(user);
+        message.success(`Tìm thấy khách quen: ${user.full_name || 'Khách vãng lai'} (${user.membership_type})`);
+      } else {
+        form.setFieldsValue({ full_name: '', membership_type: 'standard' });
+        setIsExistingUser(false);
+        setFoundCustomer(null);
+        message.info('Khách hàng mới. Vui lòng nhập thông tin');
       }
     } catch (error: any) {
-      if (error.response?.status !== 404) console.error("Lỗi gọi API tìm SĐT:", error);
-      else form.setFieldValue('full_name', undefined);
+      form.setFieldsValue({ full_name: '', membership_type: 'standard' });
+      setIsExistingUser(false);
+      setFoundCustomer(null);
+      if (error.response?.status === 404) {
+        message.info('Khách hàng mới. Vui lòng nhập thông tin');
+      } else {
+        console.error("Lỗi gọi API tìm SĐT:", error);
+      }
     } finally {
       setSearchingPhone(false);
     }
@@ -167,6 +221,7 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
       const payload: CreateBookingPayload = {
         customer_phone: values.phone,
         customer_name: values.full_name,
+        membership_type: values.membership_type,
         facility_id: values.facility_id,
         court_id: values.court_id,
         date: values.play_date.format('YYYY-MM-DD'),
@@ -192,6 +247,8 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
     form,
     loading,
     searchingPhone,
+    isExistingUser,
+    foundCustomer,
     facilities,
     availableCourtTypes,
     courts,

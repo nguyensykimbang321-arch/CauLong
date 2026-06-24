@@ -9,6 +9,7 @@ import type {
   RevenueTransactionItem,
   RevenueGroupBy,
   RevenueProvider,
+  RevenueSource,
 } from '../types/revenue.types';
 
 export const useRevenue = () => {
@@ -18,6 +19,7 @@ export const useRevenue = () => {
   const [toDate, setToDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [groupBy, setGroupBy] = useState<RevenueGroupBy>('day');
   const [provider, setProvider] = useState<RevenueProvider | 'all'>('all');
+  const [source, setSource] = useState<RevenueSource | 'all'>('all');
   const [facilityId, setFacilityId] = useState<number | undefined>(undefined);
 
   const [page, setPage] = useState<number>(1);
@@ -52,6 +54,7 @@ export const useRevenue = () => {
       const transParams = {
         ...queryParams,
         provider,
+        source,
         page,
         limit,
       };
@@ -76,7 +79,7 @@ export const useRevenue = () => {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate, facilityId, groupBy, provider, page, limit]);
+  }, [fromDate, toDate, facilityId, groupBy, provider, source, page, limit]);
 
   useEffect(() => {
     fetchRevenueData();
@@ -97,6 +100,11 @@ export const useRevenue = () => {
     setPage(1);
   };
 
+  const handleSourceChange = (src: RevenueSource | 'all') => {
+    setSource(src);
+    setPage(1);
+  };
+
   const handleFacilityChange = (id: number | undefined) => {
     setFacilityId(id);
     setPage(1);
@@ -113,6 +121,7 @@ export const useRevenue = () => {
       to: toDate,
       groupBy,
       provider,
+      source,
       facilityId,
     },
     pagination: {
@@ -130,6 +139,7 @@ export const useRevenue = () => {
     handleDateRangeChange,
     handleGroupByChange,
     handleProviderChange,
+    handleSourceChange,
     handleFacilityChange,
     handlePageChange,
   };

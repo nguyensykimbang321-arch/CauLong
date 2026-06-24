@@ -30,6 +30,7 @@ export const RevenuePage: React.FC = () => {
     handleDateRangeChange,
     handleGroupByChange,
     handleProviderChange,
+    handleSourceChange,
     handleFacilityChange,
     handlePageChange,
   } = useRevenue();
@@ -98,10 +99,12 @@ export const RevenuePage: React.FC = () => {
         to={filters.to}
         groupBy={filters.groupBy}
         provider={filters.provider}
+        source={filters.source}
         facilityId={filters.facilityId}
         onDateRangeChange={handleDateRangeChange}
         onGroupByChange={handleGroupByChange}
         onProviderChange={handleProviderChange}
+        onSourceChange={handleSourceChange}
         onFacilityChange={handleFacilityChange}
         onRefresh={refresh}
         loading={loading}

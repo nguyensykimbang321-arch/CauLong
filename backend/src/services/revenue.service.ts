@@ -4,7 +4,7 @@ import sequelize from '../config/database.js';
 import ApiError from '../utils/ErrorClass.js';
 import dayjs from 'dayjs';
 
-export interface PaymentWithBooking {
+export interface PaymentWithBookingOrOrder {
     id: number;
     provider: 'cash' | 'vnpay';
     status: 'pending' | 'paid' | 'failed' | 'refunded';
@@ -14,6 +14,13 @@ export interface PaymentWithBooking {
     paid_at: Date | null;
     created_at: Date;
     booking: {
+        id: number;
+        facility_id: number;
+        facility?: {
+            name: string;
+        } | null;
+    } | null;
+    order: {
         id: number;
         facility_id: number;
         facility?: {
@@ -52,7 +59,7 @@ export class RevenueService {
     }
 
     /**
-     * Tính toán tổng quan doanh thu booking
+     * Tính toán tổng quan doanh thu toàn hệ thống
      */
     static async getSummary(filters: { from?: string; to?: string; facility_id?: number }) {
         const { fromStr, toStr, fromDate, toDate, facilityId } = 
@@ -60,7 +67,6 @@ export class RevenueService {
 
         const whereClause: any = {
             status: 'paid',
-            booking_id: { [Op.ne]: null },
             [Op.and]: [
                 sequelize.where(
                     sequelize.fn('COALESCE', sequelize.col('Payment.paid_at'), sequelize.col('Payment.created_at')),
@@ -70,7 +76,10 @@ export class RevenueService {
         };
 
         if (facilityId) {
-            whereClause['$booking.facility_id$'] = facilityId;
+            whereClause[Op.or] = [
+                { '$booking.facility_id$': facilityId },
+                { '$order.facility_id$': facilityId }
+            ];
         }
 
         const paymentsRaw = await models.Payment.findAll({
@@ -80,19 +89,41 @@ export class RevenueService {
                     model: models.Booking,
                     as: 'booking',
                     attributes: ['id', 'facility_id'],
-                    required: true
+                    required: false
+                },
+                {
+                    model: models.Order,
+                    as: 'order',
+                    attributes: ['id', 'facility_id'],
+                    required: false
                 }
             ]
         });
 
-        const payments = paymentsRaw as unknown as PaymentWithBooking[];
+        const payments = paymentsRaw as unknown as PaymentWithBookingOrOrder[];
 
         let total_amount_cents = 0;
+        let booking_amount_cents = 0;
+        let order_amount_cents = 0;
         let cash_amount_cents = 0;
         let vnpay_amount_cents = 0;
 
+        const paidBookingIds = new Set<number>();
+        const paidOrderIds = new Set<number>();
+
         for (const p of payments) {
+            if (!p.booking_id && !p.order_id) continue;
+
             total_amount_cents += p.amount_cents;
+
+            if (p.booking_id) {
+                booking_amount_cents += p.amount_cents;
+                paidBookingIds.add(p.booking_id);
+            } else if (p.order_id) {
+                order_amount_cents += p.amount_cents;
+                paidOrderIds.add(p.order_id);
+            }
+
             if (p.provider === 'cash') {
                 cash_amount_cents += p.amount_cents;
             } else if (p.provider === 'vnpay') {
@@ -100,11 +131,18 @@ export class RevenueService {
             }
         }
 
+        const average_transaction_amount_cents = payments.length > 0 ? total_amount_cents / payments.length : 0;
+
         return {
             total_amount_cents,
             total_transactions: payments.length,
+            booking_amount_cents,
+            order_amount_cents,
+            booking_transactions: paidBookingIds.size,
+            order_transactions: paidOrderIds.size,
             cash_amount_cents,
             vnpay_amount_cents,
+            average_transaction_amount_cents,
             from: fromStr,
             to: toStr
         };
@@ -121,7 +159,6 @@ export class RevenueService {
 
         const whereClause: any = {
             status: 'paid',
-            booking_id: { [Op.ne]: null },
             [Op.and]: [
                 sequelize.where(
                     sequelize.fn('COALESCE', sequelize.col('Payment.paid_at'), sequelize.col('Payment.created_at')),
@@ -131,7 +168,10 @@ export class RevenueService {
         };
 
         if (facilityId) {
-            whereClause['$booking.facility_id$'] = facilityId;
+            whereClause[Op.or] = [
+                { '$booking.facility_id$': facilityId },
+                { '$order.facility_id$': facilityId }
+            ];
         }
 
         const paymentsRaw = await models.Payment.findAll({
@@ -141,14 +181,26 @@ export class RevenueService {
                     model: models.Booking,
                     as: 'booking',
                     attributes: ['id', 'facility_id'],
-                    required: true
+                    required: false
+                },
+                {
+                    model: models.Order,
+                    as: 'order',
+                    attributes: ['id', 'facility_id'],
+                    required: false
                 }
             ]
         });
 
-        const payments = paymentsRaw as unknown as PaymentWithBooking[];
+        const payments = paymentsRaw as unknown as PaymentWithBookingOrOrder[];
 
-        const chartMap = new Map<string, { label: string; total_amount_cents: number; total_transactions: number }>();
+        const chartMap = new Map<string, {
+            label: string;
+            total_amount_cents: number;
+            booking_amount_cents: number;
+            order_amount_cents: number;
+            total_transactions: number;
+        }>();
 
         // Điền khuyết dữ liệu
         if (group_by === 'day') {
@@ -159,6 +211,8 @@ export class RevenueService {
                 chartMap.set(label, {
                     label,
                     total_amount_cents: 0,
+                    booking_amount_cents: 0,
+                    order_amount_cents: 0,
                     total_transactions: 0
                 });
                 current = current.add(1, 'day');
@@ -171,6 +225,8 @@ export class RevenueService {
                 chartMap.set(label, {
                     label,
                     total_amount_cents: 0,
+                    booking_amount_cents: 0,
+                    order_amount_cents: 0,
                     total_transactions: 0
                 });
                 current = current.add(1, 'month');
@@ -178,6 +234,8 @@ export class RevenueService {
         }
 
         for (const p of payments) {
+            if (!p.booking_id && !p.order_id) continue;
+
             const dateVal = p.paid_at || p.created_at;
             const key = group_by === 'day' 
                 ? dayjs(dateVal).format('YYYY-MM-DD') 
@@ -187,6 +245,11 @@ export class RevenueService {
             if (item) {
                 item.total_amount_cents += p.amount_cents;
                 item.total_transactions += 1;
+                if (p.booking_id) {
+                    item.booking_amount_cents += p.amount_cents;
+                } else if (p.order_id) {
+                    item.order_amount_cents += p.amount_cents;
+                }
             }
         }
 
@@ -197,7 +260,7 @@ export class RevenueService {
     }
 
     /**
-     * Phân tích tỷ lệ doanh thu theo provider (breakdown)
+     * Phân tích tỷ lệ doanh thu theo provider & source
      */
     static async getBreakdown(filters: { from?: string; to?: string; facility_id?: number }) {
         const { fromDate, toDate, facilityId } = 
@@ -205,7 +268,6 @@ export class RevenueService {
 
         const whereClause: any = {
             status: 'paid',
-            booking_id: { [Op.ne]: null },
             [Op.and]: [
                 sequelize.where(
                     sequelize.fn('COALESCE', sequelize.col('Payment.paid_at'), sequelize.col('Payment.created_at')),
@@ -215,7 +277,10 @@ export class RevenueService {
         };
 
         if (facilityId) {
-            whereClause['$booking.facility_id$'] = facilityId;
+            whereClause[Op.or] = [
+                { '$booking.facility_id$': facilityId },
+                { '$order.facility_id$': facilityId }
+            ];
         }
 
         const paymentsRaw = await models.Payment.findAll({
@@ -225,25 +290,46 @@ export class RevenueService {
                     model: models.Booking,
                     as: 'booking',
                     attributes: ['id', 'facility_id'],
-                    required: true
+                    required: false
+                },
+                {
+                    model: models.Order,
+                    as: 'order',
+                    attributes: ['id', 'facility_id'],
+                    required: false
                 }
             ]
         });
 
-        const payments = paymentsRaw as unknown as PaymentWithBooking[];
+        const payments = paymentsRaw as unknown as PaymentWithBookingOrOrder[];
 
         let cash_total = 0;
         let cash_count = 0;
         let vnpay_total = 0;
         let vnpay_count = 0;
 
+        let booking_total = 0;
+        let booking_count = 0;
+        let order_total = 0;
+        let order_count = 0;
+
         for (const p of payments) {
+            if (!p.booking_id && !p.order_id) continue;
+
             if (p.provider === 'cash') {
                 cash_total += p.amount_cents;
                 cash_count += 1;
             } else if (p.provider === 'vnpay') {
                 vnpay_total += p.amount_cents;
                 vnpay_count += 1;
+            }
+
+            if (p.booking_id) {
+                booking_total += p.amount_cents;
+                booking_count += 1;
+            } else if (p.order_id) {
+                order_total += p.amount_cents;
+                order_count += 1;
             }
         }
 
@@ -259,18 +345,31 @@ export class RevenueService {
                     total_amount_cents: vnpay_total,
                     total_transactions: vnpay_count
                 }
+            ],
+            by_source: [
+                {
+                    source: 'booking' as const,
+                    total_amount_cents: booking_total,
+                    total_transactions: booking_count
+                },
+                {
+                    source: 'order' as const,
+                    total_amount_cents: order_total,
+                    total_transactions: order_count
+                }
             ]
         };
     }
 
     /**
-     * Lấy danh sách giao dịch booking payment phân trang
+     * Lấy danh sách giao dịch booking & order payment phân trang
      */
     static async getTransactions(filters: {
         from?: string;
         to?: string;
         facility_id?: number;
         provider?: 'all' | 'cash' | 'vnpay';
+        source?: 'all' | 'booking' | 'order';
         page: number;
         limit: number;
         sortBy: 'paidAt' | 'amount';
@@ -283,7 +382,6 @@ export class RevenueService {
 
         const whereClause: any = {
             status: 'paid',
-            booking_id: { [Op.ne]: null },
             [Op.and]: [
                 sequelize.where(
                     sequelize.fn('COALESCE', sequelize.col('Payment.paid_at'), sequelize.col('Payment.created_at')),
@@ -296,8 +394,25 @@ export class RevenueService {
             whereClause.provider = filters.provider;
         }
 
+        const sourceFilter = filters.source || 'all';
+        if (sourceFilter === 'booking') {
+            whereClause.booking_id = { [Op.ne]: null };
+        } else if (sourceFilter === 'order') {
+            whereClause.order_id = { [Op.ne]: null };
+        } else {
+            whereClause[Op.or] = [
+                { booking_id: { [Op.ne]: null } },
+                { order_id: { [Op.ne]: null } }
+            ];
+        }
+
         if (facilityId) {
-            whereClause['$booking.facility_id$'] = facilityId;
+            whereClause[Op.and].push({
+                [Op.or]: [
+                    { '$booking.facility_id$': facilityId },
+                    { '$order.facility_id$': facilityId }
+                ]
+            });
         }
 
         let orderExpr: any[] = [];
@@ -316,7 +431,21 @@ export class RevenueService {
                     model: models.Booking,
                     as: 'booking',
                     attributes: ['id', 'facility_id'],
-                    required: true,
+                    required: false,
+                    include: [
+                        {
+                            model: models.Facility,
+                            as: 'facility',
+                            attributes: ['name'],
+                            required: false
+                        }
+                    ]
+                },
+                {
+                    model: models.Order,
+                    as: 'order',
+                    attributes: ['id', 'facility_id'],
+                    required: false,
                     include: [
                         {
                             model: models.Facility,
@@ -332,17 +461,31 @@ export class RevenueService {
             order: orderExpr
         });
 
-        const rows = paymentsResult.rows as unknown as PaymentWithBooking[];
+        const rows = paymentsResult.rows as unknown as PaymentWithBookingOrOrder[];
         const count = paymentsResult.count;
 
         const items = rows.map((p) => {
             const booking = p.booking;
-            const facility_id = booking ? booking.facility_id : null;
-            const facility_name = (booking && booking.facility) ? booking.facility.name : null;
+            const order = p.order;
+            
+            const sourceVal: 'booking' | 'order' = p.booking_id ? 'booking' : 'order';
+            
+            let facility_id: number | null = null;
+            let facility_name: string | null = null;
+
+            if (p.booking_id && booking) {
+                facility_id = booking.facility_id;
+                facility_name = booking.facility ? booking.facility.name : null;
+            } else if (p.order_id && order) {
+                facility_id = order.facility_id;
+                facility_name = order.facility ? order.facility.name : null;
+            }
 
             return {
                 payment_id: p.id,
-                booking_id: p.booking_id as number,
+                booking_id: p.booking_id,
+                order_id: p.order_id,
+                source: sourceVal,
                 provider: p.provider,
                 status: 'paid' as const,
                 amount_cents: p.amount_cents,
