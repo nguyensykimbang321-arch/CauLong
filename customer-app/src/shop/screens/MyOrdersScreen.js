@@ -1,32 +1,39 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { fetchMyOrders, cancelOrder } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function MyOrdersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active'); // active (pending_payment, pending_pickup) | completed | cancelled (cancelled, expired, refunded)
 
-  const loadOrders = async () => {
+  const loadOrders = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const res = await fetchMyOrders();
       setOrders(res);
     } catch (e) {
       console.error(e);
       Alert.alert('Lỗi', 'Không thể tải danh sách đơn hàng');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    loadOrders(true);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders(false);
+    }, [])
+  );
 
   const handleCancelOrder = (orderId) => {
     Alert.alert(
@@ -92,7 +99,7 @@ export default function MyOrdersScreen({ navigation }) {
       <FlatList
         data={data}
         keyExtractor={(item) => item.id.toString()}
-        onRefresh={loadOrders}
+        onRefresh={() => loadOrders(true)}
         refreshing={loading}
         renderItem={({ item }) => (
           <OrderCard 

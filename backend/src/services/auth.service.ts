@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import models from '../models/index.js';
 import ApiError from '../utils/ErrorClass.js';
 import jwt, { type SignOptions } from 'jsonwebtoken';
+import { sendTemporaryPasswordEmail } from '../utils/email.js';
 
 
 export class AuthService {
@@ -90,5 +91,56 @@ export class AuthService {
         const { password_hash, ...userWithoutPassword } = user.toJSON();
 
         return { user: userWithoutPassword, token };
+    }
+
+    static async forgotPassword(email: string): Promise<{ message: string }> {
+        const user = await models.User.findOne({ where: { email } });
+        if (!user) {
+            throw new ApiError('Email không tồn tại trên hệ thống', 404);
+        }
+
+        // Sinh mật khẩu tạm thời ngẫu nhiên gồm 8 ký tự
+        const tempPassword = Math.random().toString(36).slice(-8);
+
+        // Mã hóa mật khẩu tạm thời
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+        // Lưu mật khẩu tạm thời mới vào cơ sở dữ liệu
+        user.password_hash = hashedPassword;
+        await user.save();
+
+        // Gửi email cho khách hàng
+        try {
+            await sendTemporaryPasswordEmail(email, tempPassword);
+        } catch (error) {
+            console.error('Lỗi gửi email khôi phục mật khẩu:', error);
+            throw new ApiError('Có lỗi xảy ra khi gửi email khôi phục mật khẩu. Vui lòng thử lại sau.', 500);
+        }
+
+        return { message: 'Mật khẩu tạm thời mới đã được gửi vào email của bạn.' };
+    }
+
+    static async changePassword(userId: number, oldPassword: string, newPassword: string): Promise<{ message: string }> {
+        const user = await models.User.findByPk(userId);
+        if (!user) {
+            throw new ApiError('Không tìm thấy thông tin tài khoản người dùng', 404);
+        }
+
+        // Kiểm tra mật khẩu cũ
+        const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
+        if (!isMatch) {
+            throw new ApiError('Mật khẩu cũ không chính xác', 400);
+        }
+
+        // Mã hóa mật khẩu mới
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Cập nhật mật khẩu mới
+        user.password_hash = hashedPassword;
+        await user.save();
+
+        return { message: 'Đổi mật khẩu thành công.' };
     }
 }

@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator, Alert, Modal, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, ActivityIndicator, Alert, Modal, FlatList, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
@@ -15,6 +15,29 @@ const { width: windowWidth } = Dimensions.get('window');
 export default function BookingScreen({ navigation }) {
   const { selectedFacility: globalFacility, setFacility: setGlobalFacility } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState('');
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    toastOpacity.setValue(0);
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Tự động ẩn sau 3 giây
+    setTimeout(() => {
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setToastMessage('');
+      });
+    }, 3500);
+  };
   const [facilities, setFacilities] = useState([]);
   const [courtTypes, setCourtTypes] = useState([]);
   
@@ -39,8 +62,39 @@ export default function BookingScreen({ navigation }) {
   const [facilityId, setFacilityId] = useState(globalFacility?.id || null);
   const [sportId, setSportId] = useState(null);
   
-  const [startTime, setStartTime] = useState('08:00');
-  const [endTime, setEndTime] = useState('09:00');
+  const [startTime, setStartTime] = useState(() => {
+    const now = new Date();
+    let minutes = now.getMinutes();
+    let hours = now.getHours();
+    // Làm tròn lên 30 phút tiếp theo
+    if (minutes > 0 && minutes <= 30) {
+      minutes = 30;
+    } else if (minutes > 30) {
+      minutes = 0;
+      hours += 1;
+    }
+    // Giới hạn trong khung giờ hoạt động (06:00 - 21:00)
+    if (hours < 6) { hours = 6; minutes = 0; }
+    if (hours >= 21) { hours = 21; minutes = 0; }
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  });
+  const [endTime, setEndTime] = useState(() => {
+    const now = new Date();
+    let minutes = now.getMinutes();
+    let hours = now.getHours();
+    if (minutes > 0 && minutes <= 30) {
+      minutes = 30;
+    } else if (minutes > 30) {
+      minutes = 0;
+      hours += 1;
+    }
+    if (hours < 6) { hours = 6; minutes = 0; }
+    if (hours >= 21) { hours = 21; minutes = 0; }
+    // +1 tiếng so với startTime
+    hours += 1;
+    if (hours > 22) { hours = 22; minutes = 0; }
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  });
   const [availableCourts, setAvailableCourts] = useState([]);
   const [selectedCourtId, setSelectedCourtId] = useState(null);
   const [searchError, setSearchError] = useState('');
@@ -173,6 +227,8 @@ export default function BookingScreen({ navigation }) {
       } catch (e) {
         console.error(e);
         setAvailableCourts([]);
+        const msg = e.response?.data?.message || 'Tất cả sân trong khung giờ này đã được đặt hết. Vui lòng chọn giờ khác!';
+        showToast(msg);
       }
     }
     loadAvailability();
@@ -599,6 +655,16 @@ export default function BookingScreen({ navigation }) {
         </Section>
 
       </ScrollView>
+
+      {toastMessage ? (
+        <Animated.View style={[styles.toastContainer, { opacity: toastOpacity }]}>
+          <Ionicons name="alert-circle-outline" size={20} color={colors.white} style={{ marginRight: spacing.sm }} />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+          <TouchableOpacity onPress={() => setToastMessage('')} style={styles.toastCloseBtn}>
+            <Ionicons name="close" size={20} color={colors.white} />
+          </TouchableOpacity>
+        </Animated.View>
+      ) : null}
     </Screen>
   );
 }
@@ -1060,6 +1126,31 @@ const styles = StyleSheet.create({
   slotTime: { fontSize: fontSize.md, fontWeight: fontWeight.semiBold, color: colors.textPrimary, flex: 1 },
   slotTextSelected: {
     color: colors.primary,
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 90,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: 'rgba(232, 72, 85, 0.95)',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...shadow.md,
+    zIndex: 9999,
+  },
+  toastText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    flex: 1,
+    lineHeight: 18,
+  },
+  toastCloseBtn: {
+    paddingLeft: spacing.sm,
   },
 });
 

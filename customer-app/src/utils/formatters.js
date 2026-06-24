@@ -36,3 +36,26 @@ export function getBookingStatusMeta(status) {
   return map[status] ?? { label: String(status ?? ''), color: '#A0AABC' };
 }
 
+export function getPaymentStatusMeta(status) {
+  const map = {
+    unpaid: { label: 'Chưa thanh toán', color: '#E84855' },
+    partial: { label: 'Thanh toán 1 phần', color: '#FFB020' },
+    paid: { label: 'Đã thanh toán', color: '#12B981' },
+    refunded: { label: 'Đã hoàn tiền', color: '#94A3B8' },
+  };
+  return map[status] ?? { label: 'Chưa thanh toán', color: '#E84855' };
+}
+
+export function getUnifiedBookingStatus(booking) {
+  if (booking?.status === 'cancelled') {
+    return { label: 'Đã hủy', color: '#E84855' }; // Đỏ
+  }
+  if (booking?.status === 'completed') {
+    return { label: 'Hoàn thành', color: '#4A90E2' }; // Xanh dương
+  }
+  if (booking?.payment_status === 'paid') {
+    return { label: 'Đã thanh toán', color: '#12B981' }; // Xanh lá
+  }
+  return { label: 'Chưa thanh toán', color: '#FF9F43' }; // Cam
+}
+

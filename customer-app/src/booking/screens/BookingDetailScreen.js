@@ -1,18 +1,47 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import Badge from '../../shared/components/Badge';
 import Button from '../../shared/components/Button';
-import { formatDatetime, formatPrice, getBookingStatusMeta } from '../../utils/formatters';
+import { formatDatetime, formatPrice, getUnifiedBookingStatus } from '../../utils/formatters';
+import { cancelBooking } from '../../services/api';
 
 // Bỏ import QRCode vì chưa cài lib, đã dùng icon thay thế ở dưới
 
 
 export default function BookingDetailScreen({ route, navigation }) {
-  const booking = route?.params?.booking;
-  const status = getBookingStatusMeta(booking?.status);
+  const [booking, setBooking] = useState(route?.params?.booking);
+  const status = getUnifiedBookingStatus(booking);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleCancel = () => {
+    Alert.alert(
+      'Hủy đặt sân',
+      'Bạn có chắc chắn muốn hủy đơn đặt sân này không? Sân sẽ được giải phóng cho người khác đặt.',
+      [
+        { text: 'Bỏ qua', style: 'cancel' },
+        {
+          text: 'Đồng ý hủy',
+          style: 'destructive',
+          onPress: async () => {
+            setSubmitting(true);
+            try {
+              const updated = await cancelBooking(booking.id);
+              setBooking(updated);
+              Alert.alert('Thành công', 'Đơn đặt sân đã được hủy thành công!');
+            } catch (e) {
+              console.error(e);
+              Alert.alert('Lỗi', e.response?.data?.message || 'Không thể hủy đặt sân. Vui lòng thử lại.');
+            } finally {
+              setSubmitting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   // Lấy bộ môn từ dữ liệu (hỗ trợ cả mock và data thực từ API)
   const getSportLabel = () => {
@@ -108,7 +137,25 @@ export default function BookingDetailScreen({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.actions}>
-        <Button title="Về trang chủ" variant="outline" onPress={() => navigation.navigate('HomeTab')} fullWidth={true} />
+        {booking?.payment_status === 'paid' && (booking?.status === 'pending' || booking?.status === 'confirmed') ? (
+          <View style={styles.paidInfoBox}>
+            <Ionicons name="information-circle-outline" size={18} color="#0284C7" />
+            <Text style={styles.paidInfoText}>
+              Đơn đã thanh toán không thể tự hủy trên ứng dụng. Vui lòng liên hệ Hotline: <Text style={{ fontWeight: 'bold' }}>0867809347</Text> để được hỗ trợ hủy và hoàn tiền.
+            </Text>
+          </View>
+        ) : (booking?.status === 'pending' || booking?.status === 'confirmed') ? (
+          <Button 
+            title="Hủy đặt sân" 
+            variant="danger" 
+            onPress={handleCancel}
+            isLoading={submitting}
+            disabled={submitting}
+            fullWidth={true}
+            style={{ marginBottom: spacing.sm }}
+          />
+        ) : null}
+        <Button title="Về trang đặt sân" variant="outline" onPress={() => navigation.navigate('Booking')} fullWidth={true} />
       </View>
     </Screen>
   );
@@ -237,5 +284,22 @@ const styles = StyleSheet.create({
   noteText: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 4, fontStyle: 'italic' },
   
   actions: { paddingVertical: spacing.md, backgroundColor: colors.background },
+  paidInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0F9FF',
+    borderColor: '#B9E6FE',
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  paidInfoText: {
+    fontSize: fontSize.sm,
+    color: '#0369A1',
+    flex: 1,
+    lineHeight: 18,
+  },
 });
 

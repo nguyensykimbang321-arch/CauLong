@@ -72,3 +72,10 @@ export const updateBookingStatusSchema = z.object({
     })
 });
 export type UpdateBookingStatusInput = z.infer<typeof updateBookingStatusSchema>['body'];
+
+export const clientUpdateBookingSchema = z.object({
+    body: z.object({
+        status: z.enum(['cancelled'], { message: 'Khách hàng chỉ được phép hủy đặt sân' })
+    })
+});
+export type ClientUpdateBookingInput = z.infer<typeof clientUpdateBookingSchema>['body'];

@@ -6,32 +6,40 @@ import { colors } from '../../theme';
 import { useAppStore } from '../../data/AppStore';
 
 export default function PaymentWebView({ route, navigation }) {
-  const { url, type = 'shop' } = route.params;
+  const { url, type = 'shop' } = route.params || {};
   const { clearCart } = useAppStore();
 
   const handleNavigationStateChange = (navState) => {
     // Lắng nghe cả Deep Link và Website Return URL (sử dụng IP)
-    const isVnpayReturn = navState.url.includes('vnpay_return') || navState.url.includes('payment-return');
+    const isVnpayReturn = navState.url.includes('vnpay_return') || navState.url.includes('vnpay-return') || navState.url.includes('payment-return');
 
     if (isVnpayReturn) {
       const isSuccess = navState.url.includes('vnp_ResponseCode=00');
-      
+
       if (isSuccess) {
         if (type === 'shop') {
           clearCart && clearCart();
-          navigation.navigate('Shop');
           setTimeout(() => {
-            Alert.alert('Thành công', 'Thanh toán đơn hàng thành công!');
-          }, 500);
+            navigation.reset({
+              index: 1,
+              routes: [
+                { name: 'Shop' },
+                { name: 'MyOrders' }
+              ]
+            });
+          }, 2500);
         } else {
-          // Luồng Đặt sân
-          navigation.navigate('MyBookings');
           setTimeout(() => {
-            Alert.alert('Thành công', 'Đặt sân thành công!');
-          }, 500);
+            navigation.reset({
+              index: 1,
+              routes: [
+                { name: 'Booking' },
+                { name: 'MyBookings' }
+              ]
+            });
+          }, 2500);
         }
       } else {
-        Alert.alert('Thông báo', 'Giao dịch đã bị hủy hoặc thất bại.');
         navigation.goBack();
       }
     }

@@ -26,6 +26,8 @@ import PaymentWebView from '../components/PaymentWebView';
 import { useAppStore } from '../../data/AppStore';
 import LoginScreen from '../../account/screens/LoginScreen';
 import RegisterScreen from '../../account/screens/RegisterScreen';
+import ForgotPasswordScreen from '../../account/screens/ForgotPasswordScreen';
+import ChangePasswordScreen from '../../account/screens/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createStackNavigator();
@@ -39,6 +41,7 @@ function AuthStackScreen() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -60,7 +63,18 @@ function BookingStackScreen() {
       <BookingStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <BookingStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <BookingStack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
-      <BookingStack.Screen name="PaymentWebView" component={PaymentWebView} />
+      <BookingStack.Screen 
+        name="PaymentWebView" 
+        component={PaymentWebView} 
+        options={{ 
+          headerShown: true, 
+          title: 'Thanh toán VNPay',
+          headerBackTitleVisible: false,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: fontWeight.bold }
+        }} 
+      />
     </BookingStack.Navigator>
   );
 }
@@ -73,7 +87,18 @@ function ShopStackScreen() {
       <ShopStack.Screen name="Cart" component={CartScreen} />
       <ShopStack.Screen name="Checkout" component={CheckoutScreen} />
       <ShopStack.Screen name="MyOrders" component={MyOrdersScreen} />
-      <ShopStack.Screen name="PaymentWebView" component={PaymentWebView} />
+      <ShopStack.Screen 
+        name="PaymentWebView" 
+        component={PaymentWebView} 
+        options={{ 
+          headerShown: true, 
+          title: 'Thanh toán VNPay',
+          headerBackTitleVisible: false,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: fontWeight.bold }
+        }} 
+      />
     </ShopStack.Navigator>
   );
 }
@@ -86,6 +111,7 @@ function AccountStackScreen() {
       <AccountStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <AccountStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <AccountStack.Screen name="MyOrders" component={MyOrdersScreen} />
+      <AccountStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </AccountStack.Navigator>
   );
 }
@@ -137,6 +163,12 @@ export default function AppNavigator() {
           name={tab.name}
           component={tab.component}
           options={{ tabBarLabel: tab.label }}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              // Reset stack về màn hình gốc khi bấm tab
+              navigation.navigate(tab.name, { screen: tab.name.replace('Tab', '') === 'Home' ? 'Home' : tab.name.replace('Tab', '') });
+            },
+          })}
         />
       ))}
     </Tab.Navigator>
