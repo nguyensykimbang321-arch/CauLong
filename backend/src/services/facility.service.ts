@@ -4,6 +4,8 @@ import models from "../models/index.js";
 import ApiError from "../utils/ErrorClass.js";
 import type { CreateFacilityInput, updateFacilityInput } from "../validations/facility.validation.js";
 
+import { courtTypeInclude } from "../constants/courtInclude.constant.js";
+
 export class FacilityService {
     static async getAllFacilities() {
         return await models.Facility.findAll({
@@ -41,6 +43,20 @@ export class FacilityService {
     }
 
 
+    static async getFacilityWithCourtsForClient(id: number) {
+        const facility = await this.getFacilityById(id);
+
+        const courts = await models.Court.findAll({
+            where: { facility_id: id, is_active: true },
+            include: [courtTypeInclude],
+        });
+
+        return {
+            ...facility.toJSON(),
+            courts: courts.map((court) => court.toJSON()),
+        };
+    }
+
     static async getFacilityWithCourts(id: number) {
         const facility = await this.getFacilityById(id);
 
@@ -57,21 +73,19 @@ export class FacilityService {
     static async getCourtTypesByFacility(id: number) {
         await this.getFacilityById(id);
 
-        const courts = await (models.Court as any).findAll({
+        const courts = await models.Court.findAll({
             where: { facility_id: id, is_active: true },
             attributes: ['court_type'],
-            group: ['court_type']
+            group: ['court_type'],
+            raw: true,
         });
 
-        const types = courts.map((c: any) => c.court_type);
+        const typeIds = courts.map((c: any) => c.court_type);
 
-        // Map to full objects with labels if needed, but for now just strings is fine
-        // Actually, let's join with CourtType model or return consistent structure
-        const allTypes = await models.CourtType.findAll({
-            where: { name: { [Op.in]: types } }
+        return await models.CourtType.findAll({
+            where: { id: { [Op.in]: typeIds } },
+            order: [['id', 'ASC']],
         });
-
-        return allTypes;
     }
 
     static async createFacility(data: CreateFacilityInput) {

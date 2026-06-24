@@ -7,6 +7,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../
 import { getAvailableCourts, getFacilities, getCourtTypes } from '../../data/mockStore';
 import Button from '../../shared/components/Button';
 import { formatPrice } from '../../utils/formatters';
+import { getCourtTypeImageSource, getCourtTypeLabel } from '../../utils/courtTypeImage';
 import PressableCard from '../../shared/components/PressableCard';
 import { useAppStore } from '../../data/AppStore';
 import { fetchAvailability, previewPrice } from '../../services/api';
@@ -385,16 +386,6 @@ export default function BookingScreen({ navigation }) {
     updatePrice();
   }, [facilityId, sportId, dateId, startTime, endTime, selectedCourtId, dailySlotsData, courtTypes]);
 
-  const sportImages = useMemo(
-    () => ({
-      badminton: require('../../image/badminton.jpg'),
-      tennis: require('../../image/tennis.jpg'),
-      football: require('../../image/football.jpg'),
-      table_tennis: require('../../image/table_tennis.jpg'),
-    }),
-    []
-  );
-
   const selectedFacility = useMemo(() => facilities.find((f) => f.id === facilityId) ?? facilities[0], [facilities, facilityId]);
   const selectedSport = useMemo(() => courtTypes.find((s) => s.id === sportId) ?? courtTypes[0], [courtTypes, sportId]);
 
@@ -510,16 +501,14 @@ export default function BookingScreen({ navigation }) {
                 >
                   <View style={styles.sportInner}>
                     <ImageBackground
-                      source={sportImages[s.name]}
+                      source={getCourtTypeImageSource(s)}
                       style={styles.sportImage}
                       imageStyle={styles.sportImageStyle}
                     >
                       <View style={[styles.sportOverlay, isSelected && styles.sportOverlaySelected]} />
                     </ImageBackground>
                     <Text style={[styles.sportLabel, isSelected && styles.sportLabelSelected]}>
-                      {s.name === 'badminton' ? 'Cầu lông' :
-                        s.name === 'tennis' ? 'Tennis' :
-                          s.name === 'football' ? 'Bóng đá' : 'Bóng bàn'}
+                      {getCourtTypeLabel(s.name)}
                     </Text>
                   </View>
                 </PressableCard>

@@ -37,7 +37,7 @@ export async function getCourts({ facilityId, courtTypeId } = {}) {
     const facility = await api.fetchFacilityDetail(facilityId);
     let courts = facility.courts || [];
     if (courtTypeId) {
-        courts = courts.filter(c => c.court_type_id == courtTypeId);
+        courts = courts.filter(c => c.court_type == courtTypeId);
     }
     return courts;
   } catch (error) {
@@ -57,9 +57,15 @@ export async function getBookings(userId) {
       const lastSlot = slots[slots.length - 1];
       
       const court = firstSlot?.court;
-      const courtType = court?.type || court?.court_type;
-      
-      const sportLabel = courtType === 'badminton' ? 'Cầu lông' : courtType === 'tennis' ? 'Tennis' : 'Bóng bàn';
+      const courtType = court?.type_info?.name;
+
+      const sportLabels = {
+        badminton: 'Cầu lông',
+        tennis: 'Tennis',
+        football: 'Bóng đá',
+        table_tennis: 'Bóng bàn',
+      };
+      const sportLabel = sportLabels[courtType] || '—';
 
       return {
         ...b,

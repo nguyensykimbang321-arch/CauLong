@@ -4,6 +4,9 @@ import axios from 'axios';
 // Android Emulator thường dùng 10.0.2.2 để truy cập localhost máy host
 const baseURL = 'http://192.168.1.163:3000/api/v1';
 
+export { baseURL };
+export const serverOrigin = baseURL.replace(/\/api\/v1\/?$/, '');
+
 const api = axios.create({
     baseURL,
     timeout: 10000,
