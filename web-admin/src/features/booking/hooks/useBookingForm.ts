@@ -130,7 +130,16 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
           const courtsData = res.data.courts || [];
           setFacilityCourts(courtsData);
 
-          const uniqueTypes = Array.from(new Set(courtsData.map((c: any) => c.court_type))) as string[];
+          const uniqueTypes = Array.from(
+            new Set(
+              courtsData.map((c: any) => {
+                if (c.court_type && typeof c.court_type === 'object') {
+                  return c.court_type.name;
+                }
+                return c.court_type;
+              }).filter(Boolean)
+            )
+          ) as string[];
           setAvailableCourtTypes(uniqueTypes);
 
           if (isInitialMountRef.current && initialData && initialData.facility_id === selectedFacilityId) {

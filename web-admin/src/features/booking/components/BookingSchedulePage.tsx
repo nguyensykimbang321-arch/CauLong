@@ -55,7 +55,16 @@ const BookingSchedulePage: React.FC = () => {
       FacilityService.getCourtsByFacility(selectedFacilityId)
         .then(res => {
           const courtsData = res.data.courts || [];
-          const uniqueTypes = Array.from(new Set(courtsData.map((c: any) => c.court_type))) as string[];
+          const uniqueTypes = Array.from(
+            new Set(
+              courtsData.map((c: any) => {
+                if (c.court_type && typeof c.court_type === 'object') {
+                  return c.court_type.name;
+                }
+                return c.court_type;
+              }).filter(Boolean)
+            )
+          ) as string[];
           setAvailableCourtTypes(uniqueTypes);
           
           if (uniqueTypes.length > 0) {
@@ -112,13 +121,18 @@ const BookingSchedulePage: React.FC = () => {
 
 
   // Hàm helper format tên loại sân cho đẹp
-  const formatCourtTypeLabel = (type: string) => {
-    switch (type) {
-      case 'badminton': return 'Sân Cầu Lông';
-      case 'tennis': return 'Sân Tennis';
-      case 'football': return 'Sân Bóng Đá';
-      default: return type.toUpperCase();
+  const COURT_TYPE_LABELS: Record<string, string> = {
+    badminton: 'Cầu lông',
+    tennis: 'Tennis',
+    football: 'Bóng đá',
+    table_tennis: 'Bóng bàn',
+  };
+
+  const formatCourtTypeLabel = (type: unknown): string => {
+    if (typeof type !== 'string') {
+      return '';
     }
+    return COURT_TYPE_LABELS[type] || type.replace(/_/g, ' ').toUpperCase();
   };
 
   return (

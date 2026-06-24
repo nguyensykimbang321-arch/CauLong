@@ -24,16 +24,21 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ open, onClose, 
     currentCourtBookedSlots, handleSearchPhone, checkBookingTimes, handleSubmit
   } = useBookingForm({ open, onSuccess, onClose, initialData });
 
-  const formatCourtTypeLabel = (type: string) => {
-    switch (type) {
-      case 'badminton': return 'Sân Cầu Lông';
-      case 'tennis': return 'Sân Tennis';
-      case 'football': return 'Sân Bóng Đá';
-      case 'basketball': return 'Sân Bóng Rổ';
-      case 'standard': return 'Sân Thường'; // Giữ lại cho chắc
-      case 'vip': return 'Sân VIP';         // Giữ lại cho chắc
-      default: return type.toUpperCase();
+  const COURT_TYPE_LABELS: Record<string, string> = {
+    badminton: 'Cầu lông',
+    tennis: 'Tennis',
+    football: 'Bóng đá',
+    table_tennis: 'Bóng bàn',
+    basketball: 'Bóng rổ',
+    standard: 'Sân Thường',
+    vip: 'Sân VIP',
+  };
+
+  const formatCourtTypeLabel = (type: unknown): string => {
+    if (typeof type !== 'string') {
+      return '';
     }
+    return COURT_TYPE_LABELS[type] || type.replace(/_/g, ' ').toUpperCase();
   };
 
   return (
