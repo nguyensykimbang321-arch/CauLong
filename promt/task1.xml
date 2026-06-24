@@ -1,25 +1,28 @@
 <prompt>
     <meta>
-        <title>Tái cấu trúc Luồng Đặt Sân trên Mobile App (Chọn sân trước, chọn giờ sau)</title>
+        <title>Tái cấu trúc Luồng Đặt Sân trên Mobile App (Chọn sân trước, chọn giờ sau) & Đồng bộ DB</title>
         <author>Nguyen Huu Ngoc Hoang</author>
         <date>25/06/2026</date>
     </meta>
-    <goal>Tái cấu trúc màn hình đặt sân (BookingScreen.js) và tích hợp API /app/bookings/booked-slots để hỗ trợ chọn sân trước, sau đó gạch ngang và vô hiệu hóa các khung giờ đã có người đặt trong bộ chọn thời gian.</goal>
+    <goal>Tái cấu trúc màn hình đặt sân (BookingScreen.js), tích hợp API /app/bookings/booked-slots để hỗ trợ chọn sân trước, gạch ngang/vô hiệu hóa các giờ bận, đồng thời đồng bộ hóa hoàn toàn mã nguồn và database theo thiết kế mới của nhánh master.</goal>
     <frsReference>Tài liệu Luồng Nghiệp vụ Đặt Sân - Domain A1</frsReference>
     <planReference>BOOKING-FLOW-REDESIGN-001</planReference>
-    <taskUnit>Chỉnh sửa BookingScreen.js và api.js trên Mobile App</taskUnit>
+    <taskUnit>Chỉnh sửa BookingScreen.js, api.js, backend court services & Đồng bộ DB Cloud</taskUnit>
     <context>
-        Quy trình đặt sân cũ yêu cầu người dùng chọn thời gian trước rồi hệ thống mới tìm sân trống. Điều này gây bất tiện nếu khung giờ khách chọn bị bận hết sân (khách phải mò giờ rảnh). 
-        Quy trình mới sẽ hiển thị danh sách các sân trước, khi khách chọn một sân, hệ thống dựa vào sa bàn lịch đặt trong ngày của sân đó để gạch ngang/khóa các giờ đã có người chơi đặt trước.
+        Quy trình đặt sân cũ yêu cầu người dùng chọn thời gian trước rồi hệ thống mới tìm sân trống. Luồng mới hiển thị danh sách sân trước, khóa các khung giờ bận của sân đó. Đồng thời, cấu trúc dữ liệu loại sân được nâng cấp từ chuỗi (string) sang liên kết khóa ngoại ID (Integer) với bảng `court_types`, đòi hỏi cập nhật tương ứng ở cả Frontend, Backend và cấu trúc bảng trên Database Cloud.
     </context>
     <scope>
-        - Chỉnh sửa file `customer-app/src/services/api.js` để thêm endpoint check giá.
-        - Chỉnh sửa file `customer-app/src/booking/screens/BookingScreen.js` để thay đổi luồng UI/UX.
+        - Chỉnh sửa file `customer-app/src/services/api.js` để thêm endpoint check giá `previewPrice`.
+        - Chỉnh sửa file `customer-app/src/booking/screens/BookingScreen.js` để thay đổi luồng UI/UX và sử dụng các hàm tiện ích hình ảnh/nhãn mới từ master.
+        - Merge nhánh `master`, giải quyết xung đột ở `facility.service.ts` và `BookingScreen.js`.
+        - Sửa lỗi biên dịch kiểu dữ liệu của `court_type` trong `backend/src/services/court.service.ts`.
+        - Thực hiện Migration nâng cấp Database Cloud (thêm cột `image` vào `court_types`, nâng cấp cột `court_type` trong bảng `courts` sang kiểu `INT` và map các giá trị cũ sang ID số).
     </scope>
     <hardRules>
-        1. Phải sử dụng API `GET /app/bookings/booked-slots` (hàm `fetchAvailability` trong `api.js`) để lấy sa bàn lịch bận trong ngày của các sân.
-        2. Khi chọn sân cụ thể, các khung giờ trùng với slot đã bận của sân đó (`available === false`) phải được render gạch ngang, mờ và khóa click ( isDisabled ).
-        3. Sử dụng API `POST /app/bookings/price-preview` (hàm `previewPrice` mới) để tính tiền chính xác nhất theo cấu hình giá của Backend, kèm thuật toán fallback tính toán offline tại client nếu API lỗi.
+        1. Phải sử dụng API `GET /app/bookings/booked-slots` để lấy sa bàn lịch bận trong ngày của các sân.
+        2. Khi chọn sân cụ thể, các khung giờ trùng với slot đã bận của sân đó phải được render gạch ngang, mờ và khóa click (`isDisabled = true`).
+        3. Sử dụng API `POST /app/bookings/price-preview` để tính tiền chính xác nhất, kèm thuật toán fallback tính toán offline tại client nếu API lỗi.
+        4. Cột `court_type` trong bảng `courts` phải liên kết dạng khóa ngoại số nguyên (`INT`) đến ID của bảng `court_types`.
     </hardRules>
     <tasks>
         1. Trong `customer-app/src/services/api.js`:
@@ -27,16 +30,21 @@
         2. Trong `customer-app/src/booking/screens/BookingScreen.js`:
             - Import `fetchAvailability` và `previewPrice` từ API service.
             - Thêm các state hooks: `dailySlotsData` (lưu sa bàn), `loadingDailySlots` (trạng thái load), và `totalPrice` (tổng tiền sân).
-            - Viết Effect tự động fetch sa bàn ngày chơi bằng `fetchAvailability(facilityId, dateId, sportName)` khi đổi cơ sở, ngày hoặc bộ môn. Tự động chọn sân đầu tiên làm mặc định.
-            - Viết các hàm helper check lịch trùng: `isTimeRangeOverlapping` (check cả khoảng), `isTimeSlotOccupied` (check giờ bắt đầu), và `isEndTimeDisabledByBooking` (check giờ kết thúc hợp lệ so với giờ bắt đầu).
-            - Thay đổi logic trong Time Picker Modal: nếu giờ start/end rơi vào khung giờ bận của sân đã chọn, gán `isDisabled = true` và hiển thị nhãn "Hết sân" với style mờ/gạch ngang.
-            - Sắp xếp lại thứ tự render trong ScrollView: Mục "Chọn sân" hiển thị danh sách sân bãi cố định trước, sau đó mới tới mục "Thời gian" và cuối cùng là Thẻ tóm tắt đơn hàng (Summary) kèm nút "Tiếp tục".
-            - Tích hợp gọi API `previewPrice` trong `useEffect` khi thay đổi giờ/sân để cập nhật `totalPrice`, kèm thuật toán tính offline dự phòng.
+            - Viết Effect tự động fetch sa bàn ngày chơi bằng `fetchAvailability`. Tự động chọn sân đầu tiên làm mặc định.
+            - Viết các hàm helper check lịch trùng: `isTimeRangeOverlapping`, `isTimeSlotOccupied`, và `isEndTimeDisabledByBooking`.
+            - Thay đổi logic trong Time Picker Modal: khóa và gắn nhãn "Hết sân" với các giờ trùng lịch bận.
+            - Thay đổi UI hiển thị: đưa "Chọn sân" hiển thị danh sách sân lên trước, dùng `getCourtTypeImageSource` và `getCourtTypeLabel` từ `master` để render ảnh/nhãn bộ môn.
+        3. Trong `backend/src/services/court.service.ts`:
+            - Sử dụng `CourtTypeService.resolveToId` để phân giải giá trị chuỗi loại sân của validation thành ID số nguyên trước khi cập nhật hoặc tạo mới sân.
+        4. Trong Cơ sở dữ liệu Cloud:
+            - Chạy SQL ALTER TABLE thêm cột `image VARCHAR(500) NULL` vào bảng `court_types`.
+            - Map các giá trị chuỗi cũ sang ID số (`'badminton'` -> `1`, `'tennis'` -> `2`, etc.) và đổi kiểu cột `court_type` trong `courts` thành `INT NOT NULL` kèm khóa ngoại.
     </tasks>
-    <constraints>Không thay đổi cấu trúc API của Backend, chỉ chỉnh sửa code Frontend trên Mobile App.</constraints>
+    <constraints>Đảm bảo tương thích hoàn toàn với cấu trúc cơ sở dữ liệu và model mới của master (loại sân dùng ID khóa ngoại dạng số).</constraints>
     <acceptanceCriteria>
         - Người dùng chọn Sân trước sau khi chọn Cơ sở, Bộ môn, Ngày.
         - Khi mở Modal chọn giờ bắt đầu/kết thúc, các khung giờ trùng lịch bận của sân đó được hiển thị chữ mờ và ghi chú "Hết sân", không thể bấm chọn.
         - Tính đúng giá tiền cho khoảng giờ được chọn dựa trên API previewPrice.
+        - API `GET /app/bookings` và `GET /app/facilities/:id/court-types` chạy thành công không bị lỗi 500.
     </acceptanceCriteria>
 </prompt>
