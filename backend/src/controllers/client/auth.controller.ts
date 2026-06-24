@@ -20,4 +20,25 @@ export class ClientAuthController {
             next(error);
         }
     }
+
+    static async forgotPassword(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { email } = req.body;
+            const result = await AuthService.forgotPassword(email);
+            return AppResponse.success(res, result, result.message, 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async changePassword(req: any, res: Response, next: NextFunction) {
+        try {
+            const userId = req.user?.id;
+            const { old_password, new_password } = req.body;
+            const result = await AuthService.changePassword(userId, old_password, new_password);
+            return AppResponse.success(res, result, result.message, 200);
+        } catch (error) {
+            next(error);
+        }
+    }
 }

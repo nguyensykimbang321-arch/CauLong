@@ -26,9 +26,9 @@ const BookingPage: React.FC = () => {
       const response = await BookingService.getAllBookings();
       setBookings(response.data);
     } catch (error) {
-        console.log(error)
-        const err = error as AxiosError<ApiErrorResponse>;
-        message.error(err.message);
+      console.log(error)
+      const err = error as AxiosError<ApiErrorResponse>;
+      message.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ const BookingPage: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       // text ở đây là id (number)
-      render: (text: number) => <b>#{text}</b>, 
+      render: (text: number) => <b>#{text}</b>,
     },
     {
       title: 'Khách hàng',
@@ -90,21 +90,31 @@ const BookingPage: React.FC = () => {
       },
     },
     {
+      title: 'Phương thức',
+      dataIndex: 'payment_method',
+      key: 'payment_method',
+      render: (method?: 'cash' | 'vnpay') => {
+        if (!method) return '-';
+        const isVNPay = method === 'vnpay';
+        return <Tag color={isVNPay ? 'blue' : 'green'}>{isVNPay ? 'VNPay' : 'Tiền mặt'}</Tag>;
+      },
+    },
+    {
       title: 'Hành động',
       key: 'action',
       render: (_: any, record: Booking) => (
         <Space size="middle">
           {/* Truyền record vào hàm onClick */}
-          <Button 
-            type="text" 
-            icon={<EyeOutlined />} 
-            className="text-blue-500" 
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            className="text-blue-500"
             onClick={() => handleViewDetails(record)}
           />
-          <Button 
-            type="text" 
-            icon={<EditOutlined />} 
-            className="text-orange-500" 
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            className="text-orange-500"
             onClick={() => handleEditBooking(record)}
           />
         </Space>
@@ -114,41 +124,41 @@ const BookingPage: React.FC = () => {
 
   return (
     <>
-    <Card 
-      title="Quản lý Đặt Sân" 
-      extra={
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
+      <Card
+        title="Quản lý Đặt Sân"
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
             onClick={() => setIsCreateModalOpen(true)}
           >
             Tạo đơn mới
           </Button>
         }
-    >
-      <Table 
-        columns={columns} 
-        dataSource={bookings} 
-        rowKey="id" 
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-      />
-    </Card>
-    
-    <BookingDetailDrawer 
-        open={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
-        booking={selectedBooking} 
-    />
+      >
+        <Table
+          columns={columns}
+          dataSource={bookings}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      </Card>
 
-    <BookingStatusModal
+      <BookingDetailDrawer
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        booking={selectedBooking}
+      />
+
+      <BookingStatusModal
         open={isStatusModalOpen}
         onClose={() => setIsStatusModalOpen(false)}
         onSuccess={() => fetchBookings()} // Lưu xong thì gọi lại hàm này để bảng tự động chớp chớp load data mới
         booking={selectedBooking}
       />
 
-      <CreateBookingModal 
+      <CreateBookingModal
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={() => fetchBookings()} // Tạo xong tự động refetch bảng

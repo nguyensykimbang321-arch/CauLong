@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Animated, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Animated, Image, Dimensions, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
-import { getProducts } from '../../data/mockStore';
+import { getProducts, getFacilities } from '../../data/mockStore';
 import ProductCard from '../../shared/components/ProductCard';
 import Button from '../../shared/components/Button';
 import { useAppStore } from '../../data/AppStore';
@@ -11,9 +11,11 @@ import { useAppStore } from '../../data/AppStore';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ShopScreen({ navigation }) {
-  const { state, addToCart } = useAppStore();
+  const { state, addToCart, selectedFacility, setFacility } = useAppStore();
   const [products, setProducts] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [facilityModalVisible, setFacilityModalVisible] = useState(false);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('all');
   
@@ -55,15 +57,20 @@ export default function ShopScreen({ navigation }) {
   const query = q.trim().toLowerCase();
 
   useEffect(() => {
+    getFacilities().then(res => setFacilities(res || []));
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
-    getProducts().then(res => {
+    setLoading(true);
+    getProducts(selectedFacility?.id).then(res => {
       if (mounted) {
         setProducts(res || []);
         setLoading(false);
       }
     });
     return () => { mounted = false };
-  }, []);
+  }, [selectedFacility?.id]);
 
   const categories = useMemo(() => {
     const map = new Map();
@@ -97,9 +104,18 @@ export default function ShopScreen({ navigation }) {
   return (
     <Screen>
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>Cửa hàng</Text>
-          <Text style={styles.sub}>Chọn đồ xịn cho buổi chơi chất.</Text>
+          <TouchableOpacity 
+            onPress={() => setFacilityModalVisible(true)}
+            style={styles.facilitySelector}
+          >
+            <Ionicons name="location-outline" size={14} color={colors.primary} />
+            <Text style={styles.facilityText}>
+              {selectedFacility ? selectedFacility.name : 'Chọn cơ sở để mua đồ'}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
         <Animated.View style={{ transform: [{ scale: cartScale }] }}>
           <TouchableOpacity 
@@ -181,6 +197,56 @@ export default function ShopScreen({ navigation }) {
         }
       />
 
+      {/* Modal Chọn Cơ Sở */}
+      <Modal
+        visible={facilityModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFacilityModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setFacilityModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn cơ sở gần bạn</Text>
+              <TouchableOpacity onPress={() => setFacilityModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={facilities}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[
+                    styles.facilityItem, 
+                    selectedFacility?.id === item.id && styles.facilityItemSelected
+                  ]}
+                  onPress={() => {
+                    setFacility(item);
+                    setFacilityModalVisible(false);
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.facilityItemName,
+                      selectedFacility?.id === item.id && styles.facilityItemNameSelected
+                    ]}>{item.name}</Text>
+                    <Text style={styles.facilityItemAddr}>{item.address}</Text>
+                  </View>
+                  {selectedFacility?.id === item.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Animation Layer */}
       {flyingObject && (
         <Animated.Image
@@ -225,7 +291,18 @@ export default function ShopScreen({ navigation }) {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.textPrimary },
-  sub: { marginTop: 4, fontSize: fontSize.sm, color: colors.textSecondary },
+  facilitySelector: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 4, 
+    gap: 4,
+    alignSelf: 'flex-start'
+  },
+  facilityText: { 
+    fontSize: fontSize.sm, 
+    color: colors.textSecondary,
+    fontWeight: '500'
+  },
   cartBtn: {
     width: 44,
     height: 44,
@@ -299,5 +376,55 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     zIndex: 9999,
-  }
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: spacing.lg,
+    maxHeight: '70%',
+    width: '100%',
+    ...shadow.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  facilityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  facilityItemSelected: {
+    backgroundColor: colors.primaryLight + '20', // Tinh chỉnh nhẹ màu nền
+  },
+  facilityItemName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semiBold,
+    color: colors.textPrimary,
+  },
+  facilityItemNameSelected: {
+    color: colors.primary,
+  },
+  facilityItemAddr: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
 });

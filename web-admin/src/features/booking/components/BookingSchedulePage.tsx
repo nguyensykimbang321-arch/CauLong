@@ -23,7 +23,14 @@ const BookingSchedulePage: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   
-  const [gridData, setGridData] = useState<{ courts: any[], rawBookedSlots: any[] }>({
+  const [gridData, setGridData] = useState<{
+    courts: any[];
+    rawBookedSlots: any[];
+    open_time?: string;
+    close_time?: string;
+    min_booking_minutes?: number;
+    min_gap_minutes?: number;
+  }>({
     courts: [],
     rawBookedSlots: [] // Hứng dữ liệu thô từ Backend
   });
@@ -48,7 +55,16 @@ const BookingSchedulePage: React.FC = () => {
       FacilityService.getCourtsByFacility(selectedFacilityId)
         .then(res => {
           const courtsData = res.data.courts || [];
-          const uniqueTypes = Array.from(new Set(courtsData.map((c: any) => c.court_type))) as string[];
+          const uniqueTypes = Array.from(
+            new Set(
+              courtsData.map((c: any) => {
+                if (c.court_type && typeof c.court_type === 'object') {
+                  return c.court_type.name;
+                }
+                return c.court_type;
+              }).filter(Boolean)
+            )
+          ) as string[];
           setAvailableCourtTypes(uniqueTypes);
           
           if (uniqueTypes.length > 0) {
@@ -68,7 +84,11 @@ const BookingSchedulePage: React.FC = () => {
           if (res.data) {
              setGridData({
                courts: res.data.courts || [],
-               rawBookedSlots: res.data.rawBookedSlots || []
+               rawBookedSlots: res.data.rawBookedSlots || [],
+               open_time: res.data.open_time,
+               close_time: res.data.close_time,
+               min_booking_minutes: res.data.min_booking_minutes,
+               min_gap_minutes: res.data.min_gap_minutes
              });
           }
         })
@@ -86,7 +106,11 @@ const BookingSchedulePage: React.FC = () => {
          facility_id: selectedFacilityId,
          court_type: selectedCourtType,
          court_id: court.id,
-         start_time: slot.start
+         play_date: selectedDate.format('YYYY-MM-DD'),
+         start_time: slot.start,
+         open_time: gridData.open_time,
+         close_time: gridData.close_time,
+         min_gap_minutes: gridData.min_gap_minutes
       });
       setIsModalOpen(true);
     } else {
@@ -97,13 +121,18 @@ const BookingSchedulePage: React.FC = () => {
 
 
   // Hàm helper format tên loại sân cho đẹp
-  const formatCourtTypeLabel = (type: string) => {
-    switch (type) {
-      case 'badminton': return 'Sân Cầu Lông';
-      case 'tennis': return 'Sân Tennis';
-      case 'football': return 'Sân Bóng Đá';
-      default: return type.toUpperCase();
+  const COURT_TYPE_LABELS: Record<string, string> = {
+    badminton: 'Cầu lông',
+    tennis: 'Tennis',
+    football: 'Bóng đá',
+    table_tennis: 'Bóng bàn',
+  };
+
+  const formatCourtTypeLabel = (type: unknown): string => {
+    if (typeof type !== 'string') {
+      return '';
     }
+    return COURT_TYPE_LABELS[type] || type.replace(/_/g, ' ').toUpperCase();
   };
 
   return (
@@ -157,6 +186,8 @@ const BookingSchedulePage: React.FC = () => {
            courts={gridData.courts}
            rawBookedSlots={gridData.rawBookedSlots} // Đổi tên prop ở đây
            onSlotClick={handleSlotClick}
+           openTime={gridData.open_time}
+           closeTime={gridData.close_time}
         />
       </Spin>
       

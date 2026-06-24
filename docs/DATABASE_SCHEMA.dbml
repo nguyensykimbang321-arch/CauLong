@@ -42,7 +42,7 @@ Table facilities {
 
 Table court_types {
   id int [pk, increment]
-  name varchar // badminton, tennis, table_tennis
+  name varchar [unique] // badminton, tennis, table_tennis
   surface varchar
   is_indoor boolean
   description text
@@ -51,22 +51,23 @@ Table court_types {
 Table courts {
   id int [pk, increment]
   facility_id int [ref: > facilities.id]
-  court_type_id int [ref: > court_types.id]
+  court_type varchar [ref: > court_types.name]
   name varchar
   code varchar
   status varchar // active, maintenance, inactive
   created_at datetime
 }
 
-Table price_rules {
+Table price_configs {
   id int [pk, increment]
-  court_id int [ref: > courts.id]
-  day_of_week int // 0-6, null=everyday
-  start_hour int
-  end_hour int
-  price_cents int
-  active boolean [default: true]
+  facility_id int [ref: > facilities.id]
+  court_type varchar [ref: > court_types.name]
+  start_time time
+  end_time time
+  price_per_hour int
   created_at datetime
+  updated_at datetime
+  deleted_at datetime
 }
 
 Table bookings {

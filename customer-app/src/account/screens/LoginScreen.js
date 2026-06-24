@@ -20,8 +20,8 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const data = await login(email, password);
-      // data thường chứa { user, token }
-      setUser(data.user, data.token);
+      // data thường chứa { user, token } hoặc { user, accessToken }
+      setUser(data.user, data.accessToken || data.token);
       // navigation.replace('HomeTab'); // Nếu lồng vào Stack thì dùng replace hoặc reset
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
@@ -75,14 +75,14 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotBtn}>
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={styles.forgotText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
             <Text style={styles.registerText}>Đăng ký ngay</Text>
           </TouchableOpacity>
         </View>

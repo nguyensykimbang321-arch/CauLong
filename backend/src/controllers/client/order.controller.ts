@@ -3,6 +3,7 @@ import models from "../../models/index.js";
 import AppResponse from "../../utils/AppResponse.js";
 import ApiError from "../../utils/ErrorClass.js";
 import { VNPayUtils } from "../../utils/vnpay.js";
+import { getIO } from '../../config/socket.js';
 
 import { OrderService } from "../../services/order.service.js";
 
@@ -25,7 +26,44 @@ export class ClientOrderController {
         });
       }
 
+      getIO().to('staff_room').emit('order', {
+        message: 'Có đơn hàng mới từ App!',
+        orderId: order.id,
+        status: order.status
+      });
+
       return AppResponse.success(res, { order, payment_url: paymentUrl }, "Tạo đơn hàng thành công", 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMyOrders(req: any, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new ApiError("Không tìm thấy thông tin người dùng", 401);
+
+      const orders = await OrderService.getMyOrders(userId);
+
+      return AppResponse.success(res, orders, "Lấy danh sách đơn hàng thành công");
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateOrder(req: any, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id || null;
+      const { status } = req.body;
+
+      if (status !== 'cancelled') {
+        throw new ApiError("Hành động cập nhật không hợp lệ", 400);
+      }
+
+      const order = await OrderService.cancelOrder(Number(id), userId);
+
+      return AppResponse.success(res, order, "Hủy đơn hàng thành công");
     } catch (error) {
       next(error);
     }

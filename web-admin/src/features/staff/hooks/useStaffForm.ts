@@ -1,0 +1,79 @@
+import { useState, useEffect } from 'react';
+import { Form, message } from 'antd';
+import { StaffService } from '../services/staff.service';
+import type { AxiosError } from 'axios';
+import type { ApiErrorResponse } from '../../../types/api.type';
+import type { CreateStaffPayload, Staff, StaffFormValues } from '../types/staff.types';
+
+interface UseStaffFormProps {
+  open: boolean;
+  onSuccess: () => void;
+  onClose: () => void;
+  initialData?: Staff | null; // Truyền vào nếu là form Edit
+}
+
+export const useStaffForm = ({ open, onSuccess, onClose, initialData }: UseStaffFormProps) => {
+  const [form] = Form.useForm<StaffFormValues>();
+  const [loading, setLoading] = useState(false);
+
+  // Reset form khi đóng/mở hoặc điền data nếu là Edit
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        // Form Edit
+        const nameParts = (initialData.full_name || '').trim().split(' ');
+        const firstName = nameParts.pop() || '';
+        const lastName = nameParts.join(' ');
+
+        form.setFieldsValue({
+          first_name: firstName,
+          last_name: lastName,
+          email: initialData.email,
+          phone: initialData.phone,
+          role: initialData.role,
+          // Không set password khi edit trừ khi backend yêu cầu
+        });
+      } else {
+        // Form Add New
+        form.resetFields();
+      }
+    }
+  }, [open, initialData, form]);
+
+  const handleSubmit = async (values: StaffFormValues) => {
+    try {
+      setLoading(true);
+      
+      const { first_name, last_name, ...rest } = values;
+      const apiPayload: CreateStaffPayload = {
+        ...rest,
+        full_name: `${last_name} ${first_name}`.trim(),
+      };
+
+      if (initialData) {
+        // LÔJIC EDIT (Nếu bạn có API edit, thay vào đây)
+        // await StaffService.updateStaff(initialData.id, apiPayload);
+        message.success('Cập nhật nhân viên thành công!');
+      } else {
+        // LÔJIC ADD NEW
+        await StaffService.createStaff(apiPayload);
+        message.success('Tạo nhân viên thành công!');
+      }
+
+      form.resetFields();
+      onSuccess(); // Gọi callback để refresh danh sách bên ngoài
+      onClose();   // Đóng modal
+    } catch (error) {
+      const err = error as AxiosError<ApiErrorResponse>;
+      message.error(err.response?.data?.message || err.message || 'Lỗi khi xử lý thông tin nhân viên');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    form,
+    loading,
+    handleSubmit
+  };
+};

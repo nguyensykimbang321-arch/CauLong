@@ -76,7 +76,7 @@ Tài liệu này mô tả các điểm cuối (endpoints) cần thiết để Ba
 
 ### 3.2. Kiểm tra tính khả dụng (Availability)
 Đây là API quan trọng nhất để ứng dụng tự động gợi ý sân.
-- **Endpoint:** `GET /facilities/:id/availability?date=YYYY-MM-DD&court_type_id=1`
+- **Endpoint:** `GET /facilities/:id/availability?date=YYYY-MM-DD&court_type=badminton`
 - **Response:** Trả về danh sách các sân và trạng thái của từng slot 1 tiếng.
 ```json
 {
@@ -165,7 +165,7 @@ Hỗ trợ đặt nhiều slot (có thể khác sân nếu người dùng chấp
   "items": [
     { "variant_id": 101, "quantity": 1 }
   ],
-  "payment_method": "manual_transfer"
+  "payment_method": "cash"
 }
 ```
 
@@ -173,7 +173,7 @@ Hỗ trợ đặt nhiều slot (có thể khác sân nếu người dùng chấp
 
 ## 5. Quy tắc xử lý và Logic đặc biệt
 1. **Auto-assign Court Logic:** Backend nên kế thừa logic từ `autoAssignCourt.js` để kiểm tra tính liên tục của các slot. Nếu người dùng chọn một khoảng thời gian dài, ưu tiên xếp vào cùng 1 sân.
-2. **Pricing Rules:** Giá phải được backend tính toán dựa trên ngày trong tuần và khung giờ (Peak hour vs Regular hour) được định nghĩa trong bảng `price_rules`.
+2. **Pricing Rules:** Giá phải được backend tính toán dựa trên khung giờ (Peak hour vs Regular hour) được định nghĩa trong bảng `price_configs`.
 3. **Concurrency:** Cần xử lý lock (hoặc transaction) khi có nhiều người cùng đặt 1 slot tại cùng một thời điểm.
 4. **Loyalty Points:** Mỗi đơn hàng hoặc booking hoàn tất nên cộng điểm thưởng cho người dùng (ví dụ: 1% giá trị đơn hàng).
 

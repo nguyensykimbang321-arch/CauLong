@@ -5,7 +5,7 @@ import sequelize from '../config/database.js';
 export interface InventoryMovementAttributes {
   id: number;
   variant_id: number;
-  warehouse_id: number;
+  facility_id: number;
   qty_delta: number;
   reason: 'sale' | 'return' | 'adjustment' | 'import';
   ref_order_id: number | null;
@@ -18,7 +18,7 @@ export interface InventoryMovementCreationAttributes extends Optional<InventoryM
 class InventoryMovement extends Model<InventoryMovementAttributes, InventoryMovementCreationAttributes> implements InventoryMovementAttributes {
   declare id: number;
   declare variant_id: number;
-  declare warehouse_id: number;
+  declare facility_id: number;
   declare qty_delta: number;
   declare reason: 'sale' | 'return' | 'adjustment' | 'import';
   declare ref_order_id: number | null;
@@ -31,7 +31,7 @@ InventoryMovement.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     variant_id: { type: DataTypes.INTEGER, allowNull: false },
-    warehouse_id: { type: DataTypes.INTEGER, allowNull: false },
+    facility_id: { type: DataTypes.INTEGER, allowNull: false },
     qty_delta: { type: DataTypes.INTEGER, allowNull: false },
     reason: {
       type: DataTypes.ENUM('sale', 'return', 'adjustment', 'import'),

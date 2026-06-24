@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: caulong_backend
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+
+  web-admin:
+    build: ./web-admin
+    container_name: caulong_web_admin
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://192.168.1.163:3000/api/v1
+    depends_on:
+      - backend

@@ -12,10 +12,16 @@ import adminAuthRouter from "./admin/auth.routes.js";
 import adminFacilityRouter from "./admin/facility.route.js";
 import adminCourtRouter from "./admin/court.route.js";
 import adminBookingRouter from './admin/booking.route.js';
+import adminProductRouter from './admin/product.route.js';
+import adminInventoryRouter from './admin/inventory.route.js';
 import priceConfigRouter from './admin/price_config.route.js';
 import clientPaymentRouter from './client/payment.route.js';
-import adminUserRouter from './admin/user.routes.js'
-import uploadRouter from './upload.routes.js'
+import adminUserRouter from './admin/user.route.js';
+import adminOrderRouter from './admin/order.routes.js';
+import uploadRouter from './upload.routes.js';
+import adminHolidayRouter from './admin/holiday.route.js';
+import adminSystemConfigRouter from './admin/systemConfig.route.js';
+import adminRevenueRouter from './admin/revenue.route.js';
 
 
 const rootRouter = Router();
@@ -46,6 +52,12 @@ rootRouter.use('/admin/courts', adminCourtRouter);
 rootRouter.use('/admin/bookings', adminBookingRouter);
 rootRouter.use('/admin/price-configs', priceConfigRouter);
 rootRouter.use('/admin/users', adminUserRouter);
+rootRouter.use('/admin/products', adminProductRouter);
+rootRouter.use('/admin/inventory', adminInventoryRouter);
+rootRouter.use('/admin/orders', adminOrderRouter);
+rootRouter.use('/admin/holidays', adminHolidayRouter);
+rootRouter.use('/admin/system-configs', adminSystemConfigRouter);
+rootRouter.use('/admin/revenue', adminRevenueRouter);
 rootRouter.use('/upload', uploadRouter);
 
 export default rootRouter;

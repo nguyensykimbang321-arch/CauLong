@@ -51,13 +51,16 @@ function reducer(state, action) {
     case 'cart/init': {
       return { ...state, cartItems: action.payload };
     }
+    case 'facility/set': {
+      return { ...state, selectedFacility: action.payload };
+    }
     default:
       return state;
   }
 }
 
 export function AppStoreProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, { cartItems: [] });
+  const [state, dispatch] = useReducer(reducer, { cartItems: [], selectedFacility: null });
   const [loading, setLoading] = useState(true);
   const [user, setUserState] = useState(null);
 
@@ -70,10 +73,13 @@ export function AppStoreProvider({ children }) {
         // Load user và token từ storage nếu có
         const savedToken = await storage.getItem('token');
         const savedUser = await storage.getItem('user');
+        const savedFacility = await storage.getItem('selectedFacility');
         
         if (savedToken && savedUser) {
           setUserState(JSON.parse(savedUser));
-          // Token sẽ được interceptor ở api.js tự động lấy từ AsyncStorage
+        }
+        if (savedFacility) {
+          dispatch({ type: 'facility/set', payload: JSON.parse(savedFacility) });
         }
       } catch (e) {
         console.warn("Lỗi khơi tạo AppStore:", e);
@@ -119,7 +125,28 @@ export function AppStoreProvider({ children }) {
     const clearCart = () =>
       dispatch({ type: 'cart/clear', payload: {} });
 
-    return { state, addToCart, setCartQty, removeFromCart, clearCart, loading, user, setUser, logout };
+    const setFacility = async (facility) => {
+      try {
+        await storage.setItem('selectedFacility', JSON.stringify(facility));
+        dispatch({ type: 'facility/set', payload: facility });
+      } catch (e) {
+        console.error("Lỗi lưu cơ sở:", e);
+      }
+    };
+
+    return { 
+      state, 
+      addToCart, 
+      setCartQty, 
+      removeFromCart, 
+      clearCart, 
+      loading, 
+      user, 
+      setUser, 
+      logout,
+      selectedFacility: state.selectedFacility,
+      setFacility
+    };
   }, [state, loading, user]);
 
   return <AppStoreContext.Provider value={apiContent}>{children}</AppStoreContext.Provider>;

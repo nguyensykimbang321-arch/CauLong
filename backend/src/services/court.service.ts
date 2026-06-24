@@ -31,6 +31,7 @@ export class CourtService {
         });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     static async getCourtById(id: number) {
         const court = await models.Court.findOne({
             where: {id: id, is_active: true },
@@ -67,15 +68,26 @@ export class CourtService {
                 facility_id: data.facility_id
             }
         });
+
         if(existingCourt){
-            if(existingCourt.is_active){
-                await existingCourt.update({ ...data, is_active: true});
+            if(!existingCourt.is_active){
+                await existingCourt.update({
+                    name: data.name,
+                    facility_id: data.facility_id,
+                    court_type: data.court_type,
+                    is_active: true
+                });
                 return existingCourt;
             }
             throw new ApiError(`Tên sân '${data.name}' đã tồn tại trong cơ sở này`, 400);
         }
 
-        return await models.Court.create(data);
+        return await models.Court.create({
+            name: data.name,
+            facility_id: data.facility_id,
+            court_type: data.court_type,
+            is_active: data.is_active ?? true
+        });
     }
 
     static async updateCourt(id: number, data: UpdateCourtInput) {
@@ -105,7 +117,7 @@ export class CourtService {
     }
 
     static async deleteCourt(id: number) {
-         const court = await this.getCourtById(id);    
+         const court = await this.getCourtByIdByAdmin(id);    
 
         await court.destroy(); 
         

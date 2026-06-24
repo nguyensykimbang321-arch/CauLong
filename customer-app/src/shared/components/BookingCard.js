@@ -3,17 +3,28 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import Badge from './Badge';
-import { formatDatetime, formatPrice, getBookingStatusMeta } from '../../utils/formatters';
+import { formatDatetime, formatPrice, getUnifiedBookingStatus } from '../../utils/formatters';
 
 export default function BookingCard({ booking, onPress }) {
-  const statusMeta = getBookingStatusMeta(booking?.status);
+  const statusMeta = getUnifiedBookingStatus(booking);
+
+  // Mapping bộ môn sang tiếng Việt
+  const sportNames = {
+    badminton: 'Cầu lông',
+    tennis: 'Tennis',
+    football: 'Bóng đá',
+    table_tennis: 'Bóng bàn'
+  };
+
+  const sportLabel = booking?.court_type_label || sportNames[booking?.slots?.[0]?.court?.type_info?.name] || '—';
+  const courtName = booking?.court_name || booking?.slots?.[0]?.court?.name || '—';
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.courtType}>{booking?.court_type_label}</Text>
-          <Text style={styles.courtName}>{booking?.court_name}</Text>
+          <Text style={styles.courtType}>{sportLabel}</Text>
+          <Text style={styles.courtName}>{courtName}</Text>
         </View>
         <Badge label={statusMeta.label} color={statusMeta.color} size="sm" />
       </View>
@@ -34,12 +45,6 @@ export default function BookingCard({ booking, onPress }) {
 
       <View style={styles.footer}>
         <Text style={styles.price}>{formatPrice(booking?.total_cents)}</Text>
-        {booking?.status === 'confirmed' ? (
-          <View style={styles.qrHint}>
-            <Ionicons name="qr-code-outline" size={14} color={colors.primary} />
-            <Text style={styles.qrText}>Xem QR</Text>
-          </View>
-        ) : null}
       </View>
     </TouchableOpacity>
   );

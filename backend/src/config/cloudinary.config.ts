@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    console.error("❌ Thiếu cấu hình Cloudinary trong file .env!");
+    console.warn("⚠️ [Thông tin] File .env chưa cấu hình Cloudinary. (Chỉ ảnh hưởng đến tính năng tải lên ảnh sản phẩm/sân mới của Admin, app Khách hàng hoạt động bình thường).");
 }
 
 cloudinary.config({

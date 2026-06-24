@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { UserAttributes } from '../types/auth.types';
+import { AuthService } from '../services/auth.service';
 
 // Định nghĩa hình thù của kho lưu trữ
 interface AuthState {
@@ -8,7 +9,7 @@ interface AuthState {
   // Hàm cập nhật thông tin sau khi login thành công
   setAuth: (user: Partial<UserAttributes>, token: string) => void;
   // Hàm xóa sạch thông tin khi logout
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -22,9 +23,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user, isAuthenticated: true });
   },
 
-  logout: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    set({ user: null, isAuthenticated: false });
+  logout: async () => {
+    try {
+        await AuthService.logout();
+    } catch (error) {
+        console.error("Lỗi khi logout:", error);
+    } finally {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        set({ user: null, isAuthenticated: false });
+    }
   },
 }));

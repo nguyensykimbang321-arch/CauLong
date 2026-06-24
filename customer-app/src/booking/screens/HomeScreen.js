@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
@@ -8,48 +8,63 @@ import BookingCard from '../../shared/components/BookingCard';
 import ProductCard from '../../shared/components/ProductCard';
 import Button from '../../shared/components/Button';
 import PressableCard from '../../shared/components/PressableCard';
+import { useAppStore } from '../../data/AppStore';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen({ navigation }) {
+  const { selectedFacility, setFacility, user: storeUser } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [facility, setFacility] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [products, setProducts] = useState([]);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [user, facilities, allProducts] = await Promise.all([
-          getCurrentUser(),
-          getFacilities(),
-          getProducts()
-        ]);
-        
-        setCurrentUser(user);
-        setFacility(facilities[0]);
-        setProducts(allProducts);
-
-        if (user) {
-          const userBookings = await getBookings(user.id);
-          setBookings(userBookings);
-        }
-      } catch (error) {
-        console.error("Lỗi tải dữ liệu Home:", error);
-      } finally {
-        setLoading(false);
+  const loadData = async (showLoading = false) => {
+    try {
+      if (showLoading) setLoading(true);
+      const [user, facilities] = await Promise.all([
+        getCurrentUser(),
+        getFacilities()
+      ]);
+      
+      setCurrentUser(user);
+      
+      // Nếu chưa chọn cơ sở, mặc định chọn cái đầu tiên
+      if (!selectedFacility && facilities.length > 0) {
+         setFacility(facilities[0]);
       }
+
+      // Tải sản phẩm theo cơ sở đã chọn
+      const targetFacilityId = selectedFacility?.id || facilities[0]?.id;
+      const allProducts = await getProducts(targetFacilityId);
+      setProducts(allProducts);
+
+      if (user) {
+        const userBookings = await getBookings(user.id);
+        setBookings(userBookings);
+      }
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu Home:", error);
+    } finally {
+      if (showLoading) setLoading(false);
     }
-    loadData();
-  }, []);
+  };
+
+  useEffect(() => {
+    loadData(true);
+  }, [selectedFacility?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData(false);
+    }, [selectedFacility?.id])
+  );
 
   const quickActions = [
     { id: 'book', label: 'Đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('BookingTab') },
     { id: 'shop', label: 'Cửa hàng', icon: 'cart-outline', onPress: () => navigation.navigate('ShopTab') },
-    { id: 'qr', label: 'QR Check-in', icon: 'qr-code-outline', onPress: () => navigation.navigate('QRCheckin') },
   ];
 
-  if (loading && !facility) {
+  if (loading && !selectedFacility) {
     return (
       <Screen>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -77,13 +92,13 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.heroCard}>
           <View style={styles.heroGlow} />
-          <Text style={styles.cardTitle}>{facility?.name || 'Đang tải...'}</Text>
-          <Text style={styles.cardSub}>{facility?.address}</Text>
-          {facility && (
+          <Text style={styles.cardTitle}>{selectedFacility?.name || 'Đang tải...'}</Text>
+          <Text style={styles.cardSub}>{selectedFacility?.address}</Text>
+          {selectedFacility && (
             <View style={styles.openRow}>
               <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.openText}>
-                {facility?.open_time} – {facility?.close_time}
+                {selectedFacility?.open_time} – {selectedFacility?.close_time}
               </Text>
             </View>
           )}

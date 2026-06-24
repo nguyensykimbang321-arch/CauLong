@@ -15,7 +15,7 @@ export class ClientBookingController {
     
     static async checkAvailability(req: Request, res: Response, next: NextFunction) {
         try {
-            const query = req.query as CheckAvailabilityQuery;
+            const query = req.query as unknown as CheckAvailabilityQuery;
             const { startDateTime, endDateTime } = await BookingService.validateBookingTimes(
                 query.date, 
                 query.start_time, 
@@ -23,6 +23,7 @@ export class ClientBookingController {
             );
 
             const availableCourts = await BookingService.getAvailableCourts(
+                query.facility_id,
                 startDateTime.toDate(), 
                 endDateTime.toDate(),
                 query.court_type
@@ -116,6 +117,25 @@ export class ClientBookingController {
 
             return AppResponse.success(res, { booking: result, paymentUrl }, 'Giữ chỗ thành công!', 201);
 
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async updateBooking(req: any, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params;
+            const userId = req.user?.id;
+            if(!userId) throw new ApiError('Không tìm thấy thông tin người dùng', 401);
+
+            const { status } = req.body;
+            if (status !== 'cancelled') {
+                throw new ApiError('Hành động cập nhật không hợp lệ', 400);
+            }
+
+            const booking = await BookingService.cancelBooking(Number(id), userId);
+
+            return AppResponse.success(res, booking, "Hủy đặt sân thành công", 200);
         } catch (error) {
             next(error);
         }

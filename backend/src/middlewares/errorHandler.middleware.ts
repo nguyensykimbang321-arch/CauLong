@@ -11,6 +11,9 @@ const errorHandlingMiddleware = (err: any, req: Request, res: Response, next: Ne
     if (err.name === 'JsonWebTokenError') {
         message = 'Token không hợp lệ';
         statusCode = 401;
+    } else if (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError') {
+        message = err.errors.map((e: any) => e.message).join(', ');
+        statusCode = 400;
     }
 
     return AppResponse.error(res, message, statusCode);

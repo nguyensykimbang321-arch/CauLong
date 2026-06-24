@@ -12,27 +12,33 @@ interface CreateBookingModalProps {
     facility_id?: number;
     court_type?: string;
     court_id?: number;
+    play_date?: dayjs.Dayjs | string;
     start_time?: string;
   } | null;
 }
 
 const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ open, onClose, onSuccess, initialData }) => {
   const {
-    form, loading, searchingPhone, facilities, availableCourtTypes, courts,
+    form, loading, searchingPhone, isExistingUser, foundCustomer, facilities, availableCourtTypes, courts,
     staffFacilityId, selectedCourtId, selectedCourtType, selectedDate, selectedFacilityId,
-    currentCourtBookedSlots, handleSearchPhone, checkOverlappingTime, handleSubmit
+    currentCourtBookedSlots, handleSearchPhone, checkBookingTimes, handleSubmit
   } = useBookingForm({ open, onSuccess, onClose, initialData });
 
-  const formatCourtTypeLabel = (type: string) => {
-    switch (type) {
-      case 'badminton': return 'Sân Cầu Lông';
-      case 'tennis': return 'Sân Tennis';
-      case 'football': return 'Sân Bóng Đá';
-      case 'basketball': return 'Sân Bóng Rổ';
-      case 'standard': return 'Sân Thường'; // Giữ lại cho chắc
-      case 'vip': return 'Sân VIP';         // Giữ lại cho chắc
-      default: return type.toUpperCase();
+  const COURT_TYPE_LABELS: Record<string, string> = {
+    badminton: 'Cầu lông',
+    tennis: 'Tennis',
+    football: 'Bóng đá',
+    table_tennis: 'Bóng bàn',
+    basketball: 'Bóng rổ',
+    standard: 'Sân Thường',
+    vip: 'Sân VIP',
+  };
+
+  const formatCourtTypeLabel = (type: unknown): string => {
+    if (typeof type !== 'string') {
+      return '';
     }
+    return COURT_TYPE_LABELS[type] || type.replace(/_/g, ' ').toUpperCase();
   };
 
   return (
@@ -49,7 +55,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ open, onClose, 
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item label="Số điện thoại Khách" name="phone" rules={[{ required: true, message: 'Vui lòng nhập SĐT!' }]}>
               <Input 
                 placeholder="Gõ SĐT rồi bấm ra ngoài..." 
@@ -60,12 +66,35 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ open, onClose, 
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item label="Họ và tên" name="full_name">
-              <Input placeholder="Nguyễn Văn A..." />
+              <Input placeholder="Nguyễn Văn A..." disabled={isExistingUser} />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Loại khách hàng" name="membership_type" initialValue="standard">
+              <Select placeholder="-- Chọn loại --" disabled={isExistingUser}>
+                <Select.Option value="standard">Khách thường</Select.Option>
+                <Select.Option value="student">Học sinh - Sinh viên</Select.Option>
+                <Select.Option value="vip">Khách VIP</Select.Option>
+              </Select>
             </Form.Item>
           </Col>
         </Row>
+
+        {isExistingUser && foundCustomer && (
+          <div className="mb-4">
+            <Alert
+              type="info"
+              showIcon
+              message={
+                <span>
+                  Khách hàng quen: <strong>{foundCustomer.full_name || 'Khách vãng lai'}</strong> - Điểm tích lũy: <strong>{foundCustomer.loyalty_points || 0} điểm</strong> (Hạng: <strong>{foundCustomer.membership_type.toUpperCase()}</strong>)
+                </span>
+              }
+            />
+          </div>
+        )}
 
         <Divider />
 
@@ -134,8 +163,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ open, onClose, 
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item 
-              label="Giờ bắt đầu" name="start_time"
-              rules={[{ required: true, message: 'Chọn giờ bắt đầu!' }, { validator: checkOverlappingTime }]}
+              label="Giờ bắt đầu" name="start_time" dependencies={['end_time']}
+              rules={[{ required: true, message: 'Chọn giờ bắt đầu!' }, { validator: checkBookingTimes }]}
             >
               <TimePicker className="w-full" format="HH:mm" minuteStep={15} />
             </Form.Item>
@@ -143,16 +172,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ open, onClose, 
           <Col span={12}>
             <Form.Item 
               label="Giờ kết thúc" name="end_time" dependencies={['start_time']}
-              rules={[
-                { required: true, message: 'Chọn giờ kết thúc!' },
-                { validator: checkOverlappingTime },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue('start_time') < value) return Promise.resolve();
-                    return Promise.reject(new Error('Giờ kết thúc phải lớn hơn giờ bắt đầu!'));
-                  },
-                }),
-              ]}
+              rules={[{ required: true, message: 'Chọn giờ kết thúc!' }, { validator: checkBookingTimes }]}
             >
               <TimePicker className="w-full" format="HH:mm" minuteStep={15} />
             </Form.Item>

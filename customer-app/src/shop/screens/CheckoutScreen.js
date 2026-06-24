@@ -10,16 +10,16 @@ import PaymentOption from '../../shared/components/PaymentOption';
 import { createOrder } from '../../services/api';
 
 export default function CheckoutScreen({ navigation }) {
-  const { state, clearCart } = useAppStore();
+  const { state, clearCart, selectedFacility } = useAppStore();
   const total = useMemo(() => calcCartTotal(state.cartItems), [state.cartItems]);
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cod'); 
+  const [paymentMethod, setPaymentMethod] = useState('cash'); 
   const [facilityId, setFacilityId] = useState(null);
+  const [pickupTime, setPickupTime] = useState(new Date(Date.now() + 3600000).toISOString()); // Default 1h sau
 
   useEffect(() => {
     async function loadInitial() {
@@ -29,9 +29,12 @@ export default function CheckoutScreen({ navigation }) {
                 setName(user.full_name);
                 setPhone(user.phone);
             }
-            if (facilities && facilities.length > 0) {
-                setAddress(facilities[0].address);
-                setFacilityId(facilities[0].id);
+            
+            // Ưu tiên lấy cơ sở đã chọn từ AppStore
+            const activeFacility = selectedFacility || (facilities && facilities[0]);
+            
+            if (activeFacility) {
+                setFacilityId(activeFacility.id);
             }
         } catch (e) {
             console.error(e);
@@ -40,7 +43,7 @@ export default function CheckoutScreen({ navigation }) {
         }
     }
     loadInitial();
-  }, []);
+  }, [selectedFacility]);
 
   const handleCheckout = async () => {
     if (!canSubmit) return;
@@ -49,9 +52,10 @@ export default function CheckoutScreen({ navigation }) {
       const orderData = {
         customer_name: name,
         customer_phone: phone,
-        shipping_address: address,
         payment_method: paymentMethod,
         facility_id: facilityId,
+        pickup_type: 'pickup_store',
+        pickup_time: pickupTime,
         items: state.cartItems.map(it => ({
           product_variant_id: it.variant_id,
           quantity: it.quantity,
@@ -68,7 +72,13 @@ export default function CheckoutScreen({ navigation }) {
         });
       } else {
         clearCart();
-        navigation.navigate('Shop');
+        navigation.reset({
+          index: 1,
+          routes: [
+            { name: 'Shop' },
+            { name: 'MyOrders' }
+          ]
+        });
         Alert.alert('Thành công', 'Đặt hàng thành công!');
       }
     } catch (error) {
@@ -79,7 +89,7 @@ export default function CheckoutScreen({ navigation }) {
     }
   };
 
-  const canSubmit = useMemo(() => name.trim() && phone.trim() && address.trim(), [name, phone, address]);
+  const canSubmit = useMemo(() => name.trim() && phone.trim(), [name, phone]);
 
   if (loading) {
       return (
@@ -99,7 +109,7 @@ export default function CheckoutScreen({ navigation }) {
       <View style={styles.card}>
         <Field label="Họ tên" value={name} onChangeText={setName} />
         <Field label="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <Field label="Địa chỉ" value={address} onChangeText={setAddress} />
+        <Field label="Hẹn giờ lấy hàng (YYYY-MM-DD HH:mm)" value={pickupTime.slice(0, 16).replace('T', ' ')} onChangeText={(text) => setPickupTime(text)} />
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Tổng đơn hàng</Text>
@@ -111,8 +121,8 @@ export default function CheckoutScreen({ navigation }) {
           <View style={styles.paymentOptions}>
             <PaymentOption 
               label="Tiền mặt (COD)" 
-              selected={paymentMethod === 'cod'} 
-              onPress={() => setPaymentMethod('cod')} 
+              selected={paymentMethod === 'cash'} 
+              onPress={() => setPaymentMethod('cash')} 
               icon="cash-outline"
             />
             <PaymentOption 

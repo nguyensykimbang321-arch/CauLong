@@ -4,6 +4,8 @@ import models from "../models/index.js";
 import ApiError from "../utils/ErrorClass.js";
 import type { CreateFacilityInput, updateFacilityInput } from "../validations/facility.validation.js";
 
+import { courtTypeInclude } from "../constants/courtInclude.constant.js";
+
 export class FacilityService {
     static async getAllFacilities() {
         return await models.Facility.findAll({
@@ -20,9 +22,9 @@ export class FacilityService {
 
     static async getFacilityById(id: number) {
         const facility = await models.Facility.findOne({
-            where: { id: id,  is_active: true}
+            where: { id: id, is_active: true }
         })
-        if(!facility){
+        if (!facility) {
             throw new ApiError("Không tìm thấy cơ sở này", 404);
         }
 
@@ -31,9 +33,9 @@ export class FacilityService {
 
     static async getFacilityByIdForAdmin(id: number) {
         const facility = await models.Facility.findOne({
-            where: { id: id}
+            where: { id: id }
         })
-        if(!facility){
+        if (!facility) {
             throw new ApiError("Không tìm thấy cơ sở này", 404);
         }
 
@@ -41,17 +43,49 @@ export class FacilityService {
     }
 
 
+    static async getFacilityWithCourtsForClient(id: number) {
+        const facility = await this.getFacilityById(id);
+
+        const courts = await models.Court.findAll({
+            where: { facility_id: id, is_active: true },
+            include: [courtTypeInclude],
+        });
+
+        return {
+            ...facility.toJSON(),
+            courts: courts.map((court) => court.toJSON()),
+        };
+    }
+
     static async getFacilityWithCourts(id: number) {
         const facility = await this.getFacilityById(id);
-        
+
         const courts = await (models.Court as any).findAll({
-            where: { facility_id: id, is_active: true } 
+            where: { facility_id: id, is_active: true }
         });
 
         return {
             ...facility.toJSON(),
             courts
         };
+    }
+
+    static async getCourtTypesByFacility(id: number) {
+        await this.getFacilityById(id);
+
+        const courts = await models.Court.findAll({
+            where: { facility_id: id, is_active: true },
+            attributes: ['court_type'],
+            group: ['court_type'],
+            raw: true,
+        });
+
+        const typeIds = courts.map((c: any) => c.court_type);
+
+        return await models.CourtType.findAll({
+            where: { name: { [Op.in]: typeIds } },
+            order: [['id', 'ASC']],
+        });
     }
 
     static async createFacility(data: CreateFacilityInput) {
@@ -68,13 +102,13 @@ export class FacilityService {
     }
 
     static async updateFacility(id: number, data: updateFacilityInput) {
-        const facility =  await this.getFacilityByIdForAdmin(id);
-        
+        const facility = await this.getFacilityByIdForAdmin(id);
+
         if (data.name && data.name !== facility.name) {
             const duplicateName = await models.Facility.findOne({
                 where: {
                     name: data.name,
-                    id: { [Op.ne]: id } 
+                    id: { [Op.ne]: id }
                 }
             });
 
@@ -87,17 +121,17 @@ export class FacilityService {
     }
 
     static async deleteFacility(id: number) {
-        const facility = await this.getFacilityById(id);    
+        const facility = await this.getFacilityById(id);
 
-        await facility.destroy(); 
-        
+        await facility.destroy();
+
         return { message: 'Đã xóa (mềm) cơ sở thành công' };
     }
 
     static async restoreFacility(id: number) {
         const facility = await models.Facility.findOne({
             where: { id: id },
-            paranoid: false 
+            paranoid: false
         });
 
         if (!facility) {
@@ -105,13 +139,13 @@ export class FacilityService {
         }
 
         await facility.restore();
-        
+
         return { message: 'Đã khôi phục cơ sở thành công' };
     }
 
     static async getDeletedFacilities() {
         return await models.Facility.findAll({
-            where: { deleted_at: { [Op.not]: null as any  } },
+            where: { deleted_at: { [Op.not]: null as any } },
             paranoid: false, // Bắt buộc phải có để nhìn xuyên thùng rác
             order: [['deleted_at', 'DESC']]
         });
