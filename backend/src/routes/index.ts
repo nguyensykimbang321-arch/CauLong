@@ -18,7 +18,9 @@ import priceConfigRouter from './admin/price_config.route.js';
 import clientPaymentRouter from './client/payment.route.js';
 import adminUserRouter from './admin/user.route.js';
 import adminOrderRouter from './admin/order.routes.js';
-import uploadRouter from './upload.routes.js'
+import uploadRouter from './upload.routes.js';
+import adminHolidayRouter from './admin/holiday.route.js';
+import adminSystemConfigRouter from './admin/systemConfig.route.js';
 
 
 const rootRouter = Router();
@@ -52,6 +54,8 @@ rootRouter.use('/admin/users', adminUserRouter);
 rootRouter.use('/admin/products', adminProductRouter);
 rootRouter.use('/admin/inventory', adminInventoryRouter);
 rootRouter.use('/admin/orders', adminOrderRouter);
+rootRouter.use('/admin/holidays', adminHolidayRouter);
+rootRouter.use('/admin/system-configs', adminSystemConfigRouter);
 rootRouter.use('/upload', uploadRouter);
 
 export default rootRouter;
