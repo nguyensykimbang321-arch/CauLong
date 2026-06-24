@@ -23,7 +23,43 @@ const PORT = process.env.PORT || 3000;
 // 1. GLOBAL MIDDLEWARES
 // ==========================================
 app.use(helmet()); // Bảo mật HTTP headers
-app.use(cors()); // Cho phép Frontend gọi API
+
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    process.env.ADMIN_URL,
+].filter((origin): origin is string => !!origin);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
+app.use((req, res, next) => {
+    const rawCookies = req.headers.cookie;
+    req.cookies = {};
+    if (rawCookies) {
+        rawCookies.split(';').forEach(cookie => {
+            const parts = cookie.split('=');
+            const rawName = parts[0];
+            if (rawName !== undefined) {
+                const name = rawName.trim();
+                const value = parts.slice(1).join('=');
+                if (req.cookies) {
+                    req.cookies[name] = decodeURIComponent(value);
+                }
+            }
+        });
+    }
+    next();
+});
+
 app.use(express.json()); // Parse body dạng JSON
 app.use(express.urlencoded({ extended: true })); // Parse body dạng form-data
 if (process.env.NODE_ENV === 'development') {

@@ -69,6 +69,9 @@ export class BookingService {
         let lastError: any = null;
         const results = await Promise.all(availableCourts.map(async (court) => {
             try {
+                if (!court.court_type) {
+                    throw new ApiError('Sân không có thông tin loại sân!', 400);
+                }
                 const totalPrice = await PricingService.calculateTotalPrice(
                     court.facility_id,
                     court.court_type,
@@ -105,8 +108,10 @@ export class BookingService {
         });
         const open_time = facility?.open_time || '06:00:00';
         const close_time = facility?.close_time || '22:00:00';
-        const START_HOUR = parseInt(open_time.split(':')[0]) || 6;
-        const END_HOUR = parseInt(close_time.split(':')[0]) || 22;
+        const openHourPart = open_time.split(':')[0];
+        const closeHourPart = close_time.split(':')[0];
+        const START_HOUR = (openHourPart !== undefined ? parseInt(openHourPart, 10) : 6) || 6;
+        const END_HOUR = (closeHourPart !== undefined ? parseInt(closeHourPart, 10) : 22) || 22;
 
         // 2. Lấy danh sách sân của cơ sở và loại sân này
         const courts = await models.Court.findAll({
@@ -258,12 +263,16 @@ export class BookingService {
             throw new ApiError('Sân này không thuộc cơ sở bạn đã chọn!', 400);
         }
 
+        if (!court.court_type) {
+            throw new ApiError('Sân không có thông tin loại sân!', 400);
+        }
+
         const calculatedPrice = await PricingService.calculateTotalPrice(
-            data.facility_id,
+            Number(data.facility_id),
             court.court_type,
             startDateTime,
             endDateTime,
-            userId
+            userId ? Number(userId) : null
         );
 
         const t = await sequelize.transaction();

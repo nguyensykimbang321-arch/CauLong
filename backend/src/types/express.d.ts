@@ -5,6 +5,7 @@ declare global {
         id: number;
         role: string;
       };
+      cookies?: Record<string, string>;
     }
   }
 }
