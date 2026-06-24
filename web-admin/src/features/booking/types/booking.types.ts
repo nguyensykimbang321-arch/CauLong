@@ -24,6 +24,7 @@ export interface Booking {
   total_cents: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   payment_status: 'paid' | 'unpaid';
+  payment_method?: 'cash' | 'vnpay';
   created_at: string;
   
   user?: BookingUser;
@@ -33,9 +34,12 @@ export interface Booking {
   slots?: BookingSlot[];
 }
 
+export type MembershipType = 'standard' | 'student' | 'vip';
+
 export interface CreateBookingPayload {
   customer_phone: string;
   customer_name?: string;
+  membership_type?: MembershipType;
   facility_id: number;
   court_id: number;
   date: string;
@@ -62,6 +66,7 @@ export interface CourtLite {
 export interface BookingFormValues {
   phone: string;
   full_name?: string;
+  membership_type?: MembershipType;
   facility_id: number;
   court_type: string;
   court_id: number;
@@ -84,4 +89,13 @@ export interface DailySlotGridResponse {
     price_cents: number;
   }[]>;
   rawBookedSlots: BookedSlotDTO[];
+  open_time?: string;
+  close_time?: string;
+  min_booking_minutes?: number;
+  min_gap_minutes?: number;
+}
+
+export interface FacilityLite {
+  id: number;
+  name: string;
 }

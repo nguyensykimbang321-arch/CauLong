@@ -11,7 +11,8 @@ import {
   InboxOutlined,
   CalendarOutlined,
   ShoppingCartOutlined,
-  ShopOutlined
+  ShopOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import { useAuthStore } from '../features/auth/store/auth.store';
 
@@ -36,7 +37,7 @@ const AdminLayout: React.FC = () => {
   const isAdmin = user?.role === 'admin';
 
   const menuItems = [
-    { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
+    ...(isAdmin ? [{ key: '/revenue', icon: <DashboardOutlined />, label: 'Doanh thu' }] : []),
     
     // NHÓM QUẢN LÝ ĐẶT SÂN
     { 
@@ -58,6 +59,7 @@ const AdminLayout: React.FC = () => {
         { key: '/facility/branches', label: 'Quản lý Cơ sở' },
         { key: '/facility/courts', label: 'Quản lý Sân' },
         { key: '/pricing', label: 'Cấu hình bảng giá' },
+        { key: '/holidays', label: 'Cấu hình Ngày lễ' },
       ]
     }] : []),
 
@@ -74,6 +76,15 @@ const AdminLayout: React.FC = () => {
     },
     { key: '/products', icon: <InboxOutlined />, label: 'Hàng hóa & Kho' },
     { key: '/staff', icon: <UserOutlined />, label: 'Nhân viên' },
+
+    ...(isAdmin ? [{
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: 'Cài đặt hệ thống',
+      children: [
+        { key: '/system-configs', label: 'Cấu hình Tham số' },
+      ]
+    }] : []),
   ];
 
   const userMenu = {

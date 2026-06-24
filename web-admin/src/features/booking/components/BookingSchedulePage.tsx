@@ -23,7 +23,14 @@ const BookingSchedulePage: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   
-  const [gridData, setGridData] = useState<{ courts: any[], rawBookedSlots: any[] }>({
+  const [gridData, setGridData] = useState<{
+    courts: any[];
+    rawBookedSlots: any[];
+    open_time?: string;
+    close_time?: string;
+    min_booking_minutes?: number;
+    min_gap_minutes?: number;
+  }>({
     courts: [],
     rawBookedSlots: [] // Hứng dữ liệu thô từ Backend
   });
@@ -68,7 +75,11 @@ const BookingSchedulePage: React.FC = () => {
           if (res.data) {
              setGridData({
                courts: res.data.courts || [],
-               rawBookedSlots: res.data.rawBookedSlots || []
+               rawBookedSlots: res.data.rawBookedSlots || [],
+               open_time: res.data.open_time,
+               close_time: res.data.close_time,
+               min_booking_minutes: res.data.min_booking_minutes,
+               min_gap_minutes: res.data.min_gap_minutes
              });
           }
         })
@@ -86,7 +97,11 @@ const BookingSchedulePage: React.FC = () => {
          facility_id: selectedFacilityId,
          court_type: selectedCourtType,
          court_id: court.id,
-         start_time: slot.start
+         play_date: selectedDate.format('YYYY-MM-DD'),
+         start_time: slot.start,
+         open_time: gridData.open_time,
+         close_time: gridData.close_time,
+         min_gap_minutes: gridData.min_gap_minutes
       });
       setIsModalOpen(true);
     } else {
@@ -157,6 +172,8 @@ const BookingSchedulePage: React.FC = () => {
            courts={gridData.courts}
            rawBookedSlots={gridData.rawBookedSlots} // Đổi tên prop ở đây
            onSlotClick={handleSlotClick}
+           openTime={gridData.open_time}
+           closeTime={gridData.close_time}
         />
       </Spin>
       

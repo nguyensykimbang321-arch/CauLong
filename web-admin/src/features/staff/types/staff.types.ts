@@ -11,10 +11,24 @@ export interface Staff {
 }
 
 export interface CreateStaffPayload {
+  full_name: string;
+  email: string;
+  phone: string;
+  password?: string;
+  role: UserRole;
+}
+
+export interface StaffFormValues {
   first_name: string;
   last_name: string;
   email: string;
   phone: string;
-  password: string;
+  password?: string;
   role: UserRole;
+}
+
+export interface GetStaffsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
 }

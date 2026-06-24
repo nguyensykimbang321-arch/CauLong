@@ -3,13 +3,19 @@ import { AdminBookingController } from '../../controllers/admin/booking.controll
 import { validate } from '../../middlewares/validate.middleware.js';
 import { verifyToken } from '../../middlewares/auth.middleware.js';
 import { requireRoles } from '../../middlewares/role.middleware.js';
-import { createBookingByHotlineSchema, updateBookingStatusSchema } from '../../validations/booking.validation.js';
+import { createBookingByHotlineSchema, updateBookingStatusSchema, getDailyBookedSchema } from '../../validations/booking.validation.js';
 
 const router = Router();
 
 router.use(verifyToken);
 
 router.get('/', requireRoles(['admin', 'staff']), AdminBookingController.getAll);
+router.get(
+    '/daily-booked-slots',
+    requireRoles(['admin', 'staff']),
+    validate(getDailyBookedSchema),
+    AdminBookingController.getDailyBooked
+);
 router.get('/:booking_id', requireRoles(['admin', 'staff']), AdminBookingController.getById);
 
 router.post(

@@ -7,13 +7,15 @@ import ApiError from '../utils/ErrorClass.js';
 import { BOOKING_STATUS_TRANSITIONS, PAYMENT_STATUS_TRANSITIONS } from '../constants/booking.constant.js';
 import { PricingService } from './pricing.service.js';
 import { VNPayUtils } from '../utils/vnpay.js';
-import { getCourtTypeLabel } from '../constants/courtType.constant.js';
-import { CourtTypeService } from './courtType.service.js';
-import { courtTypeInclude } from '../constants/courtInclude.constant.js';
+import { UserService } from './user.service.js';
 
 export class BookingService {
-    static async getAvailableCourts(facilityId: number, startDateTime: Date, endDateTime: Date, courtTypeId?: number) {
-
+    static async getAvailableCourts(
+        facilityId: number,
+        startDateTime: Date,
+        endDateTime: Date,
+        courtType?: string
+    ) {
         const bookedSlots = await models.BookingSlot.findAll({
             where: {
                 [Op.and]: [
@@ -24,7 +26,7 @@ export class BookingService {
             include: [{
                 model: models.Booking,
                 as: 'booking',
-                where: { facility_id: facilityId }, // Chỉ lấy các slot của cơ sở này
+                where: { facility_id: facilityId },
                 attributes: []
             }],
             attributes: ['court_id'],
@@ -34,45 +36,46 @@ export class BookingService {
         const bookedCourtIds = bookedSlots.map(slot => slot.court_id);
 
         const whereCondition: any = {
-            facility_id: facilityId, // Bắt buộc lọc theo cơ sở
+            facility_id: facilityId,
             id: { [Op.notIn]: bookedCourtIds },
             is_active: true
         };
 
-        if (courtTypeId) {
-            whereCondition.court_type = courtTypeId;
+        if (courtType) {
+            whereCondition.court_type = courtType;
         }
 
         const allCourtsOfThisType = await models.Court.findAll({
-            where: { facility_id: facilityId, court_type: courtTypeId, is_active: true }
+            where: { facility_id: facilityId, court_type: courtType, is_active: true }
         });
 
         if (allCourtsOfThisType.length === 0) {
-            const typeName = courtTypeId ? await CourtTypeService.getNameById(courtTypeId).catch(() => '') : '';
-            throw new ApiError(`Cơ sở này hiện không có sân ${getCourtTypeLabel(typeName) || 'này'}.`, 404);
+            throw new ApiError(
+                `Cơ sở này hiện không có sân ${courtType === 'badminton' ? 'cầu lông' : courtType} nào.`,
+                404
+            );
         }
 
         const availableCourts = await models.Court.findAll({
             where: whereCondition,
-            include: [
-                {
-                    model: models.Facility,
-                    as: 'facility',
-                    attributes: ['id', 'name', 'address']
-                },
-                courtTypeInclude,
-            ]
+            include: [{
+                model: models.Facility,
+                as: 'facility',
+                attributes: ['id', 'name', 'address']
+            }]
         });
 
         if (availableCourts.length === 0) {
             throw new ApiError('Tất cả sân trong khung giờ này đã được đặt hết. Vui lòng chọn giờ khác!', 404);
         }
 
-
-        // 3. Tính giá cho từng sân khả dụng
         let lastError: any = null;
         const results = await Promise.all(availableCourts.map(async (court) => {
             try {
+                if (!court.court_type) {
+                    throw new ApiError('Sân không có thông tin loại sân!', 400);
+                }
+
                 const totalPrice = await PricingService.calculateTotalPrice(
                     court.facility_id,
                     court.court_type,
@@ -87,7 +90,6 @@ export class BookingService {
                 };
             } catch (error) {
                 lastError = error;
-                // Nếu không có giá cho khung giờ này, coi như sân không khả dụng
                 return null;
             }
         }));
@@ -102,25 +104,40 @@ export class BookingService {
         return validResults;
     }
 
-    static async getDailyBookedSlots(facilityId: number, date: string, courtType: string | number) {
-        const courtTypeId = await CourtTypeService.resolveToId(courtType);
-        const courtTypeRecord = await CourtTypeService.getById(courtTypeId);
+    static async getDailyBookedSlots(facilityId: number, date: string, courtType: string) {
+        const facility = await models.Facility.findOne({
+            where: { id: facilityId, is_active: true }
+        });
+
+        const open_time = facility?.open_time || '06:00:00';
+        const close_time = facility?.close_time || '22:00:00';
+        const openHourPart = open_time.split(':')[0];
+        const closeHourPart = close_time.split(':')[0];
+        const START_HOUR = (openHourPart !== undefined ? parseInt(openHourPart, 10) : 6) || 6;
+        const END_HOUR = (closeHourPart !== undefined ? parseInt(closeHourPart, 10) : 22) || 22;
 
         const courts = await models.Court.findAll({
             where: {
                 facility_id: facilityId,
-                court_type: courtTypeId,
+                court_type: courtType,
                 is_active: true
             },
             attributes: ['id', 'name', 'court_type', 'facility_id'],
-            include: [courtTypeInclude],
+            raw: true
         });
 
         if (courts.length === 0) {
-            return { courts: [], slotsByCourtId: {} };
+            return {
+                courts: [],
+                slotsByCourtId: {},
+                rawBookedSlots: [],
+                open_time,
+                close_time,
+                min_booking_minutes: 60,
+                min_gap_minutes: 60
+            };
         }
 
-        // 2. Lấy tất cả các slot đã đặt trong ngày đó cho các sân này
         const startOfDay = dayjs(date).startOf('day').toDate();
         const endOfDay = dayjs(date).endOf('day').toDate();
 
@@ -142,22 +159,19 @@ export class BookingService {
             raw: true
         });
 
-        // 3. Lấy cấu hình giá để tính giá cho từng slot
         const priceConfigs = await models.PriceConfig.findAll({
             where: {
                 facility_id: facilityId,
-                court_type: courtTypeRecord.name
+                court_type: courtType
             },
             raw: true
         });
 
-        // 4. Tạo Grid giờ (06:00 - 22:00, bước nhảy 1 tiếng)
-        const START_HOUR = 6;
-        const END_HOUR = 22;
         const slotsByCourtId: Record<number, any[]> = {};
 
         courts.forEach(court => {
             const courtSlots = [];
+
             for (let h = START_HOUR; h < END_HOUR; h++) {
                 const slotStart = dayjs(date).hour(h).minute(0).second(0);
                 const slotEnd = dayjs(date).hour(h + 1).minute(0).second(0);
@@ -168,7 +182,6 @@ export class BookingService {
                         dayjs(bs.end_at).isAfter(slotStart);
                 });
 
-                // Tính giá cho khung giờ này
                 const { totalPrice } = PricingService.calculateFromConfigs(
                     priceConfigs,
                     slotStart.toDate(),
@@ -182,6 +195,7 @@ export class BookingService {
                     price_cents: Math.ceil(totalPrice)
                 });
             }
+
             slotsByCourtId[court.id] = courtSlots;
         });
 
@@ -194,15 +208,46 @@ export class BookingService {
         }));
 
         return {
-            courts: courts.map((court) => court.toJSON()),
+            courts,
             slotsByCourtId,
-            rawBookedSlots: rawSlots
+            rawBookedSlots: rawSlots,
+            open_time,
+            close_time,
+            min_booking_minutes: 60,
+            min_gap_minutes: 60
         };
     }
 
     static async createBooking(userId: number, data: CreateBookingInput) {
         const startDateTime = dayjs(`${data.date} ${data.start_time}`, 'YYYY-MM-DD HH:mm').toDate();
         const endDateTime = dayjs(`${data.date} ${data.end_time}`, 'YYYY-MM-DD HH:mm').toDate();
+
+        const facility = await models.Facility.findOne({
+            where: { id: data.facility_id, is_active: true }
+        });
+
+        if (!facility) {
+            throw new ApiError('Cơ sở không tồn tại hoặc tạm đóng cửa!', 404);
+        }
+
+        const open_time = facility.open_time || '06:00:00';
+        const close_time = facility.close_time || '22:00:00';
+        const openDateTime = dayjs(`${data.date} ${open_time.slice(0, 5)}`, 'YYYY-MM-DD HH:mm');
+        const closeDateTime = dayjs(`${data.date} ${close_time.slice(0, 5)}`, 'YYYY-MM-DD HH:mm');
+        const start = dayjs(startDateTime);
+        const end = dayjs(endDateTime);
+
+        if (start.isBefore(openDateTime) || end.isAfter(closeDateTime)) {
+            throw new ApiError(
+                `Thời gian đặt sân phải nằm trong giờ hoạt động của cơ sở (${open_time.slice(0, 5)} - ${close_time.slice(0, 5)})`,
+                400
+            );
+        }
+
+        const durationMinutes = end.diff(start, 'minute');
+        if (durationMinutes < 60) {
+            throw new ApiError('Thời lượng đặt sân tối thiểu là 1 tiếng (60 phút)', 400);
+        }
 
         const court = await models.Court.findOne({
             where: { id: data.court_id, is_active: true }
@@ -216,14 +261,20 @@ export class BookingService {
             throw new ApiError('Sân này không thuộc cơ sở bạn đã chọn!', 400);
         }
 
+        if (!court.court_type) {
+            throw new ApiError('Sân không có thông tin loại sân!', 400);
+        }
+
         const calculatedPrice = await PricingService.calculateTotalPrice(
             data.facility_id,
             court.court_type,
             startDateTime,
-            endDateTime
+            endDateTime,
+            userId
         );
 
         const t = await sequelize.transaction();
+
         try {
             const conflictingSlot = await models.BookingSlot.findOne({
                 where: {
@@ -233,32 +284,51 @@ export class BookingService {
                         { end_at: { [Op.gt]: startDateTime } }
                     ]
                 },
+                include: [{
+                    model: models.Booking,
+                    as: 'booking',
+                    where: { status: { [Op.ne]: 'cancelled' } },
+                    attributes: []
+                }],
                 transaction: t,
                 lock: t.LOCK.UPDATE
             });
+
             if (conflictingSlot) {
                 throw new ApiError('Rất tiếc, sân này vừa có người đặt mất rồi. Vui lòng chọn sân khác!', 400);
             }
 
             const MIN_DURATION_MINUTES = 60;
+
             const previousBooking = await models.BookingSlot.findOne({
                 where: {
                     court_id: data.court_id,
                     end_at: { [Op.lte]: startDateTime }
                 },
+                include: [{
+                    model: models.Booking,
+                    as: 'booking',
+                    where: { status: { [Op.ne]: 'cancelled' } },
+                    attributes: []
+                }],
                 order: [['end_at', 'DESC']],
                 transaction: t
             });
 
+            let gapBeforeBoundary = openDateTime;
             if (previousBooking) {
-                const gapBefore = dayjs(startDateTime).diff(dayjs(previousBooking.end_at), 'minute');
-
-                if (gapBefore > 0 && gapBefore < MIN_DURATION_MINUTES) {
-                    throw new ApiError(
-                        `Không thể đặt! Sẽ tạo ra khoảng trống ${gapBefore} phút (từ ${dayjs(previousBooking.end_at).format('HH:mm')} đến ${dayjs(startDateTime).format('HH:mm')}) không đủ để người khác thuê.`,
-                        400
-                    );
+                const prevEnd = dayjs(previousBooking.end_at);
+                if (prevEnd.isAfter(openDateTime)) {
+                    gapBeforeBoundary = prevEnd;
                 }
+            }
+
+            const gapBefore = start.diff(gapBeforeBoundary, 'minute');
+            if (gapBefore > 0 && gapBefore < MIN_DURATION_MINUTES) {
+                throw new ApiError(
+                    `Không thể đặt! Sẽ tạo ra khoảng trống ${gapBefore} phút (từ ${gapBeforeBoundary.format('HH:mm')} đến ${start.format('HH:mm')}) không đủ để người khác thuê.`,
+                    400
+                );
             }
 
             const nextBooking = await models.BookingSlot.findOne({
@@ -266,19 +336,30 @@ export class BookingService {
                     court_id: data.court_id,
                     start_at: { [Op.gte]: endDateTime }
                 },
+                include: [{
+                    model: models.Booking,
+                    as: 'booking',
+                    where: { status: { [Op.ne]: 'cancelled' } },
+                    attributes: []
+                }],
                 order: [['start_at', 'ASC']],
                 transaction: t
             });
 
+            let gapAfterBoundary = closeDateTime;
             if (nextBooking) {
-                const gapAfter = dayjs(nextBooking.start_at).diff(dayjs(endDateTime), 'minute');
-
-                if (gapAfter > 0 && gapAfter < MIN_DURATION_MINUTES) {
-                    throw new ApiError(
-                        `Không thể đặt! Sẽ tạo ra khoảng trống ${gapAfter} phút (từ ${dayjs(endDateTime).format('HH:mm')} đến ${dayjs(nextBooking.start_at).format('HH:mm')}) không đủ để người khác thuê.`,
-                        400
-                    );
+                const nextStart = dayjs(nextBooking.start_at);
+                if (nextStart.isBefore(closeDateTime)) {
+                    gapAfterBoundary = nextStart;
                 }
+            }
+
+            const gapAfter = gapAfterBoundary.diff(end, 'minute');
+            if (gapAfter > 0 && gapAfter < MIN_DURATION_MINUTES) {
+                throw new ApiError(
+                    `Không thể đặt! Sẽ tạo ra khoảng trống ${gapAfter} phút (từ ${end.format('HH:mm')} đến ${gapAfterBoundary.format('HH:mm')}) không đủ để người khác thuê.`,
+                    400
+                );
             }
 
             const newBooking = await models.Booking.create({
@@ -300,12 +381,11 @@ export class BookingService {
                 start_at: startDateTime,
                 end_at: endDateTime,
                 price_cents: calculatedPrice
-            }, { transaction: t })
+            }, { transaction: t });
 
             await t.commit();
 
             return newBooking;
-
         } catch (error) {
             await t.rollback();
             throw error;
@@ -324,8 +404,7 @@ export class BookingService {
                     include: [
                         {
                             model: models.Court,
-                            as: 'court',
-                            include: [courtTypeInclude],
+                            as: 'court'
                         }
                     ]
                 }
@@ -377,13 +456,12 @@ export class BookingService {
     }
 
     static async getByBookingId(bookingId: number) {
-        // Sử dụng findByPk (Find By Primary Key) kết hợp Include (JOIN)
         const booking = await models.Booking.findByPk(bookingId, {
             include: [
                 {
                     model: models.User,
-                    as: 'user', // 🔥 Lưu ý: Khớp với alias khai báo trong DB
-                    attributes: ['id', 'full_name', 'phone', 'email'] // Lấy đúng các trường Frontend cần
+                    as: 'user',
+                    attributes: ['id', 'full_name', 'phone', 'email']
                 },
                 {
                     model: models.Facility,
@@ -410,7 +488,6 @@ export class BookingService {
             ]
         });
 
-        // Xử lý lỗi nếu ID tào lao
         if (!booking) {
             throw new ApiError('Không tìm thấy thông tin đơn đặt sân này!', 404);
         }
@@ -419,29 +496,66 @@ export class BookingService {
     }
 
     static async updateBookingStatus(id: number, data: UpdateBookingStatusInput) {
-        const booking = await models.Booking.findByPk(id);
-        if (!booking) throw new ApiError('Không tìm thấy lịch đặt này', 404);
+        const t = await sequelize.transaction();
 
-        if (data.status && data.status != booking.status) {
-            const validNextStates = BOOKING_STATUS_TRANSITIONS[booking.status] || [];
+        try {
+            const booking = await models.Booking.findByPk(id, { transaction: t });
+            if (!booking) throw new ApiError('Không tìm thấy lịch đặt này', 404);
 
-            if (!validNextStates.includes(data.status)) {
-                throw new ApiError(`Không thể chuyển trạng thái từ '${booking.status}' sang '${data.status}'`, 400);
+            if (data.status && data.status !== booking.status) {
+                const validNextStates = BOOKING_STATUS_TRANSITIONS[booking.status] || [];
+
+                if (!validNextStates.includes(data.status)) {
+                    throw new ApiError(`Không thể chuyển trạng thái từ '${booking.status}' sang '${data.status}'`, 400);
+                }
             }
-        }
 
-        if (data.payment_status && data.payment_status !== booking.payment_status) {
-            const validNextPaymentStates = PAYMENT_STATUS_TRANSITIONS[booking.payment_status] || [];
+            if (data.payment_status && data.payment_status !== booking.payment_status) {
+                const validNextPaymentStates = PAYMENT_STATUS_TRANSITIONS[booking.payment_status] || [];
 
-            if (!validNextPaymentStates.includes(data.payment_status)) {
-                throw new ApiError(`Không thể chuyển trạng thái thanh toán từ '${booking.payment_status}' sang '${data.payment_status}'`, 400);
+                if (!validNextPaymentStates.includes(data.payment_status)) {
+                    throw new ApiError(
+                        `Không thể chuyển trạng thái thanh toán từ '${booking.payment_status}' sang '${data.payment_status}'`,
+                        400
+                    );
+                }
             }
+
+            await booking.update(data as any, { transaction: t });
+
+            if (booking.payment_status === 'paid' && booking.payment_method === 'cash') {
+                const existingCashPayment = await models.Payment.findOne({
+                    where: {
+                        booking_id: booking.id,
+                        provider: 'cash',
+                        status: 'paid'
+                    },
+                    transaction: t
+                });
+
+                if (!existingCashPayment) {
+                    await models.Payment.create({
+                        booking_id: booking.id,
+                        provider: 'cash',
+                        status: 'paid',
+                        amount_cents: booking.total_cents,
+                        paid_at: new Date()
+                    }, { transaction: t });
+
+                    if (booking.user_id) {
+                        await UserService.addPointsAndUpgrade(booking.user_id, booking.total_cents, t);
+                    }
+                }
+            }
+
+            await t.commit();
+            return booking;
+        } catch (error) {
+            await t.rollback();
+            throw error;
         }
-
-        await booking.update(data as any);
-
-        return booking;
     }
+
     static async validateBookingTimes(date: string, startTime: string, endTime: string) {
         const startDateTime = dayjs(`${date} ${startTime}`, 'YYYY-MM-DD HH:mm');
         const endDateTime = dayjs(`${date} ${endTime}`, 'YYYY-MM-DD HH:mm');
@@ -449,9 +563,11 @@ export class BookingService {
         if (!startDateTime.isValid() || !endDateTime.isValid()) {
             throw new ApiError('Thời gian không hợp lệ', 400);
         }
+
         if (startDateTime.isBefore(dayjs())) {
             throw new ApiError('Không thể đặt sân ở thời điểm trong quá khứ', 400);
         }
+
         if (endDateTime.isBefore(startDateTime) || endDateTime.isSame(startDateTime)) {
             throw new ApiError('Giờ kết thúc phải sau giờ bắt đầu', 400);
         }
@@ -465,29 +581,26 @@ export class BookingService {
     }
 
     static async createBookingByHotline(data: any) {
-        const { customer_phone, ...bookingData } = data;
+        const { customer_phone, customer_name, membership_type, ...bookingData } = data;
 
-        // 1. Tìm hoặc tạo user qua SĐT
         let user = await models.User.findOne({
             where: { phone: customer_phone, role: 'customer' }
         });
 
         const isNewUser = !user;
-        if (!user) {
-            const randomPassword = Math.random().toString(36).slice(-8);
-            const salt = await (import('bcryptjs').then(m => m.default.genSalt(10)));
-            const hashedPassword = await (import('bcryptjs').then(m => m.default.hash(randomPassword, salt)));
-            const dummyEmail = `guest_${customer_phone}@thethaovip.local`;
 
-            user = await models.User.create({
-                email: dummyEmail,
-                phone: customer_phone,
-                password_hash: hashedPassword,
-                role: 'customer'
-            });
+        if (!user) {
+            const nameToSave = customer_name || 'Khách vãng lai';
+            user = await UserService.createGuestUser(customer_phone, nameToSave, membership_type);
         }
 
-        const result = await this.createBooking(user.id, bookingData);
+        const payloadToService = {
+            ...bookingData,
+            status: 'confirmed' as const,
+            payment_method: 'cash' as const,
+        };
+
+        const result = await this.createBooking(user.id, payloadToService);
 
         return {
             booking: result,
@@ -499,7 +612,6 @@ export class BookingService {
     }
 
     static async generateVNPayUrl(bookingId: number, ipAddr: string) {
-        // 1. Tìm đơn hàng
         const booking = await models.Booking.findByPk(bookingId);
 
         if (!booking) {
@@ -510,10 +622,8 @@ export class BookingService {
             throw new ApiError('Đơn này đã được thanh toán rồi!', 400);
         }
 
-        // 2. Tạo link VNPay (Dùng tiện ích cũ của app Mobile)
         const paymentUrl = VNPayUtils.createPaymentUrl({
             amount: booking.total_cents,
-            // Thêm random string để chống trùng orderId của VNPay nếu khách quét mã nhiều lần
             orderId: booking.id.toString() + '_' + Date.now().toString().slice(-6),
             orderInfo: `Thanh toan don dat san ${booking.id}`,
             ipAddr: ipAddr || '127.0.0.1'
@@ -544,20 +654,18 @@ export class BookingService {
             cancelled_at: new Date()
         });
 
-        // Tìm lại đơn với đầy đủ liên kết để trả về frontend vẽ lại giao diện
         const updatedBooking = await models.Booking.findOne({
             where: { id: bookingId },
             include: [
                 { model: models.Facility, as: 'facility' },
                 { model: models.Payment, as: 'payments' },
-                { 
-                    model: models.BookingSlot, 
+                {
+                    model: models.BookingSlot,
                     as: 'slots',
                     include: [
-                        { 
-                            model: models.Court, 
-                            as: 'court',
-                            include: [courtTypeInclude],
+                        {
+                            model: models.Court,
+                            as: 'court'
                         }
                     ]
                 }

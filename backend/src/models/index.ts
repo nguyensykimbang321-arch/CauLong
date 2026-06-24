@@ -20,6 +20,8 @@ import Payment from './payment.model.js';
 import Notification from './notification.model.js';
 import AuditLog from './audit_log.model.js';
 import RefreshToken from './refresh_token.model.js';
+import Holiday from './holiday.model.js';
+import SystemConfig from './system_config.model.js';
 
 // ==========================================
 // THIẾT LẬP MỐI QUAN HỆ (ASSOCIATIONS)
@@ -170,7 +172,9 @@ const models = {
 
     Payment,
     Notification,
-    AuditLog
+    AuditLog,
+    Holiday,
+    SystemConfig
 };
 
 export default models;

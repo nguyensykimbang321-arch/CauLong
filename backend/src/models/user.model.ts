@@ -11,6 +11,7 @@ export interface UserAttributes {
   avatar_url: string | null;
   role: 'admin' | 'staff' | 'customer';
   loyalty_points: number;
+  membership_type: 'standard' | 'student' | 'vip';
   is_active: boolean;
   created_at?: Date;
   updated_at?: Date;
@@ -18,7 +19,7 @@ export interface UserAttributes {
 }
 
 // 2. Định nghĩa các trường có thể bỏ trống khi Create (VD: id tự tăng)
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'role' | 'is_active' | 'loyalty_points'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'role' | 'is_active' | 'loyalty_points' | 'membership_type'> {}
 
 // 3. Khởi tạo Class Model
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
@@ -30,6 +31,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare avatar_url: string | null;
   declare role: 'admin' | 'staff' | 'customer';
   declare loyalty_points: number;
+  declare membership_type: 'standard' | 'student' | 'vip';
   declare is_active: boolean;
 
   // Timestamps
@@ -77,6 +79,11 @@ User.init(
     loyalty_points: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
+    },
+    membership_type: {
+      type: DataTypes.ENUM('standard', 'student', 'vip'),
+      allowNull: false,
+      defaultValue: 'standard',
     },
     is_active: {
       type: DataTypes.BOOLEAN,

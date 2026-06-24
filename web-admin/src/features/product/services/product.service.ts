@@ -1,5 +1,5 @@
 import axiosClient from '../../../config/axios';
-import type { ApiResponse } from '../../../types/api.type'; // Đảm bảo bạn đã có type này trong dự án
+import type { ApiResponse, ApiListResponse } from '../../../types/api.type'; // Đảm bảo bạn đã có type này trong dự án
 import type { 
   Product, 
   ProductVariant, 
@@ -82,6 +82,6 @@ export const ProductService = {
   },
 
   searchProducts: async (filters?: ProductFilter) => {
-    return await axiosClient.get<unknown, ApiResponse<Product[]>>(`${BASE_URL}/search`, {params: filters});
+    return await axiosClient.get<unknown, ApiListResponse<Product[]>>(`${BASE_URL}/search`, {params: filters});
   }
 };

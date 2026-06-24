@@ -7,6 +7,7 @@ export interface BookingAttributes {
   facility_id: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   payment_status: 'unpaid' | 'partial' | 'paid' | 'refunded';
+  payment_method: 'cash' | 'vnpay';
   
   total_cents: number;
   note: string | null;
@@ -19,7 +20,7 @@ export interface BookingAttributes {
   deleted_at?: Date;
 }
 
-export interface BookingCreationAttributes extends Optional<BookingAttributes, 'id' | 'status' | 'payment_status' | 'total_cents' | 'note' | 'checked_in_at' | 'cancelled_at' | 'cancel_reason'> {}
+export interface BookingCreationAttributes extends Optional<BookingAttributes, 'id' | 'status' | 'payment_status' | 'total_cents' | 'note' | 'checked_in_at' | 'cancelled_at' | 'cancel_reason' | 'payment_method'> {}
 
 class Booking extends Model<BookingAttributes, BookingCreationAttributes> implements BookingAttributes {
   declare id: number;
@@ -27,6 +28,7 @@ class Booking extends Model<BookingAttributes, BookingCreationAttributes> implem
   declare facility_id: number;
   declare status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   declare payment_status: 'unpaid' | 'partial' | 'paid' | 'refunded';
+  declare payment_method: 'cash' | 'vnpay';
   
   declare total_cents: number;
   declare note: string | null;
@@ -52,6 +54,11 @@ Booking.init(
     payment_status: {
       type: DataTypes.ENUM('unpaid', 'partial', 'paid', 'refunded'),
       defaultValue: 'unpaid',
+    },
+    payment_method: {
+      type: DataTypes.ENUM('cash', 'vnpay'),
+      allowNull: false,
+      defaultValue: 'cash',
     },
     total_cents: { type: DataTypes.INTEGER, defaultValue: 0 },
     note: { type: DataTypes.TEXT, allowNull: true },
