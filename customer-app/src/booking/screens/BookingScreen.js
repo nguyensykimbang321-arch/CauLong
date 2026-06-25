@@ -149,38 +149,49 @@ export default function BookingScreen({ navigation }) {
     loadTimeline();
   }, [facilityId, sportId, dateId, courtTypes]);
 
-  /** Thêm 1 range mới vào selections (async để lấy giá) */
-  const handleRangeAdd = async (courtId, courtName, rangeStart, rangeEnd) => {
+  /** Thêm range ngay lập tức; lấy giá ở background để không block UI */
+  const handleRangeAdd = (courtId, courtName, rangeStart, rangeEnd) => {
     setSelectionError('');
-    let price = 0;
-    try {
-      const currentSport = courtTypes.find(s => s.id === sportId);
-      if (currentSport) {
-        const availCourts = await getAvailableCourts({
-          facilityId,
-          courtType: currentSport.name,
-          date: dateId,
-          startTime: rangeStart,
-          endTime: rangeEnd,
-        });
-        const courtData = (availCourts || []).find(c => c.id === courtId);
-        price = courtData?.total_price ?? 0;
-      }
-    } catch (e) {
-      console.warn('Không lấy được giá, để 0:', e?.message);
-    }
+    const selId = `${courtId}-${rangeStart}-${rangeEnd}-${Date.now()}`;
 
     setSelections(prev => [
       ...prev,
       {
-        id: `${courtId}-${rangeStart}-${rangeEnd}-${Date.now()}`,
+        id: selId,
         courtId,
         courtName,
         startTime: rangeStart,
         endTime: rangeEnd,
-        price,
+        price: 0,
+        priceLoading: true,
       },
     ]);
+
+    const currentSport = courtTypes.find(s => s.id === sportId);
+    if (!currentSport) return;
+
+    getAvailableCourts({
+      facilityId,
+      courtType: currentSport.name,
+      date: dateId,
+      startTime: rangeStart,
+      endTime: rangeEnd,
+    })
+      .then((availCourts) => {
+        const courtData = (availCourts || []).find(c => c.id === courtId);
+        const price = courtData?.total_price ?? 0;
+        setSelections(prev => {
+          if (!prev.some(s => s.id === selId)) return prev;
+          return prev.map(s => (s.id === selId ? { ...s, price, priceLoading: false } : s));
+        });
+      })
+      .catch((e) => {
+        console.warn('Không lấy được giá, để 0:', e?.message);
+        setSelections(prev => {
+          if (!prev.some(s => s.id === selId)) return prev;
+          return prev.map(s => (s.id === selId ? { ...s, priceLoading: false } : s));
+        });
+      });
   };
 
   const handleRangeRemove = (selId) => {
@@ -469,7 +480,7 @@ export default function BookingScreen({ navigation }) {
                     </View>
                     <View style={styles.selectionRight}>
                       <Text style={styles.selectionPrice}>
-                        {sel.price > 0 ? formatPrice(sel.price) : '—'}
+                        {sel.priceLoading ? '...' : sel.price > 0 ? formatPrice(sel.price) : '—'}
                       </Text>
                       <TouchableOpacity
                         onPress={() => handleRangeRemove(sel.id)}
