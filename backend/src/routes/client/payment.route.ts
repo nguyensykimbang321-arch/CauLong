@@ -6,4 +6,8 @@ const router = Router();
 router.get('/vnpay/ipn', PaymentController.vnpayIpn);
 router.get('/vnpay/return', PaymentController.vnpayReturn);
 
+// Alias routes cho VNP_RETURNURL dạng gạch ngang
+router.get('/vnpay-ipn', PaymentController.vnpayIpn);
+router.get('/vnpay-return', PaymentController.vnpayReturn);
+
 export default router;

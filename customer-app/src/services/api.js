@@ -2,10 +2,7 @@ import axios from 'axios';
 
 // Thay đổi IP này thành IP máy tính của bạn nếu chạy trên thiết bị thật
 // Android Emulator thường dùng 10.0.2.2 để truy cập localhost máy host
-const baseURL = 'http://192.168.1.99:5000/api/v1';
-
-export { baseURL };
-export const serverOrigin = baseURL.replace(/\/api\/v1\/?$/, '');
+const baseURL = 'http://192.168.1.183:5000/api/v1';
 
 const api = axios.create({
     baseURL,
@@ -100,6 +97,11 @@ export const register = async (userData) => {
 
 export const createBooking = async (bookingData) => {
     const response = await api.post('/app/bookings', bookingData);
+    return response.data.data;
+};
+
+export const createBatchBooking = async (bookings) => {
+    const response = await api.post('/app/bookings/batch', { bookings });
     return response.data.data;
 };
 

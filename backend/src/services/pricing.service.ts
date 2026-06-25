@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import ApiError from '../utils/ErrorClass.js';
 import models from '../models/index.js';
+import { Op } from 'sequelize';
 import { HolidayService } from './holiday.service.js';
 import { SystemConfigService } from './systemConfig.service.js';
 import { PriceConfigService } from './priceConfig.service.js';
@@ -15,21 +16,18 @@ type PriceConfigLike = {
 };
 
 export class PricingService {
-    static async calculateTotalPrice(
-        facilityId: number,
-        courtType: string,
-        startDateTime: Date,
-        endDateTime: Date,
-        userId?: number | null
-    ): Promise<number> {
+    static async calculateTotalPrice(facilityId: number, courtType: string, startDateTime: Date, endDateTime: Date) {
         const diffInMinutes = dayjs(endDateTime).diff(dayjs(startDateTime), 'minute');
         if (diffInMinutes <= 0) {
             throw new ApiError('Thời gian đặt sân không hợp lệ', 400);
         }
 
-        // Tận dụng cache từ PriceConfigService
-        const facilityConfigs = await PriceConfigService.getAllConfigs(facilityId);
-        const configs = facilityConfigs.filter((config) => config.court_type === courtType);
+        const configs = await models.PriceConfig.findAll({
+            where: {
+                facility_id: facilityId,
+                court_type: courtType
+            }
+        });
 
         if (!configs || configs.length === 0) {
             throw new ApiError('Không tìm thấy cấu hình giá cho sân này. Vui lòng liên hệ Admin.', 400);

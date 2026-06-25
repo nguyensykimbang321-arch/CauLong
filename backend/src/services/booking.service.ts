@@ -7,15 +7,10 @@ import ApiError from '../utils/ErrorClass.js';
 import { BOOKING_STATUS_TRANSITIONS, PAYMENT_STATUS_TRANSITIONS } from '../constants/booking.constant.js';
 import { PricingService } from './pricing.service.js';
 import { VNPayUtils } from '../utils/vnpay.js';
-import { UserService } from './user.service.js';
 
 export class BookingService {
-    static async getAvailableCourts(
-        facilityId: number,
-        startDateTime: Date,
-        endDateTime: Date,
-        courtType?: string
-    ) {
+    static async getAvailableCourts(facilityId: number, startDateTime: Date, endDateTime: Date, courtType?: string) {
+
         const bookedSlots = await models.BookingSlot.findAll({
             where: {
                 [Op.and]: [
@@ -26,7 +21,7 @@ export class BookingService {
             include: [{
                 model: models.Booking,
                 as: 'booking',
-                where: { facility_id: facilityId },
+                where: { facility_id: facilityId, status: { [Op.ne]: 'cancelled' } },
                 attributes: []
             }],
             attributes: ['court_id'],
@@ -45,15 +40,14 @@ export class BookingService {
             whereCondition.court_type = courtType;
         }
 
+
+        // 2. Lấy danh sách sân của cơ sở
         const allCourtsOfThisType = await models.Court.findAll({
             where: { facility_id: facilityId, court_type: courtType, is_active: true }
         });
 
         if (allCourtsOfThisType.length === 0) {
-            throw new ApiError(
-                `Cơ sở này hiện không có sân ${courtType === 'badminton' ? 'cầu lông' : courtType} nào.`,
-                404
-            );
+            throw new ApiError(`Cơ sở này hiện không có sân ${courtType === 'badminton' ? 'cầu lông' : courtType} nào.`, 404);
         }
 
         const availableCourts = await models.Court.findAll({
@@ -105,17 +99,7 @@ export class BookingService {
     }
 
     static async getDailyBookedSlots(facilityId: number, date: string, courtType: string) {
-        const facility = await models.Facility.findOne({
-            where: { id: facilityId, is_active: true }
-        });
-
-        const open_time = facility?.open_time || '06:00:00';
-        const close_time = facility?.close_time || '22:00:00';
-        const openHourPart = open_time.split(':')[0];
-        const closeHourPart = close_time.split(':')[0];
-        const START_HOUR = (openHourPart !== undefined ? parseInt(openHourPart, 10) : 6) || 6;
-        const END_HOUR = (closeHourPart !== undefined ? parseInt(closeHourPart, 10) : 22) || 22;
-
+        // 1. Lấy danh sách sân của cơ sở và loại sân này
         const courts = await models.Court.findAll({
             where: {
                 facility_id: facilityId,
@@ -127,15 +111,7 @@ export class BookingService {
         });
 
         if (courts.length === 0) {
-            return {
-                courts: [],
-                slotsByCourtId: {},
-                rawBookedSlots: [],
-                open_time,
-                close_time,
-                min_booking_minutes: 60,
-                min_gap_minutes: 60
-            };
+            return { courts: [], slotsByCourtId: {}, rawBookedSlots: [] };
         }
 
         const startOfDay = dayjs(date).startOf('day').toDate();
@@ -276,7 +252,8 @@ export class BookingService {
         const t = await sequelize.transaction();
 
         try {
-            const conflictingSlot = await models.BookingSlot.findOne({
+            // Tìm các slot trùng trên cùng court + time range (loại trừ cancelled)
+            const conflictingSlots = await models.BookingSlot.findAll({
                 where: {
                     court_id: data.court_id,
                     [Op.and]: [
@@ -288,18 +265,51 @@ export class BookingService {
                     model: models.Booking,
                     as: 'booking',
                     where: { status: { [Op.ne]: 'cancelled' } },
-                    attributes: []
+                    attributes: ['id', 'user_id', 'status']
                 }],
                 transaction: t,
                 lock: t.LOCK.UPDATE
             });
 
-            if (conflictingSlot) {
-                throw new ApiError('Rất tiếc, sân này vừa có người đặt mất rồi. Vui lòng chọn sân khác!', 400);
+            if (conflictingSlots.length > 0) {
+                // Tách ra: slot của chính user (pending) vs slot của người khác
+                const ownPendingSlots = conflictingSlots.filter(
+                    (s: any) => Number(s.booking?.user_id) === Number(userId) && s.booking?.status === 'pending'
+                );
+                const otherSlots = conflictingSlots.filter(
+                    (s: any) => !(Number(s.booking?.user_id) === Number(userId) && s.booking?.status === 'pending')
+                );
+
+                console.log(`[Conflict Check] court_id=${data.court_id}, userId=${userId}, total=${conflictingSlots.length}, own_pending=${ownPendingSlots.length}, other=${otherSlots.length}`);
+
+                // Nếu có slot của người khác (hoặc slot confirmed/completed của chính mình) → block
+                if (otherSlots.length > 0) {
+                    throw new ApiError('Rất tiếc, sân này vừa có người đặt mất rồi. Vui lòng chọn sân khác!', 400);
+                }
+
+                // Hủy booking pending cũ của chính user trước khi tạo mới
+                for (const slot of ownPendingSlots) {
+                    const bookingToCancel = (slot as any).booking;
+                    if (bookingToCancel) {
+                        await models.BookingSlot.destroy({
+                            where: { booking_id: bookingToCancel.id },
+                            transaction: t
+                        });
+                        await models.Payment.destroy({
+                            where: { booking_id: bookingToCancel.id },
+                            transaction: t
+                        });
+                        await models.Booking.update(
+                            { status: 'cancelled', cancel_reason: 'Tự động hủy do đặt lại', cancelled_at: new Date() },
+                            { where: { id: bookingToCancel.id }, transaction: t }
+                        );
+                    }
+                }
             }
 
             const MIN_DURATION_MINUTES = 60;
 
+            // Check gap trước - loại trừ booking pending của chính user
             const previousBooking = await models.BookingSlot.findOne({
                 where: {
                     court_id: data.court_id,
