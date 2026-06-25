@@ -19,6 +19,7 @@ export default function AvailabilityTimeline({
   openTime = '06:00:00',
   closeTime = '22:00:00',
   minBookingMinutes = 30,
+  selectedDate = null,
   selections = [],
   onRangeAdd,
   onClearAll,
@@ -44,6 +45,8 @@ export default function AvailabilityTimeline({
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const isSelectedToday = selectedDate === todayStr;
 
   if (isLoading) {
     return (
@@ -56,6 +59,7 @@ export default function AvailabilityTimeline({
   if (!courts || courts.length === 0) return null;
 
   const isSlotPast = (slot) => {
+    if (!isSelectedToday) return false;
     const slotHour = parseInt(slot.start.split(':')[0], 10);
     const slotMin = parseInt(slot.start.split(':')[1], 10);
     return slotHour < currentHour || (slotHour === currentHour && slotMin < currentMinute);

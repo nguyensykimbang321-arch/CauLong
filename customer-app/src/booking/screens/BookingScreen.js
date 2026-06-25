@@ -466,6 +466,7 @@ export default function BookingScreen({ navigation }) {
               openTime={timelineData.open_time}
               closeTime={timelineData.close_time}
               minBookingMinutes={timelineData.min_booking_minutes ?? 30}
+              selectedDate={dateId}
               selections={selections}
               onRangeAdd={handleRangeAdd}
               onClearAll={handleClearSelections}
