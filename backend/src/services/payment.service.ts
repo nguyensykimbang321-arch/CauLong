@@ -4,8 +4,15 @@ import sequelize from '../config/database.js';
 import { InventoryService } from './inventory.service.js';
 import { Op } from 'sequelize';
 import { UserService } from './user.service.js';
+import { getIO } from '../config/socket.js';
 
 export class PaymentService {
+    /** ORDER_15 hoặc ORDER_15_123456 → 15 */
+    static parseOrderIdFromTxnRef(vnp_TxnRef: string): number | null {
+        if (!vnp_TxnRef.startsWith('ORDER_')) return null;
+        const orderId = Number(vnp_TxnRef.slice('ORDER_'.length).split('_')[0]);
+        return Number.isFinite(orderId) ? orderId : null;
+    }
     static async processVNPayIPN(vnpayQuery: any) {
         // 1. Xác thực chữ ký VNPay
         const isValidSignature = VNPayUtils.verifyIpnSignature(vnpayQuery);
@@ -31,8 +38,10 @@ export class PaymentService {
      * Xử lý IPN cho đơn hàng (Shop Order)
      */
     private static async processOrderIPN(vnp_TxnRef: string, vnp_ResponseCode: string, vnp_Amount: number, vnpayQuery: any) {
-        // Tách: ORDER_{orderId}_{timestamp} → lấy orderId ở vị trí [1]
-        const orderId = vnp_TxnRef.split('_')[1];
+        const orderId = this.parseOrderIdFromTxnRef(vnp_TxnRef);
+        if (!orderId) {
+            return { RspCode: '01', Message: 'Invalid TxnRef format' };
+        }
 
         const t = await models.Order.sequelize!.transaction();
         try {
@@ -176,10 +185,11 @@ export class PaymentService {
         }
     }
 
-    static getVNPayReturnHtml(vnpayQuery: any): string {
+    static getVNPayReturnHtml(vnpayQuery: any, processResult?: { RspCode: string; Message: string }): string {
         const vnp_ResponseCode = vnpayQuery.vnp_ResponseCode;
+        const dbUpdated = !processResult || processResult.RspCode === '00';
 
-        if (vnp_ResponseCode === '00') {
+        if (vnp_ResponseCode === '00' && dbUpdated) {
             return `
                 <html lang="vi">
                     <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; text-align:center;">
@@ -192,17 +202,21 @@ export class PaymentService {
                     </body>
                 </html>
             `;
-        } else {
-            return `
-                <html lang="vi">
-                    <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; text-align:center;">
-                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                        <h1 style="color:#dc2626; margin-top: 20px;">Thanh toán thất bại hoặc đã hủy!</h1>
-                        <p style="color:#4b5563;">Vui lòng thử lại hoặc liên hệ Lễ tân để đổi phương thức thanh toán.</p>
-                    </body>
-                </html>
-            `;
         }
+
+        const failureDetail = vnp_ResponseCode === '00' && !dbUpdated
+            ? 'Giao dịch VNPay thành công nhưng hệ thống chưa cập nhật được đơn. Vui lòng liên hệ Lễ tân.'
+            : 'Vui lòng thử lại hoặc liên hệ Lễ tân để đổi phương thức thanh toán.';
+
+        return `
+            <html lang="vi">
+                <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; text-align:center;">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                    <h1 style="color:#dc2626; margin-top: 20px;">Thanh toán thất bại hoặc đã hủy!</h1>
+                    <p style="color:#4b5563;">${failureDetail}</p>
+                </body>
+            </html>
+        `;
     }
 
     /**
@@ -293,17 +307,16 @@ export class PaymentService {
             await sequelize.transaction();
 
         try {
-            /**
-             * ORDER_15
-             * => 15
-             */
-            const orderId =
-                Number(
-                    vnp_TxnRef.replace(
-                        'ORDER_',
-                        ''
-                    )
-                );
+            const orderId = this.parseOrderIdFromTxnRef(vnp_TxnRef);
+
+            if (!orderId) {
+                await t.rollback();
+                console.error('[VNPay IPN] Invalid ORDER TxnRef:', vnp_TxnRef);
+                return {
+                    RspCode: '01',
+                    Message: 'Invalid TxnRef format'
+                };
+            }
 
             const order =
                 await models.Order.findByPk(
@@ -315,7 +328,7 @@ export class PaymentService {
 
             if (!order) {
                 await t.rollback();
-
+                console.error('[VNPay IPN] Order not found:', orderId);
                 return {
                     RspCode: '01',
                     Message:
@@ -326,9 +339,11 @@ export class PaymentService {
             const payment =
                 await models.Payment.findOne({
                     where: {
-                        order_id:
-                            order.id
+                        order_id: order.id,
+                        provider: 'vnpay',
+                        status: 'pending'
                     },
+                    order: [['created_at', 'DESC']],
                     transaction: t
                 });
 
@@ -382,7 +397,9 @@ export class PaymentService {
                 paidAmount
             ) {
                 await t.rollback();
-
+                console.error(
+                    `[VNPay IPN] Amount mismatch order #${order.id}: expected ${payment.amount_cents}, got ${paidAmount}`
+                );
                 return {
                     RspCode: '04',
                     Message:
@@ -480,6 +497,10 @@ export class PaymentService {
 
             await t.commit();
 
+            if (vnp_ResponseCode === '00') {
+                getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+            }
+
             return {
                 RspCode: '00',
                 Message:
@@ -489,7 +510,7 @@ export class PaymentService {
             await t.rollback();
 
             console.error(
-                'POS VNPay IPN Error:',
+                '[VNPay IPN] Order payment error:',
                 error
             );
 

@@ -43,14 +43,11 @@ export class PaymentController {
         try {
             // Cũng xử lý cập nhật DB ở Return URL luôn (để dự phòng IPN chậm hoặc lỗi ngrok)
             const txnRef = String(req.query.vnp_TxnRef || '');
-            if (txnRef.startsWith('ORDER_')) {
-                await PaymentService.processPosOrderVNPayIPN(req.query);
-            } else {
-                await PaymentService.processVNPayIPN(req.query);
-            }
+            const result = txnRef.startsWith('ORDER_')
+                ? await PaymentService.processPosOrderVNPayIPN(req.query)
+                : await PaymentService.processVNPayIPN(req.query);
 
-            // Gọi Service để lấy chuỗi HTML
-            const htmlContent = PaymentService.getVNPayReturnHtml(req.query);
+            const htmlContent = PaymentService.getVNPayReturnHtml(req.query, result);
             return res.send(htmlContent);
         } catch (error) {
             next(error);

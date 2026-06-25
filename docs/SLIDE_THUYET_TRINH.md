@@ -3,15 +3,15 @@
 
 > **Môn học:** Phát triển phần mềm hướng dịch vụ (SOA)  
 > **Nhóm:** Nhóm 21  
-> **Ghi chú:** Copy từng block `--- SLIDE X ---` sang PowerPoint/Google Slides. Phần `[GỢI Ý HÌNH]` là nội dung cần vẽ sơ đồ hoặc chụp màn hình.
+> **Ghi chú:** Copy từng block `--- SLIDE X ---` sang PowerPoint/Google Slides. Nội dung dưới đây được rà soát theo **code thực tế** trong repo (`backend/`, `web-admin/`, `customer-app/`).
 
 ---
 
 ## --- SLIDE 1: MỞ ĐẦU ---
 
 ### Tiêu đề đề tài
-**HỆ THỐNG QUẢN LÝ & ĐẶT SÂN CẦU LÔNG HƯỚNG DỊCH VỤ (SOA)**  
-*Badminton Court Management System — Web Admin + Mobile App + API trung tâm*
+**HỆ THỐNG QUẢN LÝ & ĐẶT SÂN CẦU LÔNG**  
+*Badminton Court Management System — Web Admin + Mobile App + Backend API tập trung*
 
 ### Thông tin môn học
 - **Môn học:** Phát triển phần mềm hướng dịch vụ (SOA)
@@ -23,10 +23,10 @@
 |-----|--------|------|-----------------------------|----------------|
 | 1 | Trương Anh Tùng | N22DCCN195 | Web Admin: quản lý sân, sa bàn lịch đặt; Backend: Facility, Booking, Price Config | 25% |
 | 2 | Nguyễn Đức Chính | N22DCCN110 | Web Admin: POS bán hàng, kho, báo cáo doanh thu; Backend: Product, Inventory, Order, Revenue | 25% |
-| 3 | Nguyễn Sỹ Kim Bằng | N22DCCN106 | Mobile App: đặt sân, tài khoản; Backend: Auth, User, điều phối API client | 25% |
+| 3 | Nguyễn Sỹ Kim Bằng | N22DCCN106 | Mobile App: đặt sân, tài khoản; Backend: Auth, User, API client | 25% |
 | 4 | Nguyễn Hữu Ngọc Hoàng | N22DCCN129 | Mobile App: cửa hàng, thanh toán; Backend: Payment (VNPay), Order client | 25% |
 
-**Tổng quan phân chia:** 2 thành viên tập trung **Web + nghiệp vụ vận hành nội bộ**, 2 thành viên tập trung **Mobile + trải nghiệm khách hàng & thanh toán**.
+**Tổng quan phân chia:** 2 thành viên tập trung **Web + vận hành nội bộ**, 2 thành viên tập trung **Mobile + trải nghiệm khách hàng & thanh toán**.
 
 ---
 
@@ -37,391 +37,408 @@
 - Đa số cơ sở vẫn quản lý bằng **sổ sách, Excel, Zalo/Facebook** → thiếu đồng bộ, khó mở rộng.
 
 ### Bài toán cần giải quyết (Business Requirements)
+
 | Vấn đề hiện tại | Hệ thống giải quyết |
 |-----------------|---------------------|
-| Trùng lịch (double booking) khi nhiều kênh đặt | Lịch sân tập trung, kiểm tra chồng chéo theo slot thời gian |
-| Khách phải gọi điện / nhắn tin đặt sân | Đặt sân online qua Mobile App, xem timeline trống theo ngày |
-| Nhân viên khó nắm tổng quan lịch toàn cơ sở | Web Admin: sa bàn lịch, duyệt/hủy booking, đặt qua hotline |
-| Bán phụ kiện (vợt, cầu, giày…) rời rạc | Module bán lẻ: shop trên app + POS tại quầy trên web |
-| Thanh toán & đối soát thủ công | Tích hợp **VNPay** (QR / WebView), tự hủy giao dịch quá hạn |
-| Thiếu báo cáo doanh thu tổng hợp | Báo cáo doanh thu theo ngày/tháng (đặt sân + bán lẻ) |
+| Trùng lịch khi nhiều kênh đặt | Lịch sân tập trung, kiểm tra chồng chéo `booking_slots` trong transaction |
+| Khách phải gọi điện / nhắn tin đặt sân | Đặt sân online qua Mobile App, timeline trống theo ngày (ô 30 phút) |
+| Nhân viên khó nắm tổng quan lịch | Web Admin: sa bàn lịch, duyệt/hủy booking, đặt qua hotline |
+| Bán phụ kiện rời rạc | Shop trên app + POS tại quầy trên web |
+| Thanh toán & đối soát thủ công | VNPay (WebView/QR), tự hủy giao dịch quá hạn |
+| Thiếu báo cáo doanh thu | Báo cáo doanh thu đặt sân + bán lẻ theo ngày/tháng |
 
 ### Đối tượng sử dụng
 - **Khách hàng (Customer):** Đặt sân, mua hàng, thanh toán, xem lịch cá nhân.
-- **Nhân viên / Lễ tân (Staff):** Check-in, bán hàng POS, xử lý đơn.
+- **Nhân viên / Lễ tân (Staff):** POS, xử lý đơn, xem lịch sân.
 - **Quản trị viên (Admin):** Cấu hình giá, sân, nhân sự, báo cáo.
 
 ---
 
-## --- SLIDE 3: LÝ DO CHỌN KIẾN TRÚC HƯỚNG DỊCH VỤ (SOA) ---
+## --- SLIDE 3: KIẾN TRÚC HƯỚNG DỊCH VỤ (SOA) — CÁCH HIỂU TRONG ĐỒ ÁN ---
 
-### Tại sao không làm một khối monolith “cứng”?
-Hệ thống có **nhiều miền nghiệp vụ độc lập** nhưng cùng phục vụ một chuỗi giá trị:
+### Đồ án **không** triển khai microservices
 
-1. **Auth & User Service** — xác thực, phân quyền JWT (Admin / Staff / Customer)
-2. **Facility & Court Service** — cơ sở, loại sân, sân cụ thể
-3. **Booking Service** — tra cứu lịch trống, đặt sân, hủy, batch booking
-4. **Pricing Service** — tính giá động (giờ thường, cuối tuần, ngày lễ) theo Strategy Pattern
-5. **Payment Service** — VNPay, IPN callback, quét giao dịch hết hạn
-6. **Product & Inventory Service** — sản phẩm, biến thể, tồn kho, xuất nhập
-7. **Order Service** — đơn hàng online + POS, trừ kho trong transaction
-8. **Revenue & System Config Service** — báo cáo, cấu hình hệ thống, ngày lễ
+Hệ thống là **một backend Node.js duy nhất** (monolithic API), chạy trong **một process**, dùng **một database MySQL**.  
+Không có API Gateway riêng, không có message broker, không tách container theo từng nghiệp vụ.
 
-### Lợi ích SOA áp dụng trong đề tài
-- **Loose coupling:** Mỗi service có lớp `controller → service → model` riêng; client chỉ gọi qua REST API.
-- **Dễ mở rộng:** Thêm cổng thanh toán, thêm loại sân mới không ảnh hưởng toàn hệ thống.
-- **Tái sử dụng:** Một API phục vụ đồng thời **Web Admin** và **Mobile App** (`/api/v1/app/*` và `/api/v1/admin/*`).
-- **Phân chia nhóm:** Mỗi thành viên phụ trách một domain service rõ ràng.
+### Vậy SOA thể hiện ở đâu?
 
-> **Lưu ý trình bày:** Dự án triển khai theo mô hình **Modular Monolith + SOA** (các dịch vụ logic trong một codebase Node.js), sẵn sàng tách thành microservices khi scale.
+SOA trong đồ án được hiểu theo **tầng thiết kế phần mềm**, không phải triển khai nhiều server:
+
+1. **Tách miền nghiệp vụ** trong `backend/src/services/` — mỗi file service đảm nhiệm một domain (Booking, Payment, Order…).
+2. **Hai client độc lập** (Web Admin + Mobile App) chỉ giao tiếp qua **REST API contract** chung `/api/v1`.
+3. **Hai namespace API** tách luồng người dùng:
+   - `/api/v1/app/*` — khách hàng (mobile)
+   - `/api/v1/admin/*` — quản trị / nhân viên (web)
+4. **Luồng xử lý thống nhất:** `Route → Controller → Service → Model (Sequelize) → MySQL`.
+
+### Các miền nghiệp vụ trong backend (lớp service, không phải microservice)
+
+| Miền nghiệp vụ | File service chính | Mô tả ngắn |
+|----------------|-------------------|------------|
+| Auth & User | `auth.service.ts`, `user.service.ts` | JWT, đăng ký/đăng nhập, phân quyền |
+| Facility & Court | `facility.service.ts`, `court.service.ts` | Cơ sở, loại sân, sân cụ thể |
+| Booking | `booking.service.ts` | Lịch trống, đặt/hủy sân, chống trùng slot |
+| Pricing | `pricing.service.ts` + Strategy Pattern | Tính giá theo khung giờ, cuối tuần, ngày lễ, VIP |
+| Payment | `payment.service.ts` | VNPay, cash, quét giao dịch hết hạn |
+| Product & Inventory | `product.service.ts`, `inventory.service.ts` | Sản phẩm, biến thể, tồn kho |
+| Order | `order.service.ts` | Đơn online + POS, trừ kho |
+| Revenue | `revenue.service.ts` | Báo cáo doanh thu |
+| System | `holiday.service.ts`, `systemConfig.service.ts`, `priceConfig.service.ts` | Ngày lễ, cấu hình, bảng giá |
+
+> **Khi vấn đáp:** Nhóm áp dụng **kiến trúc hướng dịch vụ ở mức thiết kế** (service layer, API contract, loose coupling giữa client và server), **không** triển khai microservices hay service mesh.
 
 ---
 
-## --- SLIDE 4: KIẾN TRÚC TỔNG THỂ ---
+## --- SLIDE 4: KIẾN TRÚC TỔNG THỂ (THỰC TẾ) ---
 
-### [GỢI Ý HÌNH] Sơ đồ Architecture Diagram
+### [GỢI Ý HÌNH] Sơ đồ kiến trúc
 
 ```
-┌─────────────────────┐     ┌──────────────────────┐
-│   Web Admin         │     │   Mobile App         │
-│   React + Vite      │     │   React Native       │
-│   Ant Design        │     │   Expo + Axios       │
-│   Socket.io Client  │     │   WebView (VNPay)    │
-└──────────┬──────────┘     └──────────┬───────────┘
-           │  HTTPS / REST JSON         │
-           │  JWT Bearer Token          │
-           └─────────────┬────────────────┘
-                         ▼
-              ┌──────────────────────┐
-              │   API Layer          │
-              │   Node.js + Express  │
-              │   /api/v1/app/*      │  ← Khách hàng
-              │   /api/v1/admin/*    │  ← Quản trị
-              │   Socket.io Server   │  ← Real-time staff
-              └──────────┬───────────┘
-                         │
-     ┌───────────────────┼───────────────────────┐
-     ▼                   ▼                       ▼
-┌─────────┐      ┌───────────────┐      ┌─────────────┐
-│ Auth    │      │ Booking       │      │ Payment     │
-│ Service │      │ Service       │      │ Service     │
-├─────────┤      ├───────────────┤      ├─────────────┤
-│ Facility│      │ Pricing       │      │ Order       │
-│ Service │      │ Service       │      │ Service     │
-├─────────┤      ├───────────────┤      ├─────────────┤
-│ Product │      │ Inventory     │      │ Revenue     │
-│ Service │      │ Service       │      │ Service     │
-└────┬────┘      └───────┬───────┘      └──────┬──────┘
-     │                   │                      │
-     └───────────────────┼──────────────────────┘
-                         ▼
-              ┌──────────────────────┐
-              │   MySQL (Aiven)      │
-              │   Sequelize ORM      │
-              │   ACID Transaction   │
-              └──────────────────────┘
-                         │
-              ┌──────────┴──────────┐
-              ▼                     ▼
-        ┌──────────┐         ┌─────────────┐
-        │  Redis   │         │ Cloudinary  │
-        │  (Cache) │         │ (Ảnh SP)  │
-        └──────────┘         └─────────────┘
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │   VNPay Gateway      │
-              │   (Thanh toán online)│
-              └──────────────────────┘
+┌─────────────────────────┐       ┌──────────────────────────┐
+│      Web Admin          │       │     Mobile App           │
+│  React 19 + Vite 8      │       │  React Native + Expo 54  │
+│  Ant Design + Tailwind  │       │  React Navigation        │
+│  Axios + Socket.io      │       │  Axios + WebView (VNPay) │
+│  localhost:5173         │       │  EXPO_PUBLIC_API_URL     │
+└────────────┬────────────┘       └────────────┬─────────────┘
+             │  HTTPS / REST JSON              │
+             │  JWT Bearer Token               │
+             └──────────────┬──────────────────┘
+                            ▼
+              ┌─────────────────────────────┐
+              │   Backend API (Monolith)    │
+              │   Node.js + Express 5       │
+              │   TypeScript — PORT 3000    │
+              │                             │
+              │   /api/v1/app/*   (mobile)  │
+              │   /api/v1/admin/* (web)     │
+              │   /api/v1/upload/image      │
+              │   Socket.io (staff_room)    │
+              │                             │
+              │   routes/ → controllers/    │
+              │          → services/        │
+              │          → models/          │
+              └──────────────┬──────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+    ┌──────────────────┐         ┌─────────────────┐
+    │  MySQL (Aiven)   │         │   Cloudinary    │
+    │  Sequelize ORM   │         │  (ảnh sản phẩm) │
+    │  ACID Transaction│         └─────────────────┘
+    └──────────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+    ┌──────────────────┐         ┌─────────────────┐
+    │ Redis (tùy chọn) │         │  VNPay Sandbox  │
+    │ cache đọc cấu hình│         │  IPN + Return   │
+    │ KHÔNG dùng cho   │         └─────────────────┘
+    │ booking lock     │
+    └──────────────────┘
 ```
 
 ### Điểm nhấn khi trình bày
-- **Không có API Gateway riêng** → Express đóng vai trò **API Gateway logic** qua route prefix.
-- **Hai luồng client** tách biệt rõ ràng nhưng dùng chung tầng service.
+- **Một codebase backend** phục vụ cả web và mobile — đúng mô hình monolith có tổ chức tốt.
+- **Không có** RabbitMQ, Kafka, API Gateway riêng, hay database-per-service.
+- **Docker Compose** (`docker-compose.yml`) chỉ chạy `backend` + `web-admin`; MySQL nằm trên Aiven Cloud.
 
 ---
 
-## --- SLIDE 5: DANH SÁCH CÁC DỊCH VỤ (SERVICES DEFINITION) ---
+## --- SLIDE 5: API & PHÂN HỆ ỨNG DỤNG ---
 
-| Dịch vụ | Endpoint chính | Trách nhiệm |
-|---------|----------------|-------------|
-| **Auth Service** | `/app/auth/*`, `/admin/auth/*` | Đăng ký, đăng nhập, JWT, đổi mật khẩu, quên mật khẩu (email) |
-| **Facility Service** | `/app/facilities/*`, `/admin/facilities/*` | CRUD cơ sở, danh sách loại sân, chi tiết sân |
-| **Court Service** | `/admin/courts/*` | Quản lý sân theo cơ sở (cầu lông, tennis, bóng bàn…) |
-| **Booking Service** | `/app/bookings/*`, `/admin/bookings/*` | Lịch trống, kiểm tra availability, tạo/hủy booking, đặt batch |
-| **Pricing Service** | (nội bộ) + `/admin/price-configs/*` | Tính giá theo khung giờ, cuối tuần, ngày lễ (Strategy Pattern) |
-| **Payment Service** | `/app/payments/*` | Tạo URL VNPay, xử lý IPN, quét thanh toán hết hạn 30 phút |
-| **Product Service** | `/app/products/*`, `/admin/products/*` | Danh mục sản phẩm, biến thể (size, màu), upload ảnh |
-| **Inventory Service** | `/admin/inventory/*` | Tồn kho, nhập/xuất, inventory movement |
-| **Order Service** | `/app/orders/*`, `/admin/orders/*` | Đơn hàng online + POS, trừ kho, hủy đơn quá hạn (cron) |
-| **Revenue Service** | `/admin/revenue/*` | Báo cáo doanh thu đặt sân + bán lẻ |
-| **System Config / Holiday** | `/admin/system-configs/*`, `/admin/holidays/*` | Cấu hình hệ thống, ngày lễ ảnh hưởng giá |
+### Backend — nhóm endpoint chính (`backend/src/routes/index.ts`)
 
-### Client tương ứng
-| Client | Công nghệ | Chức năng chính |
-|--------|-----------|-----------------|
-| **Web Admin** | React 19, Vite, Ant Design, Tailwind, Zustand, React Query | Sa bàn lịch, POS, kho, báo cáo, CRUD |
-| **Mobile App** | React Native, Expo, React Navigation, Axios | Đặt sân timeline, shop, VNPay WebView, lịch sử |
+| Nhóm | Prefix | Ví dụ chức năng |
+|------|--------|-----------------|
+| Auth (app) | `/api/v1/app/auth` | Đăng ký, đăng nhập khách |
+| Auth (admin) | `/api/v1/admin/auth` | Đăng nhập admin/staff, refresh token (cookie) |
+| Booking (app) | `/api/v1/app/bookings` | Lịch trống, đặt sân, hủy, batch |
+| Booking (admin) | `/api/v1/admin/bookings` | Sa bàn, đặt hotline, cập nhật trạng thái |
+| Facility / Court | `/app/facilities`, `/admin/facilities`, `/admin/courts` | Cơ sở, sân |
+| Product / Order | `/app/products`, `/app/orders`, `/admin/orders` | Shop + POS |
+| Inventory | `/api/v1/admin/inventory` | Tồn kho, nhập/xuất |
+| Payment | `/api/v1/app/payments` | VNPay create, IPN, return URL |
+| Revenue | `/api/v1/admin/revenue` | Báo cáo doanh thu |
+| Cấu hình | `/admin/price-configs`, `/admin/holidays`, `/admin/system-configs` | Giá, ngày lễ, hệ thống |
+| Upload | `/api/v1/upload/image` | Ảnh lên Cloudinary |
+
+### Hai client
+
+| Client | Thư mục | Công nghệ | Chức năng chính |
+|--------|---------|-----------|-----------------|
+| **Web Admin** | `web-admin/` | React 19, Vite 8, Ant Design 6, Zustand, Axios | Sa bàn lịch, POS, kho, báo cáo, CRUD |
+| **Mobile App** | `customer-app/` | React Native, Expo 54, React Navigation, Axios | Đặt sân timeline, shop, VNPay WebView |
+
+### Kết nối API (đồng bộ cổng 3000)
+
+| Ứng dụng | Cấu hình | URL mặc định |
+|----------|----------|--------------|
+| Backend | `PORT` trong `.env` | `http://localhost:3000` |
+| Web Admin | `VITE_API_URL` trong `web-admin/.env` | `http://localhost:3000/api/v1` |
+| Mobile App | `EXPO_PUBLIC_API_URL` trong `customer-app/.env` | `http://localhost:3000/api/v1` (máy thật dùng IP LAN) |
 
 ---
 
-## --- SLIDE 6: CƠ SỞ DỮ LIỆU & LIÊN KẾT LỎNG LẺO ---
+## --- SLIDE 6: CƠ SỞ DỮ LIỆU ---
 
-### Mô hình dữ liệu (Shared Database — Logical Separation)
+### Một MySQL, nhiều miền dữ liệu (logical separation)
 
-> Trong phạm vi đồ án: dùng **một MySQL** nhưng **tách logic theo domain** qua Sequelize models & service layer — đặc trưng SOA ở tầng thiết kế, sẵn sàng tách DB khi microservices hóa.
+ORM: **Sequelize 6** — models trong `backend/src/models/`, quan hệ khai báo tại `models/index.ts`.
 
-| Domain | Bảng chính | Quan hệ |
-|--------|-----------|---------|
-| **User & Auth** | `users`, `refresh_tokens`, `staff_profiles` | User ↔ StaffProfile ↔ Facility |
-| **Facility & Court** | `facilities`, `courts`, `court_types`, `price_configs`, `holidays` | Facility → Courts → BookingSlots |
-| **Booking** | `bookings`, `booking_slots` | Booking → nhiều Slot; kiểm tra overlap |
-| **Commerce** | `products`, `product_variants`, `orders`, `order_items`, `cart_items` | Order → OrderItems → trừ Inventory |
-| **Inventory** | `inventory_levels`, `inventory_movements` | Ghi nhận mọi thay đổi tồn kho |
-| **Payment** | `payments` | Liên kết Booking hoặc Order |
-| **Audit** | `audit_logs`, `notifications`, `system_configs` | Theo dõi & cấu hình |
+| Miền | Bảng chính | Ghi chú |
+|------|-----------|---------|
+| User & Auth | `users`, `refresh_tokens`, `staff_profiles` | Role: `admin`, `staff`, `customer` |
+| Facility & Court | `facilities`, `courts`, `court_types`, `price_configs`, `holidays` | Soft delete trên một số bảng |
+| Booking | `bookings`, `booking_slots` | Chống trùng bằng query overlap + transaction |
+| Commerce | `products`, `product_variants`, `orders`, `order_items` | POS + đơn online |
+| Inventory | `inventory_levels`, `inventory_movements` | Trừ kho khi bán |
+| Payment | `payments` | Gắn booking hoặc order |
+| Khác | `system_configs`, `notifications`, `audit_logs`, `cart_items` | Model có; API cart/notification chưa đầy đủ |
 
 ### Đảm bảo toàn vẹn dữ liệu
-- **Sequelize Transaction (ACID):** Tạo booking + slot, tạo order + trừ kho, xử lý IPN VNPay.
-- **Redis (tùy chọn):** Cache tra cứu lịch trống — giảm tải DB khi nhiều user cùng xem.
-- **Loose coupling giữa services:** Booking gọi PricingService tính giá; Payment gọi InventoryService khi order thành công — không truy cập trực tiếp bảng của service khác từ controller.
+- **Sequelize Transaction:** Tạo booking + slot, tạo order + trừ kho, xử lý IPN VNPay.
+- **Chống double booking:** `booking.service.ts` kiểm tra overlap thời gian trên cùng `court_id` trước khi commit — **không** dùng Redis lock.
+- **Redis (nếu cấu hình `REDIS_URL`):** Chỉ cache đọc cho price config, holiday, system config — có thể tắt hoàn toàn.
 
 ---
 
-## --- SLIDE 7: GIAO TIẾP ĐỒNG BỘ (SYNCHRONOUS) ---
+## --- SLIDE 7: GIAO TIẾP ĐỒNG BỘ (REST API) ---
 
-### HTTP/REST API — phương thức chính
+### Luồng HTTP chính
 
-| Luồng | Phương thức | Ví dụ endpoint |
-|-------|-------------|----------------|
+| Luồng | Phương thức | Endpoint |
+|-------|-------------|----------|
 | Đăng nhập app | `POST` | `/api/v1/app/auth/login` |
 | Xem lịch trống | `GET` | `/api/v1/app/bookings/booked-slots?facility_id&date&court_type` |
-| Kiểm tra & tính giá slot | `GET` / `POST` | `/api/v1/app/bookings/availability`, `/price-preview` |
+| Kiểm tra sân trống + giá | `GET` | `/api/v1/app/bookings/availability`, `/price-preview` |
 | Tạo booking | `POST` | `/api/v1/app/bookings` hoặc `/bookings/batch` |
-| Tạo thanh toán VNPay | `POST` | `/api/v1/app/payments/vnpay/create` |
-| Admin xem sa bàn | `GET` | `/api/v1/admin/bookings/daily-slots` |
+| Thanh toán VNPay | `POST` | `/api/v1/app/payments/vnpay/create` |
+| Admin sa bàn | `GET` | `/api/v1/admin/bookings/daily-slots` |
 | POS tạo đơn | `POST` | `/api/v1/admin/orders` |
 
-### Cơ chế bảo mật
-- **JWT Bearer Token** — Mobile & Web đính kèm qua Axios Interceptor.
-- **Role Middleware** — Phân quyền `admin`, `staff`, `customer`.
-- **Zod Validation** — Validate input trước khi vào service layer.
-- **Helmet + CORS** — Bảo vệ HTTP headers.
+### Bảo mật & validate
+- **JWT Bearer** — Mobile lưu token AsyncStorage; Web Admin lưu access token + refresh cookie httpOnly.
+- **Role middleware** — Phân quyền theo `admin` / `staff` / `customer`.
+- **Zod validation** — `backend/src/validations/` trước khi vào service.
+- **Helmet + CORS** — `server.ts` cho phép web-admin và Expo dev.
 
-### [GỢI Ý HÌNH] Luồng REST đặt sân
+### [GỢI Ý HÌNH] Luồng đặt sân
+
 ```
-Mobile App  --GET booked-slots-->  Booking Service  --query-->  MySQL
-Mobile App  --POST bookings----->  Booking Service  --transaction-->  bookings + booking_slots
-Mobile App  --POST payments----->  Payment Service  --redirect URL-->  VNPay
-VNPay       --IPN callback----->  Payment Service  --update-->  booking status = confirmed
+Mobile App  --GET booked-slots-->  BookingController  -->  BookingService  -->  MySQL
+Mobile App  --POST bookings---->  BookingService (transaction)  -->  bookings + booking_slots
+Mobile App  --POST payments---->  PaymentService  -->  URL VNPay
+VNPay       --IPN callback---->  PaymentService  -->  cập nhật payment + booking status
 ```
 
 ---
 
-## --- SLIDE 8: GIAO TIẾP BẤT ĐỒNG BỘ & REAL-TIME ---
+## --- SLIDE 8: REAL-TIME & TÁC VỤ NỀN ---
 
-### Socket.io — thông báo thời gian thực (Web Admin)
-- Khi khách đặt hàng online → `Order Service` emit event `order` / `order_changed` tới phòng `staff_room`.
-- Web Admin kết nối Socket.io → nhân viên thấy đơn mới **không cần refresh trang**.
+### Socket.io — chỉ cho Web Admin (staff)
+
+- Server: `backend/src/config/socket.ts` — staff join phòng `staff_room`.
+- Khi khách đặt hàng online → `order.service.ts` emit `order` / `order_changed`.
+- Web Admin POS lắng nghe qua `web-admin/src/config/socket.ts` — nhân viên thấy đơn mới không cần F5.
 
 ```
-Mobile App  --POST /app/orders-->  Order Service
-                                      │
-                                      ▼ emit('order_changed')
+Mobile App  --POST /app/orders-->  OrderService
+                                      │ emit('order_changed')
+                                      ▼
                               Socket.io Server
-                                      │
                                       ▼
                               Web Admin (staff_room)
 ```
 
-### Node-cron & Background Jobs — không dùng Message Broker
-| Tác vụ | Cơ chế | Tần suất | Mục đích |
-|--------|--------|----------|----------|
-| Hủy đơn hàng quá hạn | `node-cron` | Mỗi 1 phút | `OrderService.cancelExpiredOrders()` |
-| Hủy thanh toán booking/order VNPay quá hạn | `setInterval` trong `server.ts` | Mỗi 1 phút | `PaymentService.checkExpiredPayments()` |
+### Tác vụ nền — không dùng Message Broker
 
-> **Giải thích khi vấn đáp:** Nhóm chưa triển khai RabbitMQ/Kafka vì quy mô đồ án; cron job đủ cho tác vụ nền. Hướng phát triển: đưa các job này vào queue (BullMQ + Redis) khi traffic tăng.
+| Tác vụ | Cơ chế | Tần suất |
+|--------|--------|----------|
+| Hủy đơn hàng chưa thanh toán | `node-cron` (`jobs/cron.ts`) | Mỗi 1 phút |
+| Hủy VNPay pending quá hạn | `setInterval` trong `server.ts` | Mỗi 1 phút |
 
-### Email bất đồng bộ (Nodemailer)
+### Email (Nodemailer)
 - Gửi email quên mật khẩu qua SMTP — không chặn luồng đăng nhập chính.
 
 ---
 
 ## --- SLIDE 9: TÍCH HỢP BÊN THỨ BA ---
 
-### 9.1 VNPay — Thanh toán online
-
-**[GỢI Ý HÌNH] Luồng thanh toán VNPay**
+### 9.1 VNPay
 
 ```
-┌─────────────┐    ① POST create payment     ┌──────────────┐
-│ Mobile App  │ ───────────────────────────► │ Payment Svc  │
-│ / Web Admin │ ◄── ② paymentUrl + QR ────── │ (Backend)    │
-└──────┬──────┘                              └──────┬───────┘
-       │ ③ Mở WebView / QR Modal                     │
-       ▼                                             │
-┌─────────────┐    ④ Khách thanh toán          ┌──────▼───────┐
-│   VNPay     │ ◄──────────────────────────► │  VNPay GW    │
-│  (Browser)  │                              └──────┬───────┘
-└──────┬──────┘                                       │
-       │ ⑤ Return URL (app)                           │ ⑥ IPN (server-to-server)
-       ▼                                              ▼
-┌─────────────┐                              ┌──────────────┐
-│ Mobile App  │                              │ Payment Svc  │
-│ hiển thị KQ │                              │ verify HMAC  │
-└─────────────┘                              │ update DB    │
-                                             └──────────────┘
+Mobile / Web  --POST create-->  PaymentService  --URL-->  VNPay Sandbox
+       │                                                    │
+       │ WebView / QR Modal                                 │ IPN (server-to-server)
+       ▼                                                    ▼
+  Hiển thị kết quả                              Verify HMAC → cập nhật DB
 ```
 
-**Chi tiết kỹ thuật:**
-- Ký HMAC-SHA512 (`VNPayUtils`) khi tạo URL và khi nhận IPN.
-- Phân biệt `TxnRef`: Booking (`{id}_{timestamp}`) vs Order (`ORDER_{id}_{timestamp}`).
-- Tự động hủy giao dịch pending sau **30 phút**.
+- Ký **HMAC-SHA512** (`backend/src/utils/vnpay.ts`).
+- Phân biệt `TxnRef`: Booking `{id}_{timestamp}` vs Order `ORDER_{id}_{timestamp}`.
+- Tự hủy giao dịch pending sau **30 phút**.
 
-### 9.2 Cloudinary — Lưu trữ ảnh
-- Admin upload ảnh sản phẩm / sân → Multer + Cloudinary Storage → trả URL public.
+### 9.2 Cloudinary
+- Upload ảnh sản phẩm / cơ sở: Multer + Cloudinary → `POST /api/v1/upload/image`.
 
-### 9.3 MySQL Aiven Cloud — Database hosted
-- Kết nối qua Sequelize; hỗ trợ triển khai production không phụ thuộc máy local.
+### 9.3 MySQL Aiven Cloud
+- Kết nối từ `backend/src/config/database.ts` — database hosted, không chạy MySQL local trong Docker Compose.
 
 ---
 
 ## --- SLIDE 10: DESIGN PATTERN NỔI BẬT ---
 
-| Pattern | Áp dụng ở đâu | Lợi ích |
-|---------|---------------|---------|
-| **Strategy Pattern** | `backend/src/patterns/strategies/pricing/` | Thêm loại giá (weekend, holiday) không sửa core |
+| Pattern | Vị trí trong code | Lợi ích |
+|---------|-------------------|---------|
+| **Strategy Pattern** | `backend/src/patterns/strategies/pricing/` | Thêm loại giá (weekend, holiday, VIP…) không sửa core |
 | **Service Layer** | `backend/src/services/*.ts` | Tách nghiệp vụ khỏi HTTP controller |
-| **Repository (ORM)** | Sequelize Models | Trừu tượng hóa truy vấn DB |
-| **Middleware Chain** | Auth, Role, Validate, ErrorHandler | Xử lý cross-cutting concerns |
-| **Optimistic UI** | Mobile App BookingScreen | Hiển thị khung giờ chọn ngay, lấy giá background |
+| **Repository (ORM)** | Sequelize Models | Trừu tượng hóa truy vấn MySQL |
+| **Middleware Chain** | auth, role, validate, errorHandler | Xử lý cross-cutting concerns |
+| **API Facade (mobile)** | `customer-app/src/data/mockStore.js` | Gom gọi API cho màn hình (tên file legacy, thực tế gọi backend) |
 
 ---
 
 ## --- SLIDE 11: DEMO SẢN PHẨM (5–10 PHÚT) ---
 
-### Kịch bản demo đề xuất — luồng nghiệp vụ chính
+### Kịch bản demo đề xuất
 
-> **Nguyên tắc:** Chỉ demo luồng thể hiện **tương tác giữa các dịch vụ**, không demo CRUD lẻ tẻ.
+#### Phần 1 — Mobile App (3–4 phút)
+1. **Đăng nhập** → nhận JWT.
+2. Chọn **cơ sở → bộ môn → ngày** → timeline lịch trống (ô 30 phút).
+3. Chọn khung giờ (có thể chọn cùng ô → đặt 30 phút) → xem giá → thêm danh sách.
+4. **Xác nhận đặt sân** → booking pending → tạo URL VNPay.
+5. Thanh toán sandbox → IPN cập nhật → xem **Lịch sử đặt sân**.
 
-#### Phần 1 — Mobile App (3–4 phút) — Booking + Payment
-1. **Đăng nhập** → Auth Service cấp JWT.
-2. Chọn **cơ sở → bộ môn → ngày** → Booking Service trả timeline `booked-slots`.
-3. Chọn khung giờ trên timeline → Pricing Service tính giá → thêm vào danh sách.
-4. **Xác nhận đặt sân** → tạo booking pending → Payment Service tạo URL VNPay.
-5. Thanh toán (sandbox VNPay) → IPN cập nhật trạng thái → hiển thị trong **Lịch sử đặt sân**.
+#### Phần 2 — Web Admin (2–3 phút)
+1. Đăng nhập Admin → **Sa bàn lịch đặt** → thấy slot vừa đặt.
+2. Demo **đặt sân hotline** (staff tạo booking thay khách).
+3. (Tuỳ chọn) Khách đặt hàng app → staff nhận Socket.io trên POS.
 
-#### Phần 2 — Web Admin (2–3 phút) — Vận hành real-time
-1. Đăng nhập Admin → mở **Sa bàn lịch đặt** → thấy slot vừa đặt (refresh hoặc real-time).
-2. Demo **đặt sân qua hotline** (staff tạo booking thay khách).
-3. (Tuỳ chọn) Khách đặt hàng trên app → staff nhận thông báo Socket.io trên web.
+#### Phần 3 — POS & Kho (2 phút)
+1. Staff bán tại quầy → tạo đơn → trừ tồn kho.
+2. Xem **Báo cáo doanh thu**.
 
-#### Phần 3 — POS & Kho (2 phút) — Order + Inventory
-1. Staff bán sản phẩm tại quầy (POS) → Order Service tạo đơn → Inventory trừ tồn.
-2. Xem **Báo cáo doanh thu** → Revenue Service tổng hợp booking + order.
-
-### [GỢI Ý] Checklist trước khi demo
-- [ ] Backend chạy (`PORT=5000` hoặc đồng bộ với `api.js` trong app)
-- [ ] Metro Expo: `npx expo start`
-- [ ] Web Admin: `pnpm dev` (port 5173)
-- [ ] Điện thoại & máy tính cùng WiFi; `baseURL` trỏ đúng IP LAN
+### Checklist trước khi demo
+- [ ] Backend: `cd backend && pnpm dev` → cổng **3000**
+- [ ] Web Admin: `cd web-admin && pnpm dev` → cổng **5173**, `VITE_API_URL=http://localhost:3000/api/v1`
+- [ ] Mobile: `cd customer-app && npx expo start` — cấu hình `EXPO_PUBLIC_API_URL` (máy thật: `http://<IP-LAN>:3000/api/v1`)
+- [ ] Điện thoại và máy dev cùng WiFi
 
 ---
 
 ## --- SLIDE 12: CÔNG NGHỆ ĐÃ SỬ DỤNG ---
 
-### Backend
+### Backend (`backend/package.json`)
 | Công nghệ | Phiên bản / Ghi chú |
 |-----------|---------------------|
-| Node.js + Express | API server, TypeScript |
-| Sequelize ORM | MySQL — Aiven Cloud |
-| JWT + bcryptjs | Xác thực |
-| Socket.io | Real-time staff notification |
-| Redis | Cache (optional) |
-| node-cron | Background jobs |
-| Zod | Validation |
-| VNPay SDK (custom utils) | Thanh toán |
-| Nodemailer | Email |
-| Cloudinary | Upload ảnh |
-| Docker | Dockerfile backend + web-admin |
+| Node.js + Express | Express 5.2, TypeScript |
+| Sequelize ORM | MySQL qua mysql2 — Aiven Cloud |
+| JWT + bcryptjs | Xác thực, phân quyền |
+| Socket.io 4 | Thông báo đơn hàng cho staff |
+| node-cron | Hủy đơn quá hạn |
+| Zod 4 | Validate input |
+| VNPay (custom utils) | Thanh toán online |
+| Nodemailer | Email quên mật khẩu |
+| Cloudinary + Multer | Upload ảnh |
+| Redis 6 | **Tùy chọn** — cache đọc cấu hình |
 
-### Frontend
-| Công nghệ | Ứng dụng |
-|-----------|----------|
-| React 19 + Vite 8 | Web Admin SPA |
-| Ant Design 6 + Tailwind 4 | UI quản trị |
-| React Query + Zustand | State & data fetching |
-| React Native + Expo 54 | Mobile App |
-| Axios | HTTP client (cả web & app) |
-| React Navigation | Điều hướng mobile |
-| React Native WebView | Nhúng trang VNPay |
+### Web Admin (`web-admin/package.json`)
+| Công nghệ | Ghi chú |
+|-----------|---------|
+| React 19 + Vite 8 | SPA quản trị |
+| Ant Design 6 + Tailwind 4 | UI |
+| Zustand 5 | Auth store, POS state |
+| Axios + Socket.io-client | API + real-time |
+| React Router 7 | Điều hướng |
+
+### Mobile App (`customer-app/package.json`)
+| Công nghệ | Ghi chú |
+|-----------|---------|
+| React Native 0.81 + Expo 54 | Cross-platform |
+| React Navigation 7 | Tab + Stack |
+| Axios | Gọi `/api/v1/app/*` |
+| AsyncStorage | Lưu JWT |
+| React Native WebView | Trang VNPay |
 
 ---
 
 ## --- SLIDE 13: KẾT QUẢ ĐẠT ĐƯỢC ---
 
 ### Chức năng đã hoàn thành
-- Đặt sân online với timeline 30 phút, multi-slot, kiểm tra trùng lịch.
-- Web Admin: sa bàn lịch, quản lý sân/giá, đặt hotline, POS bán hàng.
-- Shop trên mobile: xem sản phẩm, đặt hàng, thanh toán VNPay.
+- Đặt sân online: timeline 30 phút, chọn nhiều khung, tối thiểu 30 phút, chống trùng lịch.
+- Web Admin: sa bàn lịch, quản lý sân/giá/cơ sở, đặt hotline, POS bán hàng.
+- Shop mobile: xem sản phẩm, giỏ hàng (local), đặt hàng, VNPay.
 - Quản lý kho: nhập/xuất, tự trừ tồn khi bán.
-- Báo cáo doanh thu theo thời gian.
-- Thanh toán VNPay end-to-end (tạo URL → IPN → cập nhật DB).
-- Real-time thông báo đơn hàng cho staff qua Socket.io.
+- Báo cáo doanh thu (đặt sân + bán lẻ).
+- VNPay end-to-end: tạo URL → IPN/Return → cập nhật DB.
+- Socket.io: đơn hàng mới hiện trên web staff.
 - Phân quyền Admin / Staff / Customer.
 
-### Kiến trúc SOA đạt được
-- Tách domain service rõ ràng trong backend.
-- Hai client độc lập giao tiếp qua API contract thống nhất `/api/v1`.
-- Sẵn sàng mở rộng thêm dịch vụ mới (notification push, MoMo…).
+### Kiến trúc đạt được
+- **Monolithic API** có tổ chức theo service layer — dễ bảo trì, một deploy.
+- **Hai client** dùng chung contract REST `/api/v1`.
+- **SOA ở mức thiết kế:** tách domain logic, không hard-code nghiệp vụ trong controller.
+
+### Chưa hoàn thiện / mock
+- Màn hình **Thông báo** trên app: UI mock, chưa có API đầy đủ.
+- **QR check-in:** giao diện demo.
+- **Giỏ hàng server** (`cart_items` model có, chưa có route API — app dùng giỏ local).
+- **Audit log / Notification** model có trong DB, chưa dùng đầy đủ trong nghiệp vụ.
 
 ---
 
 ## --- SLIDE 14: HẠN CHẾ & HƯỚNG PHÁT TRIỂN ---
 
 ### Hạn chế hiện tại
+
 | Hạn chế | Mô tả |
 |---------|-------|
-| Chưa tách microservices thật | Các service logic nằm chung một process Node.js |
-| Shared Database | Chưa áp dụng Database-per-Service |
-| Chưa có Message Broker | Cron thay cho RabbitMQ/Kafka |
-| Chưa có API Gateway riêng | Express đảm nhiệm routing |
-| Push notification mobile | Chưa tích hợp FCM/Expo Push |
-| CI/CD | Chưa có pipeline tự động build/deploy |
+| Monolith single deploy | Toàn bộ nghiệp vụ trong một process — scale ngang phải scale cả khối |
+| Shared Database | Một MySQL cho mọi domain |
+| Không có Message Queue | Cron/`setInterval` thay cho hàng đợi tác vụ |
+| Redis không bắt buộc | Chưa dùng cache cho booking; chỉ tùy chọn cho cấu hình |
+| Push notification mobile | Chưa FCM / Expo Push |
+| Test tự động | Chưa có suite unit/integration test trong repo |
+| CI/CD | Chưa pipeline build/deploy tự động |
 
-### Hướng phát triển
-1. **Tách microservices:** Booking, Payment, Order thành các container Docker độc lập.
-2. **API Gateway:** Kong / Nginx reverse proxy, rate limiting, centralized auth.
-3. **Message Queue:** Redis BullMQ hoặc RabbitMQ cho email, notification, payment retry.
-4. **CI/CD:** GitHub Actions → build Docker → deploy VPS/Cloud.
-5. **Bảo mật:** Refresh token rotation, API rate limit, audit log đầy đủ hơn.
-6. **Mở rộng nghiệp vụ:** MoMo, ZaloPay, membership, điểm tích lũy, check-in QR.
+### Hướng phát triển (nếu mở rộng sau đồ án)
+1. API notification đầy đủ + FCM cho mobile.
+2. Giỏ hàng server-side, đồng bộ đa thiết bị.
+3. Redis cache cho tra cứu lịch nếu traffic tăng.
+4. CI/CD (GitHub Actions) + deploy Docker.
+5. Thêm cổng thanh toán (MoMo, ZaloPay), membership, check-in QR thật.
+
+> **Lưu ý:** Tách microservices **không** phải mục tiêu đồ án hiện tại; monolith đã đáp ứng quy mô và yêu cầu môn học.
 
 ---
 
 ## --- SLIDE 15: KẾT LUẬN & Q&A ---
 
 ### Tóm tắt
-- Xây dựng thành công **nền tảng quản lý sân cầu lông đa kênh** theo hướng dịch vụ.
-- **Mobile App** phục vụ khách hàng đặt sân & mua hàng nhanh.
-- **Web Admin** phục vụ vận hành nội bộ: lịch sân, POS, kho, báo cáo.
-- **Backend API** kết nối các dịch vụ nghiệp vụ qua REST + Socket.io + tích hợp VNPay.
+- Xây dựng **nền tảng quản lý sân cầu lông đa kênh** với **một backend API tập trung**.
+- **Mobile App** phục vụ khách đặt sân & mua hàng.
+- **Web Admin** phục vụ vận hành: lịch sân, POS, kho, báo cáo.
+- Áp dụng **tư duy hướng dịch vụ** qua service layer và API contract — **không** triển khai microservices.
 
 ### Cảm ơn thầy/cô và các bạn đã lắng nghe!
 **Hỏi đáp (Q&A)**
 
 ---
 
-## PHỤ LỤC — GỢI Ý CÂU HỎI VẤN ĐÁP & GỢI Ý TRẢ LỜI
+## PHỤ LỤC — GỢI Ý CÂU HỎI VẤN ĐÁP
 
 | Câu hỏi có thể gặp | Gợi ý trả lời ngắn |
 |--------------------|---------------------|
-| Vì sao gọi là SOA mà không phải Microservices? | SOA tách **logic nghiệp vụ thành các service độc lập về interface**; nhóm triển khai modular monolith, có thể tách deploy sau. |
-| Tránh double booking thế nào? | Kiểm tra overlap `booking_slots` trong transaction Sequelize trước khi commit. |
-| VNPay IPN khác Return URL thế nào? | Return URL cho app hiển thị; IPN là server-to-server, dùng để cập nhật DB chính thức. |
-| Redis dùng để làm gì? | Cache availability; có thể tắt nếu không cấu hình `REDIS_URL`. |
-| Socket.io dùng ở đâu? | Push đơn hàng mới tới Web Admin staff, không dùng cho mobile customer. |
+| Đồ án có microservices không? | **Không.** Một backend Node.js monolith, tách logic bằng service layer. |
+| Vậy SOA ở đâu? | Hai client độc lập gọi REST API; backend tách domain trong `services/`; contract `/api/v1/app` và `/admin`. |
+| Tránh double booking thế nào? | Query overlap trên `booking_slots` + **Sequelize transaction** trước khi commit. |
+| Redis dùng làm gì? | **Tùy chọn** — cache đọc price config, holiday, system config. Không lock slot đặt sân. |
+| VNPay IPN khác Return URL? | Return URL cho app hiển thị; IPN server-to-server để cập nhật DB chính thức. |
+| Socket.io dùng ở đâu? | Push đơn hàng mới tới Web Admin staff (`staff_room`), không dùng cho khách mobile. |
+| Web và app gọi cùng backend không? | **Có** — cùng server cổng 3000, khác prefix `/app` vs `/admin`. |
 
 ---
 
-*Tài liệu được sinh từ codebase thực tế: `backend/`, `web-admin/`, `customer-app/`, `docs/ARCHITECTURE.md`, `docs/BCCK_HDV_Report.md`.*
+*Tài liệu cập nhật theo codebase: `backend/`, `web-admin/`, `customer-app/` — tháng 06/2025.*
