@@ -6,7 +6,8 @@ import sequelize from '../config/database.js';
 export class UserService {
     static async getUserByPhone(phone: string) {
         return await models.User.findOne({
-            where: { phone, role: 'customer' }
+            where: { phone, role: 'customer' },
+            attributes: { exclude: ['password_hash'] }
         });
     }
 

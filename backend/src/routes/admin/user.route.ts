@@ -9,6 +9,7 @@ const router = Router();
 
 router.use(verifyToken);
 
+router.get('/search-phone', requireRoles(['admin', 'staff']), AdminUserController.searchUserByPhone);
 router.get('/', requireRoles(['admin']), AdminUserController.getAll);
 
 router.patch('/:id/status-lock', requireRoles(['admin']), validate(toggleUserStatusSchema), AdminUserController.toggleUserStatus);

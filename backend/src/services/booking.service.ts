@@ -110,7 +110,7 @@ export class BookingService {
         });
 
         if (courts.length === 0) {
-            return { courts: [], slotsByCourtId: {} };
+            return { courts: [], slotsByCourtId: {}, rawBookedSlots: [] };
         }
 
         // 2. Lấy tất cả các slot đã đặt trong ngày đó cho các sân này
