@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useReducer, useState, useEffect } from 'react';
 import mock from './mock.json';
 import storage from '../utils/storage';
+import { socketService } from '../services/socket';
 
 const AppStoreContext = createContext(null);
 
@@ -77,6 +78,7 @@ export function AppStoreProvider({ children }) {
         
         if (savedToken && savedUser) {
           setUserState(JSON.parse(savedUser));
+          socketService.connect();
         }
         if (savedFacility) {
           dispatch({ type: 'facility/set', payload: JSON.parse(savedFacility) });
@@ -88,6 +90,10 @@ export function AppStoreProvider({ children }) {
       }
     }
     init();
+    
+    return () => {
+      socketService.disconnect();
+    };
   }, []);
 
   const setUser = async (userData, token) => {
@@ -96,6 +102,7 @@ export function AppStoreProvider({ children }) {
       if (token) {
         await storage.setItem('token', token);
         await storage.setItem('user', JSON.stringify(userData));
+        socketService.connect();
       }
     } catch (e) {
       console.error("Lỗi lưu thông tin đăng nhập:", e);
@@ -107,6 +114,7 @@ export function AppStoreProvider({ children }) {
       setUserState(null);
       await storage.removeItem('token');
       await storage.removeItem('user');
+      socketService.disconnect();
     } catch (e) {
         console.error("Lỗi đăng xuất:", e);
     }

@@ -79,6 +79,10 @@ export class PaymentService {
             }
 
             await t.commit();
+            getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+            if (order.user_id) {
+                getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+            }
             return { RspCode: '00', Message: 'Confirm Success' };
         } catch (error) {
             await t.rollback();
@@ -499,6 +503,9 @@ export class PaymentService {
 
             if (vnp_ResponseCode === '00') {
                 getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+                if (order.user_id) {
+                    getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+                }
             }
 
             return {

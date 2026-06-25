@@ -4,6 +4,7 @@ import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { fetchMyOrders, cancelOrder } from '../../services/api';
+import { socketService } from '../../services/socket';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -35,14 +36,26 @@ export default function MyOrdersScreen({ navigation }) {
     }, [])
   );
 
+  useEffect(() => {
+    const handleOrderUpdated = (data) => {
+      console.log('Order updated via socket:', data);
+      loadOrders(false); // Refresh list silently
+    };
+
+    socketService.on('order_status_updated', handleOrderUpdated);
+    return () => {
+      socketService.off('order_status_updated', handleOrderUpdated);
+    };
+  }, []);
+
   const handleCancelOrder = (orderId) => {
     Alert.alert(
       'Hủy đơn hàng',
       'Bạn có chắc chắn muốn hủy đơn hàng này không?',
       [
         { text: 'Bỏ qua', style: 'cancel' },
-        { 
-          text: 'Đồng ý hủy', 
+        {
+          text: 'Đồng ý hủy',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -77,9 +90,9 @@ export default function MyOrdersScreen({ navigation }) {
   return (
     <Screen>
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          activeOpacity={0.8} 
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
           style={styles.backBtn}
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -102,9 +115,9 @@ export default function MyOrdersScreen({ navigation }) {
         onRefresh={() => loadOrders(true)}
         refreshing={loading}
         renderItem={({ item }) => (
-          <OrderCard 
-            order={item} 
-            onCancel={() => handleCancelOrder(item.id)} 
+          <OrderCard
+            order={item}
+            onCancel={() => handleCancelOrder(item.id)}
           />
         )}
         contentContainerStyle={styles.list}
@@ -162,10 +175,10 @@ function OrderCard({ order, onCancel }) {
           <Text style={styles.totalLabel}>Tổng thanh toán:</Text>
           <Text style={styles.totalAmount}>{formatPrice(order.total_cents)}</Text>
         </View>
-        
+
         {(order.status === 'pending_payment' || order.status === 'pending_pickup') && (
-          <TouchableOpacity 
-            style={styles.cancelBtn} 
+          <TouchableOpacity
+            style={styles.cancelBtn}
             onPress={onCancel}
             activeOpacity={0.7}
           >
@@ -230,7 +243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: { fontSize: fontSize.md, color: colors.textMuted, fontWeight: fontWeight.semiBold },
-  
+
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
@@ -252,10 +265,10 @@ const styles = StyleSheet.create({
   orderId: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.textPrimary },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   statusText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-  
+
   itemsList: { marginBottom: spacing.md },
   itemText: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: 2 },
-  
+
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',

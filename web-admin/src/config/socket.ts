@@ -5,4 +5,5 @@ const socketUrl = apiUrl.replace('/api/v1', '');
 
 export const socket = io(socketUrl, {
   autoConnect: true,
+  query: { role: 'staff' }
 });
