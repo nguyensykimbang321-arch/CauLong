@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ClientBookingController } from '../../controllers/client/booking.controller.js';
 import { validate } from '../../middlewares/validate.middleware.js';
-import { checkAvailabilitySchema, createBookingSchema, getDailyBookedSchema, previewPriceSchema, clientUpdateBookingSchema } from '../../validations/booking.validation.js';
+import { checkAvailabilitySchema, createBookingSchema, createBatchBookingSchema, getDailyBookedSchema, previewPriceSchema, clientUpdateBookingSchema } from '../../validations/booking.validation.js';
 import { verifyToken } from '../../middlewares/auth.middleware.js';
 import { requireRoles } from '../../middlewares/role.middleware.js';
 
@@ -19,6 +19,14 @@ router.post(
     requireRoles(['customer']),
     validate(createBookingSchema),
     ClientBookingController.createBooking
+);
+
+router.post(
+    '/batch',
+    verifyToken,
+    requireRoles(['customer']),
+    validate(createBatchBookingSchema),
+    ClientBookingController.createBatchBooking
 );
 
 router.patch('/:id', verifyToken, validate(clientUpdateBookingSchema), ClientBookingController.updateBooking);

@@ -46,7 +46,7 @@ export default function BookingDetailScreen({ route, navigation }) {
   // Lấy bộ môn từ dữ liệu (hỗ trợ cả mock và data thực từ API)
   const getSportLabel = () => {
     if (booking?.court_type_label) return booking.court_type_label;
-    const type = booking?.slots?.[0]?.court?.type_info?.name || booking?.court_type;
+    const type = booking?.slots?.[0]?.court?.court_type || booking?.court_type;
     const mapping = {
       badminton: 'Cầu lông',
       tennis: 'Tennis',

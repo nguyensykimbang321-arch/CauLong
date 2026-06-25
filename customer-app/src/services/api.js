@@ -103,6 +103,11 @@ export const createBooking = async (bookingData) => {
     return response.data.data;
 };
 
+export const createBatchBooking = async (bookings) => {
+    const response = await api.post('/app/bookings/batch', { bookings });
+    return response.data.data;
+};
+
 export const fetchMyBookings = async () => {
     const response = await api.get('/app/bookings');
     return response.data.data;

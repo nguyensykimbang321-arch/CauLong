@@ -48,7 +48,6 @@ CourtType.hasMany(Court, { foreignKey: 'court_type', sourceKey: 'name', as: 'cou
 Court.belongsTo(CourtType, { foreignKey: 'court_type', targetKey: 'name', as: 'type_info' });
 
 
-
 Facility.hasMany(PriceConfig, { foreignKey: 'facility_id', as: 'price_configs' });
 PriceConfig.belongsTo(Facility, { foreignKey: 'facility_id', as: 'facility' });
 

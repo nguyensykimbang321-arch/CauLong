@@ -3,7 +3,7 @@ import customParseFormat from 'dayjs/plugin/customParseFormat.js';
 import AppResponse from '../../utils/AppResponse.js';
 import ApiError from '../../utils/ErrorClass.js';
 import type { Request, Response, NextFunction } from 'express';
-import type { CheckAvailabilityQuery, CreateBookingInput, PreviewPriceInput } from '../../validations/booking.validation.js';
+import type { CheckAvailabilityQuery, CreateBookingInput, PreviewPriceInput, CreateBatchBookingInput } from '../../validations/booking.validation.js';
 import { BookingService } from '../../services/booking.service.js';
 import { VNPayUtils } from '../../utils/vnpay.js';
 import models from '../../models/index.js';
@@ -136,6 +136,51 @@ export class ClientBookingController {
             const booking = await BookingService.cancelBooking(Number(id), userId);
 
             return AppResponse.success(res, booking, "Hủy đặt sân thành công", 200);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /** Tạo nhiều booking cùng lúc, gom VNPay thành 1 URL tổng */
+    static async createBatchBooking(req: any, res: Response, next: NextFunction) {
+        try {
+            const { bookings } = req.body as CreateBatchBookingInput;
+            const userId = req.user?.id;
+            if (!userId) throw new ApiError('Không tìm thấy thông tin người dùng', 401);
+
+            const results: any[] = [];
+            let vnpayTotalCents = 0;
+            const vnpayBookingIds: number[] = [];
+
+            // Tạo từng booking tuần tự
+            for (const item of bookings) {
+                const result = await BookingService.createBooking(userId, item);
+                results.push(result);
+
+                if (item.payment_method === 'vnpay' && result?.id) {
+                    vnpayTotalCents += result.total_cents;
+                    vnpayBookingIds.push(result.id);
+                }
+            }
+
+            // Gom tổng tiền VNPay → 1 URL thanh toán duy nhất
+            let paymentUrl = null;
+            if (vnpayBookingIds.length > 0 && vnpayTotalCents > 0) {
+                const batchOrderId = vnpayBookingIds.join('-') + '_' + Date.now().toString().slice(-6);
+                paymentUrl = VNPayUtils.createPaymentUrl({
+                    amount: vnpayTotalCents,
+                    orderId: batchOrderId,
+                    orderInfo: `Thanh toan ${vnpayBookingIds.length} don dat san: ${vnpayBookingIds.join(', ')}`,
+                    ipAddr: req.ip || '127.0.0.1'
+                });
+            }
+
+            return AppResponse.success(res, {
+                bookings: results,
+                vnpayBookingIds,
+                paymentUrl,
+            }, `Giữ chỗ ${results.length} khung giờ thành công!`, 201);
+
         } catch (error) {
             next(error);
         }

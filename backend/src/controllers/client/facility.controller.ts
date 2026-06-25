@@ -17,7 +17,7 @@ export class ClientFacilityController {
             const { id } = req.params;
             
             // Controller mỏng nhẹ: Chỉ gọi 1 hàm Service duy nhất
-            const result = await FacilityService.getFacilityWithCourtsForClient(Number(id));
+            const result = await FacilityService.getFacilityWithCourts(Number(id));
 
             return AppResponse.success(res, result, "Lấy chi tiết cơ sở thành công", 200);
         } catch (error) {

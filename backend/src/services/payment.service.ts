@@ -82,26 +82,39 @@ export class PaymentService {
      * Xử lý IPN cho đặt sân (Booking)
      */
     private static async processBookingIPN(vnp_TxnRef: string, vnp_ResponseCode: string, vnp_Amount: number, vnpayQuery: any) {
-        // Tách: {bookingId}_{timestamp}
-        const bookingId = vnp_TxnRef.split('_')[0];
+        // Tách: "{bookingId}_{timestamp}" hoặc batch "{id1}-{id2}_{timestamp}"
+        const refPart = vnp_TxnRef.split('_')[0] ?? '';
+        const bookingIds = refPart.includes('-')
+            ? refPart.split('-').map(Number).filter(id => !isNaN(id))
+            : [Number(refPart)].filter(id => !isNaN(id));
+
+        if (bookingIds.length === 0) {
+            return { RspCode: '01', Message: 'Invalid TxnRef format' };
+        }
 
         const t = await models.Booking.sequelize!.transaction();
         try {
-            const booking = await (models.Booking as any).findByPk(bookingId, { transaction: t });
+            const bookings = await models.Booking.findAll({
+                where: { id: { [Op.in]: bookingIds } },
+                transaction: t
+            });
 
-            if (!booking) {
+            if (bookings.length === 0) {
                 await t.rollback();
-                return { RspCode: '01', Message: 'Order not found' };
+                return { RspCode: '01', Message: 'Booking not found' };
             }
-            if (booking.payment_status === 'paid') {
+
+            // Kiểm tra đã thanh toán chưa
+            const allPaid = bookings.every((b: any) => b.payment_status === 'paid');
+            if (allPaid) {
                 await t.rollback();
-                return { RspCode: '02', Message: 'Order already confirmed' };
+                return { RspCode: '02', Message: 'Bookings already confirmed' };
             }
 
             // Chống trùng lặp giao dịch trên bảng payments (Idempotency)
             const existingVNPayPayment = await models.Payment.findOne({
                 where: {
-                    booking_id: booking.id,
+                    booking_id: { [Op.in]: bookingIds },
                     provider: 'vnpay',
                     status: 'paid'
                 },
@@ -112,45 +125,46 @@ export class PaymentService {
                 return { RspCode: '02', Message: 'Order already confirmed' };
             }
 
-            if (booking.total_cents !== vnp_Amount) {
+            // Validate tổng tiền
+            const totalCents = bookings.reduce((sum: number, b: any) => sum + b.total_cents, 0);
+            if (totalCents !== vnp_Amount) {
+                console.warn(`[VNPay IPN] Amount mismatch: expected ${totalCents}, got ${vnp_Amount}`);
                 await t.rollback();
                 return { RspCode: '04', Message: 'Invalid amount' };
             }
 
             if (vnp_ResponseCode === '00') {
-                // --- THÀNH CÔNG ---
-                await booking.update({
-                    payment_status: 'paid',
-                    payment_method: 'vnpay',
-                    status: 'confirmed'
-                }, { transaction: t });
+                // --- THÀNH CÔNG: update tất cả booking ---
+                for (const booking of bookings) {
+                    await (booking as any).update({
+                        payment_status: 'paid',
+                        payment_method: 'vnpay',
+                        status: 'confirmed'
+                    }, { transaction: t });
 
-                await (models.Payment as any).create({
-                    booking_id: booking.id,
-                    provider: 'vnpay',
-                    status: 'paid',
-                    amount_cents: booking.total_cents,
-                    provider_ref: vnpayQuery.vnp_TransactionNo,
-                    paid_at: new Date()
-                }, { transaction: t });
+                    // Update payment record (đã tạo khi createBooking)
+                    await (models.Payment as any).update(
+                        { status: 'paid', provider_ref: vnpayQuery.vnp_TransactionNo, paid_at: new Date() },
+                        { where: { booking_id: (booking as any).id, provider: 'vnpay', status: 'pending' }, transaction: t }
+                    );
 
-                if (booking.user_id) {
-                    await UserService.addPointsAndUpgrade(booking.user_id, booking.total_cents, t);
+                    if ((booking as any).user_id) {
+                        await UserService.addPointsAndUpgrade((booking as any).user_id, (booking as any).total_cents, t);
+                    }
                 }
             } else {
-                // --- THẤT BẠI ---
-                await booking.update({
-                    status: 'cancelled',
-                    cancel_reason: 'Thanh toán VNPay thất bại hoặc bị hủy'
-                }, { transaction: t });
+                // --- THẤT BẠI: hủy tất cả booking ---
+                for (const booking of bookings) {
+                    await (booking as any).update({
+                        status: 'cancelled',
+                        cancel_reason: 'Thanh toán VNPay thất bại hoặc bị hủy'
+                    }, { transaction: t });
 
-                await (models.Payment as any).create({
-                    booking_id: booking.id,
-                    provider: 'vnpay',
-                    status: 'failed',
-                    amount_cents: booking.total_cents,
-                    provider_ref: vnpayQuery.vnp_TransactionNo || null
-                }, { transaction: t });
+                    await (models.Payment as any).update(
+                        { status: 'failed', provider_ref: vnpayQuery.vnp_TransactionNo || null },
+                        { where: { booking_id: (booking as any).id, provider: 'vnpay', status: 'pending' }, transaction: t }
+                    );
+                }
             }
 
             await t.commit();

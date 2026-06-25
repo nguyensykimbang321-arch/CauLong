@@ -16,7 +16,7 @@ export default function BookingCard({ booking, onPress }) {
     table_tennis: 'Bóng bàn'
   };
 
-  const sportLabel = booking?.court_type_label || sportNames[booking?.slots?.[0]?.court?.type_info?.name] || '—';
+  const sportLabel = booking?.court_type_label || sportNames[booking?.slots?.[0]?.court?.court_type] || '—';
   const courtName = booking?.court_name || booking?.slots?.[0]?.court?.name || '—';
 
   return (
