@@ -23,7 +23,7 @@ interface UseBookingFormProps {
     start_time?: string;
     open_time?: string;
     close_time?: string;
-    min_gap_minutes?: number;
+    min_booking_minutes?: number;
   } | null;
 }
 
@@ -259,8 +259,8 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
     }
 
     const durationMinutes = end.diff(start, 'minute');
-    if (durationMinutes < 60) {
-      return Promise.reject(new Error('Thời lượng đặt sân tối thiểu là 1 tiếng (60 phút)!'));
+    if (durationMinutes < 30) {
+      return Promise.reject(new Error('Thời lượng đặt sân tối thiểu là 30 phút!'));
     }
 
     // 2. Operating hours check
@@ -281,45 +281,6 @@ export const useBookingForm = ({ open, onSuccess, onClose, initialData }: UseBoo
       });
       if (isOverlap) {
         return Promise.reject(new Error('Khung giờ này đã bị trùng khách khác!'));
-      }
-
-      // 4. Smart Gap client check (as a warning / soft block)
-      // Get all booked slots sorted by start time
-      const sortedSlots = [...currentCourtBookedSlots].sort((a, b) => a.start_time.localeCompare(b.start_time));
-      
-      // Find adjacent booking before
-      const previousSlot = [...sortedSlots].reverse().find(s => s.end_time <= startStr);
-      let gapBeforeBoundary = openStr;
-      if (previousSlot) {
-        gapBeforeBoundary = previousSlot.end_time;
-      }
-      
-      const gapBefore = start.diff(dayjs(`${start.format('YYYY-MM-DD')} ${gapBeforeBoundary}`, 'YYYY-MM-DD HH:mm'), 'minute');
-      if (gapBefore > 0 && gapBefore < 60) {
-        return Promise.reject(new Error(`Sẽ tạo ra khoảng trống ${gapBefore} phút (từ ${gapBeforeBoundary} đến ${startStr}) không đủ để người khác thuê!`));
-      }
-
-      // Find adjacent booking after
-      const nextSlot = sortedSlots.find(s => s.start_time >= endStr);
-      let gapAfterBoundary = closeStr;
-      if (nextSlot) {
-        gapAfterBoundary = nextSlot.start_time;
-      }
-      
-      const gapAfter = dayjs(`${end.format('YYYY-MM-DD')} ${gapAfterBoundary}`, 'YYYY-MM-DD HH:mm').diff(end, 'minute');
-      if (gapAfter > 0 && gapAfter < 60) {
-        return Promise.reject(new Error(`Sẽ tạo ra khoảng trống ${gapAfter} phút (từ ${endStr} đến ${gapAfterBoundary}) không đủ để người khác thuê!`));
-      }
-    } else {
-      // If there are no bookings, we check gap with opening/closing bounds
-      const gapBefore = start.diff(dayjs(`${start.format('YYYY-MM-DD')} ${openStr}`, 'YYYY-MM-DD HH:mm'), 'minute');
-      if (gapBefore > 0 && gapBefore < 60) {
-        return Promise.reject(new Error(`Sẽ tạo ra khoảng trống ${gapBefore} phút (từ ${openStr} đến ${startStr}) không đủ để người khác thuê!`));
-      }
-
-      const gapAfter = dayjs(`${end.format('YYYY-MM-DD')} ${closeStr}`, 'YYYY-MM-DD HH:mm').diff(end, 'minute');
-      if (gapAfter > 0 && gapAfter < 60) {
-        return Promise.reject(new Error(`Sẽ tạo ra khoảng trống ${gapAfter} phút (từ ${endStr} đến ${closeStr}) không đủ để người khác thuê!`));
       }
     }
 

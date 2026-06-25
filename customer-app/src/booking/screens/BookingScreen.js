@@ -6,6 +6,7 @@ import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import { getAvailableCourts, getFacilities, getCourtTypes, getDailyAvailability } from '../../data/mockStore';
 import AvailabilityTimeline from '../components/AvailabilityTimeline';
+import { getBookingRangeError } from '../utils/bookingGapUtils';
 import Button from '../../shared/components/Button';
 import { formatPrice } from '../../utils/formatters';
 import PressableCard from '../../shared/components/PressableCard';
@@ -152,6 +153,21 @@ export default function BookingScreen({ navigation }) {
   /** Thêm range ngay lập tức; lấy giá ở background để không block UI */
   const handleRangeAdd = (courtId, courtName, rangeStart, rangeEnd) => {
     setSelectionError('');
+
+    const rangeErr = getBookingRangeError({
+      courtId,
+      startTime: rangeStart,
+      endTime: rangeEnd,
+      rawBookedSlots: timelineData.rawBookedSlots || [],
+      openTime: timelineData.open_time?.slice(0, 5) || '06:00',
+      closeTime: timelineData.close_time?.slice(0, 5) || '22:00',
+      minBookingMinutes: timelineData.min_booking_minutes ?? 30,
+    });
+    if (rangeErr) {
+      showToast(rangeErr);
+      return;
+    }
+
     const selId = `${courtId}-${rangeStart}-${rangeEnd}-${Date.now()}`;
 
     setSelections(prev => [
@@ -206,6 +222,10 @@ export default function BookingScreen({ navigation }) {
 
   const handleTimelineConflict = () => {
     showToast('Khung giờ bị trùng với lịch đã chọn!');
+  };
+
+  const handleTimelineGapError = (message) => {
+    showToast(message);
   };
 
   const sportImages = useMemo(
@@ -441,10 +461,16 @@ export default function BookingScreen({ navigation }) {
               key={timelineKey}
               courts={timelineData.courts}
               slotsByCourtId={timelineData.slotsByCourtId}
+              timeLabels={timelineData.timeLabels}
+              rawBookedSlots={timelineData.rawBookedSlots}
+              openTime={timelineData.open_time}
+              closeTime={timelineData.close_time}
+              minBookingMinutes={timelineData.min_booking_minutes ?? 30}
               selections={selections}
               onRangeAdd={handleRangeAdd}
               onClearAll={handleClearSelections}
               onConflict={handleTimelineConflict}
+              onGapError={handleTimelineGapError}
               isLoading={timelineLoading}
             />
 

@@ -2,44 +2,44 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
+import { getBookingRangeError } from '../utils/bookingGapUtils';
 
-const SLOT_WIDTH = 36;      // chiều rộng 1 ô 30 phút
+const SLOT_WIDTH = 36;
 const COURT_LABEL_WIDTH = 64;
 const SLOT_HEIGHT = 40;
 
 /**
  * Timeline lịch trống với multi-selection (30 phút / ô).
- *
- * Props:
- *  courts           – danh sách sân
- *  slotsByCourtId   – map courtId → slot[] (mỗi slot 30 phút)
- *  selections       – [{id, courtId, startTime, endTime}] — các range đã xác nhận
- *  onRangeAdd(courtId, courtName, startTime, endTime) — thêm 1 range mới
- *  onClearAll()     — xóa toàn bộ selections
- *  onConflict()     — gọi khi range bị trùng với selection đã có
- *  isLoading
  */
 export default function AvailabilityTimeline({
   courts,
   slotsByCourtId,
+  timeLabels = [],
+  rawBookedSlots = [],
+  openTime = '06:00:00',
+  closeTime = '22:00:00',
+  minBookingMinutes = 30,
   selections = [],
   onRangeAdd,
   onClearAll,
   onConflict,
+  onGapError,
   isLoading,
 }) {
-  // Bước đang chọn: {courtId, courtName, slotStart} hoặc null
   const [pendingStart, setPendingStart] = useState(null);
 
-  // Header: các mốc 30 phút từ 06:00 → 22:00
   const halfHours = useMemo(() => {
+    if (timeLabels.length > 0) return timeLabels;
     const list = [];
     for (let h = 6; h <= 22; h++) {
       list.push(`${h.toString().padStart(2, '0')}:00`);
       if (h < 22) list.push(`${h.toString().padStart(2, '0')}:30`);
     }
     return list;
-  }, []);
+  }, [timeLabels]);
+
+  const openTimeShort = openTime?.slice(0, 5) || '06:00';
+  const closeTimeShort = closeTime?.slice(0, 5) || '22:00';
 
   const now = new Date();
   const currentHour = now.getHours();
@@ -55,81 +55,97 @@ export default function AvailabilityTimeline({
 
   if (!courts || courts.length === 0) return null;
 
-  /** Kiểm tra slot có nằm trong bất kỳ selection nào không */
+  const isSlotPast = (slot) => {
+    const slotHour = parseInt(slot.start.split(':')[0], 10);
+    const slotMin = parseInt(slot.start.split(':')[1], 10);
+    return slotHour < currentHour || (slotHour === currentHour && slotMin < currentMinute);
+  };
+
   const isSlotInSelections = (slot, court) =>
     selections.some(
-      sel =>
+      (sel) =>
         sel.courtId === court.id &&
         slot.start >= sel.startTime &&
         slot.start < sel.endTime,
     );
 
-  /** Kiểm tra range [start, end) có chồng chéo với selection đã có trên cùng sân */
   const hasConflict = (courtId, rangeStart, rangeEnd) =>
     selections.some(
-      sel =>
+      (sel) =>
         sel.courtId === courtId &&
         rangeStart < sel.endTime &&
         rangeEnd > sel.startTime,
     );
 
-  /** Trạng thái hiển thị của 1 ô */
   const resolveStatus = (slot, court) => {
-    const slotHour = parseInt(slot.start.split(':')[0], 10);
-    const slotMin = parseInt(slot.start.split(':')[1], 10);
-    const isPast =
-      slotHour < currentHour ||
-      (slotHour === currentHour && slotMin < currentMinute);
-    if (isPast) return 'past';
+    if (isSlotPast(slot)) return 'past';
     if (!slot.available) return 'booked';
 
-    if (pendingStart?.courtId === court.id && pendingStart?.slotStart === slot.start)
+    if (pendingStart?.courtId === court.id && pendingStart?.slotStart === slot.start) {
       return 'pendingStart';
+    }
 
     if (isSlotInSelections(slot, court)) return 'confirmed';
 
     return 'available';
   };
 
-  /** Ô có thể làm điểm kết thúc hợp lệ */
   const isValidEnd = (slot, court) => {
     if (!pendingStart) return false;
     if (pendingStart.courtId !== court.id) return false;
-    if (slot.start <= pendingStart.slotStart) return false;
+    if (slot.start < pendingStart.slotStart) return false;
     if (!slot.available) return false;
-    const slotHour = parseInt(slot.start.split(':')[0], 10);
-    const slotMin = parseInt(slot.start.split(':')[1], 10);
-    if (
-      slotHour < currentHour ||
-      (slotHour === currentHour && slotMin < currentMinute)
-    )
-      return false;
-    // Không chồng chéo với selection đã có
-    return !hasConflict(court.id, pendingStart.slotStart, slot.end);
+    if (isSlotPast(slot)) return false;
+    if (hasConflict(court.id, pendingStart.slotStart, slot.end)) return false;
+
+    return !getBookingRangeError({
+      courtId: court.id,
+      startTime: pendingStart.slotStart,
+      endTime: slot.end,
+      rawBookedSlots,
+      openTime: openTimeShort,
+      closeTime: closeTimeShort,
+      minBookingMinutes,
+    });
   };
 
   const handleSlotPress = (slot, court) => {
     if (!pendingStart) {
-      // Bước 1 — đặt điểm bắt đầu (bỏ qua ô đã nằm trong selection)
       if (isSlotInSelections(slot, court)) return;
+      if (!slot.available || isSlotPast(slot)) return;
       setPendingStart({ courtId: court.id, courtName: court.name, slotStart: slot.start });
       return;
     }
 
-    if (pendingStart.courtId === court.id && slot.start > pendingStart.slotStart) {
-      // Bước 2 — xác nhận kết thúc
+    if (pendingStart.courtId === court.id && slot.start >= pendingStart.slotStart) {
       if (hasConflict(court.id, pendingStart.slotStart, slot.end)) {
         setPendingStart(null);
         onConflict?.();
         return;
       }
+
+      const rangeErr = getBookingRangeError({
+        courtId: court.id,
+        startTime: pendingStart.slotStart,
+        endTime: slot.end,
+        rawBookedSlots,
+        openTime: openTimeShort,
+        closeTime: closeTimeShort,
+        minBookingMinutes,
+      });
+      if (rangeErr) {
+        setPendingStart(null);
+        onGapError?.(rangeErr);
+        return;
+      }
+
       onRangeAdd?.(court.id, court.name, pendingStart.slotStart, slot.end);
       setPendingStart(null);
       return;
     }
 
-    // Nhấn sân khác hoặc trước start → reset
     if (!isSlotInSelections(slot, court)) {
+      if (!slot.available || isSlotPast(slot)) return;
       setPendingStart({ courtId: court.id, courtName: court.name, slotStart: slot.start });
     }
   };
@@ -144,7 +160,6 @@ export default function AvailabilityTimeline({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Ionicons name="grid-outline" size={16} color={colors.primary} />
@@ -158,18 +173,18 @@ export default function AvailabilityTimeline({
         )}
       </View>
 
-      {/* Status bar */}
       <View style={styles.statusBar}>
         {!isSelecting && !hasAnySelection && (
           <Text style={styles.statusText}>
-            Nhấn ô xanh để chọn <Text style={styles.statusBold}>điểm bắt đầu</Text>, nhấn ô tiếp theo để chọn <Text style={styles.statusBold}>điểm kết thúc</Text>
+            Nhấn ô xanh để chọn <Text style={styles.statusBold}>điểm bắt đầu</Text>, nhấn ô tiếp theo để chọn{' '}
+            <Text style={styles.statusBold}>điểm kết thúc</Text> (có thể chọn cùng ô để đặt 30 phút).
           </Text>
         )}
         {isSelecting && (
           <Text style={styles.statusText}>
             <Text style={styles.statusBold}>Bắt đầu: {pendingStart.slotStart}</Text>
             {'  '}({pendingStart.courtName}){'  —  '}
-            Nhấn ô kế tiếp để xác nhận giờ kết thúc
+            Nhấn ô kế tiếp (hoặc cùng ô) để xác nhận giờ kết thúc
           </Text>
         )}
         {!isSelecting && hasAnySelection && (
@@ -179,10 +194,8 @@ export default function AvailabilityTimeline({
         )}
       </View>
 
-      {/* Timeline table */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollView}>
         <View>
-          {/* Header giờ: chỉ hiện nhãn ở mốc :00 */}
           <View style={styles.timeHeaderRow}>
             <View style={styles.courtLabelCell} />
             {halfHours.map((t) => (
@@ -194,10 +207,9 @@ export default function AvailabilityTimeline({
             ))}
           </View>
 
-          {/* Rows từng sân */}
           {courts.map((court, courtIndex) => {
             const slots = slotsByCourtId?.[court.id] ?? [];
-            const selCountOnCourt = selections.filter(s => s.courtId === court.id).length;
+            const selCountOnCourt = selections.filter((s) => s.courtId === court.id).length;
             const isPendingCourt = pendingStart?.courtId === court.id;
 
             return (
@@ -210,7 +222,6 @@ export default function AvailabilityTimeline({
                   isPendingCourt && !selCountOnCourt && styles.courtRowPending,
                 ]}
               >
-                {/* Tên sân */}
                 <View style={styles.courtLabelCell}>
                   <Text
                     style={[
@@ -229,7 +240,6 @@ export default function AvailabilityTimeline({
                   )}
                 </View>
 
-                {/* Slots */}
                 {slots.map((slot, slotIndex) => {
                   const status = resolveStatus(slot, court);
                   const validEnd = isValidEnd(slot, court);
@@ -248,7 +258,7 @@ export default function AvailabilityTimeline({
                         status === 'confirmed' && styles.slotConfirmed,
                         validEnd && styles.slotValidEnd,
                       ]}
-                      disabled={isDisabled && !validEnd}
+                      disabled={isDisabled}
                       onPress={() => handleSlotPress(slot, court)}
                       activeOpacity={0.7}
                     >
@@ -257,6 +267,7 @@ export default function AvailabilityTimeline({
                       {status === 'pendingStart' && <Text style={styles.labelText}>BĐ</Text>}
                       {status === 'confirmed' && <Ionicons name="checkmark" size={11} color={colors.white} />}
                       {validEnd && status === 'available' && <Text style={styles.labelTextEnd}>KT</Text>}
+                      {validEnd && status === 'pendingStart' && <Text style={styles.labelTextEnd}>KT</Text>}
                     </TouchableOpacity>
                   );
                 })}
@@ -266,7 +277,6 @@ export default function AvailabilityTimeline({
         </View>
       </ScrollView>
 
-      {/* Legend */}
       <View style={styles.legendRow}>
         {[
           { color: '#DCFCE7', border: '#86EFAC', label: 'Trống' },
@@ -275,7 +285,7 @@ export default function AvailabilityTimeline({
           { color: '#BBF7D0', border: '#4ADE80', label: 'Kết thúc' },
           { color: '#FEE2E2', border: '#FECACA', label: 'Đã đặt' },
           { color: '#F1F5F9', border: '#E2E8F0', label: 'Qua giờ' },
-        ].map(item => (
+        ].map((item) => (
           <View key={item.label} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: item.color, borderColor: item.border }]} />
             <Text style={styles.legendText}>{item.label}</Text>
@@ -427,8 +437,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: fontWeight.bold,
   },
-
-  // Slot cells
   slotCell: {
     width: SLOT_WIDTH - 3,
     height: SLOT_HEIGHT,
@@ -481,8 +489,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: '#15803D',
   },
-
-  // Legend
   legendRow: {
     flexDirection: 'row',
     justifyContent: 'center',

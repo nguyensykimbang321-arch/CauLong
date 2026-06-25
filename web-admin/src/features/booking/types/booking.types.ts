@@ -92,7 +92,6 @@ export interface DailySlotGridResponse {
   open_time?: string;
   close_time?: string;
   min_booking_minutes?: number;
-  min_gap_minutes?: number;
 }
 
 export interface FacilityLite {

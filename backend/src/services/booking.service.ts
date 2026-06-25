@@ -133,8 +133,7 @@ export class BookingService {
                 rawBookedSlots: [],
                 open_time,
                 close_time,
-                min_booking_minutes: 60,
-                min_gap_minutes: 60
+                min_booking_minutes: 30
             };
         }
 
@@ -213,8 +212,7 @@ export class BookingService {
             rawBookedSlots: rawSlots,
             open_time,
             close_time,
-            min_booking_minutes: 60,
-            min_gap_minutes: 60
+            min_booking_minutes: 30
         };
     }
 
@@ -245,8 +243,8 @@ export class BookingService {
         }
 
         const durationMinutes = end.diff(start, 'minute');
-        if (durationMinutes < 60) {
-            throw new ApiError('Thời lượng đặt sân tối thiểu là 1 tiếng (60 phút)', 400);
+        if (durationMinutes < 30) {
+            throw new ApiError('Thời lượng đặt sân tối thiểu là 30 phút', 400);
         }
 
         const court = await models.Court.findOne({
@@ -329,71 +327,6 @@ export class BookingService {
                         );
                     }
                 }
-            }
-
-            const MIN_DURATION_MINUTES = 60;
-
-            // Check gap trước - loại trừ booking pending của chính user
-            const previousBooking = await models.BookingSlot.findOne({
-                where: {
-                    court_id: data.court_id,
-                    end_at: { [Op.lte]: startDateTime }
-                },
-                include: [{
-                    model: models.Booking,
-                    as: 'booking',
-                    where: { status: { [Op.ne]: 'cancelled' } },
-                    attributes: []
-                }],
-                order: [['end_at', 'DESC']],
-                transaction: t
-            });
-
-            let gapBeforeBoundary = openDateTime;
-            if (previousBooking) {
-                const prevEnd = dayjs(previousBooking.end_at);
-                if (prevEnd.isAfter(openDateTime)) {
-                    gapBeforeBoundary = prevEnd;
-                }
-            }
-
-            const gapBefore = start.diff(gapBeforeBoundary, 'minute');
-            if (gapBefore > 0 && gapBefore < MIN_DURATION_MINUTES) {
-                throw new ApiError(
-                    `Không thể đặt! Sẽ tạo ra khoảng trống ${gapBefore} phút (từ ${gapBeforeBoundary.format('HH:mm')} đến ${start.format('HH:mm')}) không đủ để người khác thuê.`,
-                    400
-                );
-            }
-
-            const nextBooking = await models.BookingSlot.findOne({
-                where: {
-                    court_id: data.court_id,
-                    start_at: { [Op.gte]: endDateTime }
-                },
-                include: [{
-                    model: models.Booking,
-                    as: 'booking',
-                    where: { status: { [Op.ne]: 'cancelled' } },
-                    attributes: []
-                }],
-                order: [['start_at', 'ASC']],
-                transaction: t
-            });
-
-            let gapAfterBoundary = closeDateTime;
-            if (nextBooking) {
-                const nextStart = dayjs(nextBooking.start_at);
-                if (nextStart.isBefore(closeDateTime)) {
-                    gapAfterBoundary = nextStart;
-                }
-            }
-
-            const gapAfter = gapAfterBoundary.diff(end, 'minute');
-            if (gapAfter > 0 && gapAfter < MIN_DURATION_MINUTES) {
-                throw new ApiError(
-                    `Không thể đặt! Sẽ tạo ra khoảng trống ${gapAfter} phút (từ ${end.format('HH:mm')} đến ${gapAfterBoundary.format('HH:mm')}) không đủ để người khác thuê.`,
-                    400
-                );
             }
 
             const newBooking = await models.Booking.create({
@@ -607,8 +540,8 @@ export class BookingService {
         }
 
         const durationMinutes = endDateTime.diff(startDateTime, 'minute');
-        if (durationMinutes < 60) {
-            throw new ApiError('Thời lượng đặt sân tối thiểu là 1 tiếng (60 phút)', 400);
+        if (durationMinutes < 30) {
+            throw new ApiError('Thời lượng đặt sân tối thiểu là 30 phút', 400);
         }
 
         return { startDateTime, endDateTime };

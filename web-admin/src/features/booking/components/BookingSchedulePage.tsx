@@ -29,7 +29,6 @@ const BookingSchedulePage: React.FC = () => {
     open_time?: string;
     close_time?: string;
     min_booking_minutes?: number;
-    min_gap_minutes?: number;
   }>({
     courts: [],
     rawBookedSlots: [] // Hứng dữ liệu thô từ Backend
@@ -88,7 +87,6 @@ const BookingSchedulePage: React.FC = () => {
                open_time: res.data.open_time,
                close_time: res.data.close_time,
                min_booking_minutes: res.data.min_booking_minutes,
-               min_gap_minutes: res.data.min_gap_minutes
              });
           }
         })
@@ -110,7 +108,7 @@ const BookingSchedulePage: React.FC = () => {
          start_time: slot.start,
          open_time: gridData.open_time,
          close_time: gridData.close_time,
-         min_gap_minutes: gridData.min_gap_minutes
+         min_booking_minutes: gridData.min_booking_minutes,
       });
       setIsModalOpen(true);
     } else {
