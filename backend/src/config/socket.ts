@@ -12,13 +12,21 @@ export const initSocket = (server: HttpServer) => {
   });
 
   io.on('connection', (socket) => {
-    console.log('🏸 Trọng tài bàn (Staff) đã kết nối vào sân:', socket.id);
-    
-    // Đưa tất cả nhân viên vào chung một "phòng" để dễ thông báo
-    socket.join('staff_room');
+    const role = socket.handshake.query.role;
+    const userId = socket.handshake.query.userId;
+
+    if (role === 'staff') {
+      console.log('🏸 Trọng tài bàn (Staff) đã kết nối vào sân:', socket.id);
+      socket.join('staff_room');
+    } else if (userId) {
+      console.log(`👤 User ${userId} đã kết nối vào sân:`, socket.id);
+      socket.join(`user_${userId}`);
+    } else {
+      console.log('Khách vãng lai đã kết nối:', socket.id);
+    }
 
     socket.on('disconnect', () => {
-      console.log('👋 Staff đã rời sân:', socket.id);
+      console.log('👋 Client đã rời sân:', socket.id);
     });
   });
 

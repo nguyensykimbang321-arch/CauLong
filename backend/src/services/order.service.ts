@@ -87,6 +87,9 @@ export class OrderService {
         order.status = 'cancelled';
         await order.save();
         getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+        if (order.user_id) {
+            getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+        }
 
         return order;
     }
@@ -179,6 +182,11 @@ export class OrderService {
             await models.Order.findByPk(id, {
                 include: [
                     {
+                        model: models.Payment,
+                        as: 'payments',
+                        attributes: ['provider', 'status', 'amount_cents']
+                    },
+                    {
                         model: models.OrderItem,
                         as: 'items',
                         include: [
@@ -232,6 +240,9 @@ export class OrderService {
             status: 'completed'
         });
         getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+        if (order.user_id) {
+            getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+        }
 
         return {
             message:
@@ -282,6 +293,9 @@ export class OrderService {
 
             await t.commit();
             getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+            if (order.user_id) {
+                getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+            }
             return { message: 'Hoàn tiền thành công' };
         } catch (error) {
             await t.rollback();
@@ -307,6 +321,9 @@ export class OrderService {
         order.status = 'pending_pickup';
         await order.save();
         getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+        if (order.user_id) {
+            getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+        }
         return order;
     }
 
@@ -408,6 +425,9 @@ export class OrderService {
 
             await t.commit();
             getIO().to('staff_room').emit('order_changed', { orderId: order.id });
+            if (order.user_id) {
+                getIO().to(`user_${order.user_id}`).emit('order_status_updated', { orderId: order.id, status: order.status });
+            }
 
             return {
                 message:

@@ -349,6 +349,7 @@ const OrderManagementPage: React.FC = () => {
             <p><strong>Kiểu nhận:</strong> {orderDetails?.pickup_type === 'immediate' ? 'Nhận tại chỗ' : (orderDetails?.pickup_type === 'pickup_store' ? 'Lấy tại quầy' : orderDetails?.pickup_type)}</p>
             <p><strong>Thời gian nhận hàng:</strong> {orderDetails?.pickup_time ? new Date(orderDetails.pickup_time).toLocaleString('vi-VN') : 'Không có'}</p>
             <p><strong>Hạn chót giữ hàng:</strong> {orderDetails?.reservation_expires_at ? new Date(orderDetails.reservation_expires_at).toLocaleString('vi-VN') : 'Không có'}</p>
+            <p><strong>Phương thức thanh toán:</strong> {orderDetails?.payments?.[0]?.provider === 'vnpay' ? 'VNPay' : (orderDetails?.payments?.[0]?.provider === 'cash' ? 'Tiền mặt' : 'Chưa có')}</p>
             <p><strong>Tổng tiền:</strong> {orderDetails?.total_cents?.toLocaleString('vi-VN')} đ</p>
             <p><strong>Ghi chú:</strong> {orderDetails?.note || 'Không có'}</p>
             <h4 className="font-bold mt-4 mb-2">Sản phẩm:</h4>
