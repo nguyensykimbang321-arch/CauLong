@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DatePicker, Select, Card, Spin, message, Row, Col } from 'antd';
 import dayjs from 'dayjs';
 import { FacilityService } from '../../facility/services/facility.service';
@@ -8,6 +8,7 @@ import type { FacilityLite } from '../types/booking.types';
 import BookingScheduleGrid from './BookingScheduleGrid';
 import CreateBookingModal from './CreateBookingModal';
 import BookingDetailDrawer from './BookingDetailDrawer';
+import { useStaffRealtime } from '../../../hooks/useStaffRealtime';
 
 const BookingSchedulePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
@@ -36,6 +37,15 @@ const BookingSchedulePage: React.FC = () => {
   const [loadingGrid, setLoadingGrid] = useState(false);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const refreshGrid = useCallback(() => {
+    setRefreshTrigger((prev) => prev + 1);
+  }, []);
+
+  useStaffRealtime({
+    onBooking: refreshGrid,
+    onBookingChanged: refreshGrid,
+  });
 
   useEffect(() => {
     FacilityService.getAllFacilities()

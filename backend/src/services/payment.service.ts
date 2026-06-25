@@ -181,6 +181,22 @@ export class PaymentService {
             }
 
             await t.commit();
+
+            for (const booking of bookings) {
+                getIO().to('staff_room').emit('booking_changed', {
+                    bookingId: (booking as any).id,
+                    status: (booking as any).status,
+                    payment_status: (booking as any).payment_status,
+                });
+                if ((booking as any).user_id) {
+                    getIO().to(`user_${(booking as any).user_id}`).emit('booking_status_updated', {
+                        bookingId: (booking as any).id,
+                        status: (booking as any).status,
+                        payment_status: (booking as any).payment_status,
+                    });
+                }
+            }
+
             return { RspCode: '00', Message: 'Confirm Success' };
         } catch (error) {
             await t.rollback();
@@ -245,6 +261,8 @@ export class PaymentService {
 
             console.log(`[Cron Payment] Tìm thấy ${pendingPayments.length} giao dịch VNPay quá hạn 30 phút.`);
 
+            let expiredBookingCount = 0;
+
             for (const payment of pendingPayments) {
                 const t = await models.Payment.sequelize!.transaction();
                 try {
@@ -256,6 +274,7 @@ export class PaymentService {
                                 cancel_reason: 'Hết hạn thanh toán VNPay (30 phút)',
                                 cancelled_at: new Date()
                             }, { transaction: t });
+                            expiredBookingCount++;
                             console.log(`[Cron Payment] Đã hủy Booking #${booking.id} do hết hạn thanh toán.`);
                         }
                     } else if (payment.order_id) {
@@ -275,6 +294,10 @@ export class PaymentService {
                     await t.rollback();
                     console.error(`[Cron Payment] Lỗi xử lý giao dịch quá hạn ID ${payment.id}:`, err);
                 }
+            }
+
+            if (expiredBookingCount > 0) {
+                getIO().to('staff_room').emit('booking_changed', { updatedCount: expiredBookingCount });
             }
         } catch (error) {
             console.error("[Cron Payment] Lỗi quét giao dịch VNPay hết hạn:", error);

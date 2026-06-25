@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Thay đổi IP này thành IP máy tính của bạn nếu chạy trên thiết bị thật
 // Android Emulator thường dùng 10.0.2.2 để truy cập localhost máy host
-const baseURL = 'http://192.168.1.183:5000/api/v1';
+const baseURL = 'http://192.168.1.230:5000/api/v1';
 
 export { baseURL };
 export const serverOrigin = baseURL.replace(/\/api\/v1\/?$/, '');

@@ -13,6 +13,8 @@ import OrderPage from '../features/sale/components/OrderPage';
 import HolidayPage from '../features/holiday/components/HolidayPage';
 import SystemConfigPage from '../features/systemConfig/components/SystemConfigPage';
 import RevenuePage from '../features/revenue/components/RevenuePage';
+import StaffDashboardPage from '../features/dashboard/components/StaffDashboardPage';
+import HomeRedirect from '../components/HomeRedirect';
 
 export const router = createBrowserRouter([
   {
@@ -24,8 +26,12 @@ export const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       {
-        index: true, // Tương đương path: '/'
-        element: <RevenuePage />,
+        index: true,
+        element: <HomeRedirect />,
+      },
+      {
+        path: 'dashboard',
+        element: <StaffDashboardPage />,
       },
       {
         path: 'revenue',

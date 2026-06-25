@@ -8,8 +8,23 @@ import { BOOKING_STATUS_TRANSITIONS, PAYMENT_STATUS_TRANSITIONS } from '../const
 import { PricingService } from './pricing.service.js';
 import { VNPayUtils } from '../utils/vnpay.js';
 import { UserService } from './user.service.js';
+import { getIO } from '../config/socket.js';
 
 export class BookingService {
+    private static notifyStaff(
+        event: 'booking' | 'booking_changed',
+        payload: Record<string, unknown>
+    ) {
+        getIO().to('staff_room').emit(event, payload);
+    }
+
+    private static notifyUserBookingUpdate(
+        userId: number | null,
+        payload: { bookingId: number; status?: string; payment_status?: string }
+    ) {
+        if (!userId) return;
+        getIO().to(`user_${userId}`).emit('booking_status_updated', payload);
+    }
     static async getAvailableCourts(
         facilityId: number,
         startDateTime: Date,
@@ -352,6 +367,17 @@ export class BookingService {
 
             await t.commit();
 
+            this.notifyStaff('booking', {
+                message: 'Có đơn đặt sân mới từ App!',
+                bookingId: newBooking.id,
+                status: newBooking.status,
+                facilityId: newBooking.facility_id,
+            });
+            this.notifyUserBookingUpdate(userId, {
+                bookingId: newBooking.id,
+                status: newBooking.status,
+            });
+
             return newBooking;
         } catch (error) {
             await t.rollback();
@@ -391,6 +417,7 @@ export class BookingService {
 
         return await models.Booking.findAll({
             where: whereCondition,
+            order: [['updated_at', 'DESC']],
             include: [
                 {
                     model: models.User,
@@ -516,6 +543,18 @@ export class BookingService {
             }
 
             await t.commit();
+
+            this.notifyStaff('booking_changed', {
+                bookingId: booking.id,
+                status: booking.status,
+                payment_status: booking.payment_status,
+            });
+            this.notifyUserBookingUpdate(booking.user_id, {
+                bookingId: booking.id,
+                status: booking.status,
+                payment_status: booking.payment_status,
+            });
+
             return booking;
         } catch (error) {
             await t.rollback();
@@ -619,6 +658,17 @@ export class BookingService {
             status: 'cancelled',
             cancel_reason: 'Khách tự hủy trên App',
             cancelled_at: new Date()
+        });
+
+        this.notifyStaff('booking_changed', {
+            bookingId: booking.id,
+            status: 'cancelled',
+            payment_status: booking.payment_status,
+        });
+        this.notifyUserBookingUpdate(booking.user_id, {
+            bookingId: booking.id,
+            status: 'cancelled',
+            payment_status: booking.payment_status,
         });
 
         const updatedBooking = await models.Booking.findOne({

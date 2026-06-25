@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Layout, Menu, Button, Dropdown } from 'antd';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { 
-  DashboardOutlined,  
   UserOutlined, 
   LogoutOutlined,
   MenuFoldOutlined,
@@ -12,9 +11,12 @@ import {
   CalendarOutlined,
   ShoppingCartOutlined,
   ShopOutlined,
-  SettingOutlined
+  SettingOutlined,
+  BellOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../features/auth/store/auth.store';
+import StaffRealtimeNotifier from '../components/StaffRealtimeNotifier';
 
 const { Header, Sider, Content } = Layout;
 
@@ -37,7 +39,8 @@ const AdminLayout: React.FC = () => {
   const isAdmin = user?.role === 'admin';
 
   const menuItems = [
-    ...(isAdmin ? [{ key: '/revenue', icon: <DashboardOutlined />, label: 'Doanh thu' }] : []),
+    { key: '/dashboard', icon: <BellOutlined />, label: 'Trung tâm vận hành' },
+    ...(isAdmin ? [{ key: '/revenue', icon: <LineChartOutlined />, label: 'Doanh thu' }] : []),
     
     // NHÓM QUẢN LÝ ĐẶT SÂN
     { 
@@ -158,6 +161,7 @@ const AdminLayout: React.FC = () => {
         {/* CONTENT */}
         {/* 4. Thêm flex-1 để Content giãn nở lấp đầy toàn bộ khoảng trống còn lại */}
         <Content className="flex-1 m-6 p-6 bg-white rounded-lg shadow-sm overflow-auto">
+          <StaffRealtimeNotifier />
           <Outlet />
         </Content>
         

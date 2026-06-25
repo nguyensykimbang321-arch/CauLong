@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Tag, Button, Space, message, Card } from 'antd';
 import { PlusOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { BookingService } from '../services/booking.service';
@@ -8,6 +8,7 @@ import type { Booking } from '../types/booking.types';
 import BookingDetailDrawer from './BookingDetailDrawer';
 import BookingStatusModal from './BookingStatusModal';
 import CreateBookingModal from './CreateBookingModal';
+import { useStaffRealtime } from '../../../hooks/useStaffRealtime';
 
 const BookingPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -20,7 +21,7 @@ const BookingPage: React.FC = () => {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
       const response = await BookingService.getAllBookings();
@@ -32,11 +33,20 @@ const BookingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [fetchBookings]);
+
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  useStaffRealtime({
+    onBooking: handleRealtimeUpdate,
+    onBookingChanged: handleRealtimeUpdate,
+  });
 
   const handleViewDetails = (record: Booking) => {
     setSelectedBooking(record);
