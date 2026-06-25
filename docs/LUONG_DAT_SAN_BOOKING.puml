@@ -1,0 +1,70 @@
+@startuml LUONG_DAT_SAN_BOOKING
+title LUỒNG ĐẶT SÂN (Booking) — Thanh toán VNPay & Realtime Socket.IO
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Khách Hàng" as Customer
+participant "Mobile App" as App
+participant "Backend Server" as Backend
+participant "VNPay" as VNPay
+participant "Socket.io\nServer" as Socket
+participant "Web Admin\n(Staff)" as Admin
+database "Database\n(MySQL)" as DB
+
+== 1. Chọn sân & giữ chỗ ==
+
+Customer -> App : Chọn cơ sở, loại sân, khung giờ\nXác nhận đặt sân (VNPay)
+App -> Backend : POST /api/v1/app/bookings\n{facility_id, court_id, date, start_time, end_time, payment_method: vnpay}
+
+Backend -> DB : BEGIN TRANSACTION
+Backend -> DB : INSERT bookings (status=pending, payment_status=unpaid)
+Backend -> DB : INSERT booking_slots
+Backend -> DB : INSERT payments (status=pending, provider=vnpay)
+Backend -> DB : COMMIT
+
+Backend -> Socket : emit "booking" → room staff_room\n{bookingId, status, facilityId}
+Socket -> Admin : Đơn đặt sân mới (popup + dashboard)
+
+Backend --> App : 201 { booking, payment_url }
+
+== 2. Thanh toán VNPay ==
+
+App -> Customer : Mở PaymentWebView (payment_url)
+Customer -> VNPay : Quét QR / thanh toán
+
+par Callback từ VNPay
+  VNPay -> Backend : GET /app/payments/vnpay/return
+  VNPay -> Backend : GET /app/payments/vnpay/ipn
+end
+
+Backend -> Backend : Verify HMAC-SHA512\nPaymentService.processBookingIPN
+
+Backend -> DB : BEGIN TRANSACTION
+Backend -> DB : UPDATE payments (status=paid, paid_at)
+Backend -> DB : UPDATE bookings\n(status=confirmed, payment_status=paid)
+Backend -> DB : Cộng điểm tích lũy (nếu có user)
+Backend -> DB : COMMIT
+
+Backend -> Socket : emit "booking_changed" → staff_room\n{bookingId, status, payment_status}
+Socket -> Admin : Cập nhật realtime\n(sa bàn, danh sách, dashboard)
+
+Backend -> Socket : emit "booking_status_updated" → user_{userId}
+Socket -> App : (khách theo dõi trạng thái trên app)
+
+== 3. Nhân viên xử lý ==
+
+Admin -> Admin : Nhận thông báo — không cần F5
+Admin -> Backend : GET /admin/bookings\n(sắp xếp updated_at DESC)
+Admin -> Backend : PUT /admin/bookings/:id/status\n(xác nhận / hủy / hoàn tất...)
+
+Backend -> DB : Cập nhật booking
+Backend -> Socket : emit "booking_changed"
+Socket -> Admin : Refresh sa bàn & danh sách
+
+note over Admin, Socket
+  **Trung tâm vận hành** (/dashboard) gom realtime
+  cả đặt sân lẫn đơn hàng trên một màn hình.
+end note
+
+@enduml

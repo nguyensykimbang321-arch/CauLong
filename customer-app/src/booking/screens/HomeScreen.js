@@ -10,6 +10,7 @@ import Button from '../../shared/components/Button';
 import PressableCard from '../../shared/components/PressableCard';
 import { useAppStore } from '../../data/AppStore';
 import { useFocusEffect } from '@react-navigation/native';
+import { socketService } from '../../services/socket';
 
 export default function HomeScreen({ navigation }) {
   const { selectedFacility, setFacility, user: storeUser } = useAppStore();
@@ -58,6 +59,17 @@ export default function HomeScreen({ navigation }) {
       loadData(false);
     }, [selectedFacility?.id])
   );
+
+  useEffect(() => {
+    const handleBookingUpdated = () => {
+      loadData(false);
+    };
+
+    socketService.on('booking_status_updated', handleBookingUpdated);
+    return () => {
+      socketService.off('booking_status_updated', handleBookingUpdated);
+    };
+  }, [selectedFacility?.id]);
 
   const quickActions = [
     { id: 'book', label: 'Đặt sân', icon: 'calendar-outline', onPress: () => navigation.navigate('BookingTab') },

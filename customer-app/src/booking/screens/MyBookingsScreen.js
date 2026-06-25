@@ -4,6 +4,7 @@ import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import { getBookings, getCurrentUser } from '../../data/mockStore';
 import BookingCard from '../../shared/components/BookingCard';
+import { socketService } from '../../services/socket';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,30 +14,42 @@ export default function MyBookingsScreen({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [tab, setTab] = useState('upcoming'); // upcoming | past | cancelled
 
-  const loadBookings = async (showLoading = false) => {
+  const loadBookings = useCallback(async (showLoading = false) => {
     try {
       if (showLoading) setLoading(true);
       const user = await getCurrentUser();
       if (user) {
-          const res = await getBookings(user.id);
-          setBookings(res);
+        const res = await getBookings(user.id);
+        setBookings(res);
       }
     } catch (e) {
       console.error(e);
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadBookings(true);
-  }, []);
+  }, [loadBookings]);
 
   useFocusEffect(
     useCallback(() => {
       loadBookings(false);
-    }, [])
+    }, [loadBookings])
   );
+
+  useEffect(() => {
+    const handleBookingUpdated = (data) => {
+      console.log('Booking updated via socket:', data);
+      loadBookings(false);
+    };
+
+    socketService.on('booking_status_updated', handleBookingUpdated);
+    return () => {
+      socketService.off('booking_status_updated', handleBookingUpdated);
+    };
+  }, [loadBookings]);
 
   const data = useMemo(() => {
     const now = new Date();
@@ -50,7 +63,7 @@ export default function MyBookingsScreen({ navigation }) {
     return bookings.filter((b) => parse(b) >= now && b.status !== 'cancelled');
   }, [bookings, tab]);
 
-  if (loading) {
+  if (loading && bookings.length === 0) {
       return (
           <Screen>
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -90,7 +103,9 @@ export default function MyBookingsScreen({ navigation }) {
 
       <FlatList
         data={data}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
+        onRefresh={() => loadBookings(true)}
+        refreshing={loading}
         renderItem={({ item }) => (
           <BookingCard booking={item} onPress={() => navigation.navigate('BookingDetail', { booking: item })} />
         )}

@@ -1,20 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../shared/components/Screen';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import Badge from '../../shared/components/Badge';
+import PaymentStatusIcon from '../../shared/components/PaymentStatusIcon';
 import Button from '../../shared/components/Button';
-import { formatDatetime, formatPrice, getUnifiedBookingStatus } from '../../utils/formatters';
+import { formatDatetime, formatPrice, getBookingStatusMeta } from '../../utils/formatters';
 import { cancelBooking } from '../../services/api';
+import { getBookings, getCurrentUser } from '../../data/mockStore';
+import { socketService } from '../../services/socket';
 
 // Bỏ import QRCode vì chưa cài lib, đã dùng icon thay thế ở dưới
 
 
 export default function BookingDetailScreen({ route, navigation }) {
   const [booking, setBooking] = useState(route?.params?.booking);
-  const status = getUnifiedBookingStatus(booking);
+  const bookingStatus = getBookingStatusMeta(booking?.status);
   const [submitting, setSubmitting] = useState(false);
+
+  const reloadBooking = useCallback(async () => {
+    if (!booking?.id) return;
+    try {
+      const user = await getCurrentUser();
+      if (!user) return;
+      const list = await getBookings(user.id);
+      const updated = list.find((b) => b.id === booking.id);
+      if (updated) setBooking(updated);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [booking?.id]);
+
+  useEffect(() => {
+    const handleBookingUpdated = (data) => {
+      if (data?.bookingId !== booking?.id) return;
+      console.log('Booking detail updated via socket:', data);
+      reloadBooking();
+    };
+
+    socketService.on('booking_status_updated', handleBookingUpdated);
+    return () => {
+      socketService.off('booking_status_updated', handleBookingUpdated);
+    };
+  }, [booking?.id, reloadBooking]);
 
   const handleCancel = () => {
     Alert.alert(
@@ -78,7 +107,10 @@ export default function BookingDetailScreen({ route, navigation }) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Chi tiết đơn đặt</Text>
-        <Badge label={status.label} color={status.color} size="sm" />
+        <View style={styles.statusBadges}>
+          <Badge label={bookingStatus.label} color={bookingStatus.color} size="sm" />
+          <PaymentStatusIcon paymentStatus={booking?.payment_status} size={20} />
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -195,6 +227,14 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.textPrimary, flex: 1, marginLeft: spacing.xs },
+  statusBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    maxWidth: '42%',
+  },
   scroll: { paddingBottom: spacing.xxl },
   ticket: {
     backgroundColor: colors.surface,

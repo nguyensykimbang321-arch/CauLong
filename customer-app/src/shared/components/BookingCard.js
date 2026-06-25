@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadow } from '../../theme';
 import Badge from './Badge';
-import { formatDatetime, formatPrice, getUnifiedBookingStatus } from '../../utils/formatters';
+import PaymentStatusIcon from './PaymentStatusIcon';
+import { formatDatetime, formatPrice, getBookingStatusMeta } from '../../utils/formatters';
 
 export default function BookingCard({ booking, onPress }) {
-  const statusMeta = getUnifiedBookingStatus(booking);
+  const bookingStatus = getBookingStatusMeta(booking?.status);
 
   // Mapping bộ môn sang tiếng Việt
   const sportNames = {
@@ -26,7 +27,10 @@ export default function BookingCard({ booking, onPress }) {
           <Text style={styles.courtType}>{sportLabel}</Text>
           <Text style={styles.courtName}>{courtName}</Text>
         </View>
-        <Badge label={statusMeta.label} color={statusMeta.color} size="sm" />
+        <View style={styles.badges}>
+          <Badge label={bookingStatus.label} color={bookingStatus.color} size="sm" />
+          <PaymentStatusIcon paymentStatus={booking?.payment_status} />
+        </View>
       </View>
 
       <View style={styles.divider} />
@@ -65,6 +69,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   headerLeft: { flex: 1, marginRight: spacing.sm },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    maxWidth: '48%',
+  },
   courtType: {
     fontSize: fontSize.xs,
     color: colors.textMuted,

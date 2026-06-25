@@ -229,28 +229,39 @@ ORM: **Sequelize 6** — models trong `backend/src/models/`, quan hệ khai báo
 ```
 Mobile App  --GET booked-slots-->  BookingController  -->  BookingService  -->  MySQL
 Mobile App  --POST bookings---->  BookingService (transaction)  -->  bookings + booking_slots
-Mobile App  --POST payments---->  PaymentService  -->  URL VNPay
+                                      │ emit Socket 'booking' → staff_room
+Mobile App  --WebView VNPay---->  PaymentService  -->  URL VNPay
 VNPay       --IPN callback---->  PaymentService  -->  cập nhật payment + booking status
+                                      │ emit Socket 'booking_changed' → staff_room
+Web Admin   <--Socket.IO---------  Sa bàn / Dashboard / Danh sách tự refresh
 ```
+
+Xem sơ đồ chi tiết: `docs/LUONG_DAT_SAN_BOOKING.puml`.
 
 ---
 
 ## --- SLIDE 8: REAL-TIME & TÁC VỤ NỀN ---
 
-### Socket.io — chỉ cho Web Admin (staff)
+### Socket.io — Web Admin (staff)
 
 - Server: `backend/src/config/socket.ts` — staff join phòng `staff_room`.
-- Khi khách đặt hàng online → `order.service.ts` emit `order` / `order_changed`.
-- Web Admin POS lắng nghe qua `web-admin/src/config/socket.ts` — nhân viên thấy đơn mới không cần F5.
+- **Đơn hàng (shop):** `order` / `order_changed` từ `order.service.ts`, `payment.service.ts`.
+- **Đặt sân (booking):** `booking` / `booking_changed` từ `booking.service.ts`, `payment.service.ts` (IPN VNPay, cron hết hạn 30 phút).
+- Web Admin lắng nghe qua `useStaffRealtime` — popup toàn cục, Trung tâm vận hành, sa bàn lịch, danh sách đặt sân tự refresh.
 
 ```
-Mobile App  --POST /app/orders-->  OrderService
-                                      │ emit('order_changed')
-                                      ▼
-                              Socket.io Server
-                                      ▼
-                              Web Admin (staff_room)
+Mobile App  --POST /app/bookings-->  BookingService
+                                        │ emit('booking')
+                                        ▼
+Mobile App  --VNPay IPN------------>  PaymentService
+                                        │ emit('booking_changed')
+                                        ▼
+                                Socket.io Server (staff_room)
+                                        ▼
+                    Web Admin: dashboard / sa bàn / danh sách / thông báo
 ```
+
+Chi tiết luồng đặt sân: `docs/LUONG_DAT_SAN_BOOKING.md` và `docs/LUONG_DAT_SAN_BOOKING.puml`.
 
 ### Tác vụ nền — không dùng Message Broker
 
